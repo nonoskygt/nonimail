@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoniMail · Limpieza</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --border:#30363d; --txt:#c9d1d9; --muted:#8b949e;
+          --green:#3fb950; --red:#f85149; --magenta:#bc8cff; --yellow:#d29922; --cyan:#58a6ff; --blue:#1f6feb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--txt); height:100vh; display:flex; flex-direction:column; }
+  header { padding:9px 14px; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:15px; margin:0; color:#fff; font-weight:600; white-space:nowrap; }
+  .ctrls { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
+  label { font-size:12px; color:var(--muted); }
+  input, select { background:#0d1117; color:var(--txt); border:1px solid var(--border); border-radius:6px; padding:5px 7px; font-size:13px; }
+  input[type=text]{ width:170px; } input[type=number]{ width:56px; }
+  button { border:none; border-radius:6px; padding:6px 13px; font-size:13px; font-weight:600; cursor:pointer; }
+  #btnStart{background:var(--green);color:#03240f;} #btnStop{background:var(--red);color:#fff;}
+  #btnScan{background:var(--blue);color:#fff;} #btnRules{background:#21262d;color:var(--txt);}
+  #btnAuto{background:#6e40c9;color:#fff;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  .chk{display:flex;align-items:center;gap:4px;}
+  .stats{display:flex;gap:16px;padding:7px 14px;background:#0d1117;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap;}
+  .stat b{color:#fff;font-size:15px;} .stat.del b{color:var(--red);} .stat.keep b{color:var(--green);}
+  .dot{width:9px;height:9px;border-radius:50%;background:#555;display:inline-block;margin-right:5px;}
+  .dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.2s infinite;}
+  @keyframes pulse{50%{opacity:.4;}}
+  .cols{flex:1;display:flex;min-height:0;}
+  .col{display:flex;flex-direction:column;min-width:0;}
+  .col.left{flex:1.25;border-right:1px solid var(--border);}
+  .col.right{flex:1;}
+  .col h2{margin:0;padding:8px 14px;font-size:13px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .col.left h2{color:var(--green);}
+  /* dos terminales apiladas */
+  .col.right{display:flex;flex-direction:column;}
+  .term{flex:1;display:flex;flex-direction:column;min-height:0;}
+  .term:first-child{border-bottom:2px solid var(--border);}
+  .term:nth-child(1) h2{color:var(--yellow);} .term:nth-child(2) h2{color:var(--cyan);}
+  .meter{display:flex;align-items:center;gap:8px;font-weight:400;}
+  .meter .bar{width:90px;height:8px;background:#0d1117;border:1px solid var(--border);border-radius:5px;overflow:hidden;}
+  .meter .bar i{display:block;height:100%;width:0%;background:var(--green);transition:width .4s,background .4s;}
+  .meter b{font-family:monospace;font-size:12px;min-width:38px;text-align:right;color:#fff;}
+  .vram{font-size:11px;color:var(--muted);font-family:monospace;}
+  /* remitentes */
+  .senders{flex:1;overflow-y:auto;}
+  table.sn{width:100%;border-collapse:collapse;font-size:13px;}
+  table.sn th{position:sticky;top:0;background:var(--panel);text-align:left;color:var(--muted);font-size:10px;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border);letter-spacing:.4px;}
+  table.sn td{padding:7px 8px;border-bottom:1px solid #21262d;vertical-align:top;}
+  table.sn tr:hover td{background:#1c2128;}
+  .sn-name{color:var(--txt);font-weight:600;} .sn-email{color:var(--muted);font-size:11px;}
+  .sn-count{text-align:right;font-weight:700;color:#fff;font-family:monospace;font-size:15px;}
+  .sn-samples{color:var(--muted);font-size:11px;line-height:1.4;}
+  .sn-acts{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+  /* botones toggle conservar/borrar */
+  .toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+  .toggle button{font-size:11px;padding:4px 10px;background:#0d1117;color:var(--muted);border:none;font-weight:600;}
+  .toggle button.on-keep{background:var(--green);color:#03240f;}
+  .toggle button.on-del{background:var(--red);color:#fff;}
+  .mini{font-size:11px;padding:4px 8px;border-radius:5px;}
+  .mini.unsub{background:#6e40c9;color:#fff;} .mini:disabled{opacity:.35;}
+  /* mini terminal de escaneo (arriba de remitentes) */
+  .scanterm{display:none;background:#0a0e14;border-bottom:1px solid var(--border);padding:6px 12px;font-family:'Cascadia Code','Consolas',monospace;font-size:11px;line-height:1.5;height:104px;overflow:hidden;}
+  .scanterm.show{display:block;}
+  .scanterm .sl{color:var(--yellow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .scanterm .sl .t{color:#484f58;margin-right:6px;}
+  /* boton conservar unico */
+  .keepbtn{background:#0d1117;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;white-space:nowrap;}
+  .keepbtn.on{background:var(--green);color:#03240f;}
+  /* checkbox baja */
+  .unsubchk{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
+  .unsubchk input{width:15px;height:15px;}
+  .unsubchk.na{opacity:.35;}
+  /* cola desuscripcion (abajo) */
+  .unsubq{border-top:2px solid var(--border);background:#0a0e14;padding:8px 12px;max-height:150px;display:flex;flex-direction:column;}
+  .unsubq-h{font-size:12px;font-weight:600;color:#bc8cff;margin-bottom:5px;}
+  .unsubq-h span{background:#6e40c9;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;}
+  .uq-list{overflow-y:auto;font-family:monospace;font-size:11px;line-height:1.6;}
+  .uq-item{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .uq-pending{color:var(--muted);} .uq-proc{color:var(--yellow);} .uq-done{color:var(--green);} .uq-err{color:#ff9b95;}
+  .vb{font-size:10px;padding:1px 6px;border-radius:8px;}
+  .vb.del{background:rgba(248,81,73,.18);color:#ff9b95;} .vb.keep{background:rgba(63,185,80,.18);color:var(--green);} .vb.dud{background:rgba(210,153,34,.18);color:var(--yellow);}
+  .vr{font-size:10px;color:#6e7681;}
+  /* barra de dureza */
+  .dureza-bar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:#0d1117;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);}
+  .dureza-bar input[type=range]{flex:1;max-width:260px;accent-color:var(--cyan);}
+  .dureza-bar b{color:#fff;font-family:monospace;min-width:26px;text-align:center;}
+  .sel-counts{margin-left:auto;font-family:monospace;font-size:12px;}
+  .vb.dud{background:rgba(210,153,34,.18);color:var(--yellow);}
+  /* feed terminales */
+  .feed{flex:1;overflow-y:auto;padding:6px 12px;font-family:'Cascadia Code','Consolas',monospace;font-size:12px;line-height:1.5;}
+  .ln{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ln .ts{color:#484f58;margin-right:6px;} .ln .tag{color:#6e7681;margin-right:5px;}
+  .k-info{color:var(--muted);} .k-delete{color:var(--red);} .k-keep{color:var(--green);}
+  .k-dry{color:var(--magenta);} .k-warn{color:var(--yellow);} .k-err{color:var(--red);font-weight:700;}
+  .sysbar{padding:6px 14px;background:var(--panel);border-top:1px solid var(--border);font-size:12px;color:var(--muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* modal reglas */
+  .modal-back{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;}
+  .modal-back.open{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:min(820px,100%);max-height:88vh;display:flex;flex-direction:column;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
+  .modal-head h2{margin:0;font-size:16px;color:#fff;} .modal-head button{background:transparent;color:var(--muted);font-size:18px;padding:2px 8px;}
+  .modal-body{padding:16px 18px;overflow-y:auto;}
+  .rule{margin-bottom:22px;} .rule h3{font-size:14px;margin:0 0 4px;}
+  .rule.prot h3{color:var(--green);} .rule.del h3{color:var(--red);} .rule.agent h3{color:var(--cyan);}
+  .rule-desc{font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.45;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;} .chip{font-size:12px;padding:3px 9px;border-radius:12px;font-family:monospace;}
+  .prot .chip{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);}
+  .del .chip{background:rgba(248,81,73,.12);color:#ff9b95;border:1px solid rgba(248,81,73,.25);}
+  .sub{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;} .sub .lbl{font-size:10px;color:var(--muted);min-width:74px;padding-top:4px;}
+  details{margin-top:8px;} summary{font-size:12px;color:var(--muted);cursor:pointer;}
+  pre{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--txt);white-space:pre-wrap;word-break:break-word;margin:8px 0 0;line-height:1.5;}
+  #prompt-box{color:#9fd0ff;}
+  .ed-lbl{display:block;font-size:12px;font-weight:600;margin:14px 0 4px;} .prot-lbl{color:var(--green);} .del-lbl{color:#ff9b95;} .agent-lbl{color:var(--cyan);}
+  .ed-area{width:100%;background:#0d1117;color:var(--txt);border:1px solid var(--border);border-radius:6px;padding:9px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;}
+  #saveMsg{padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:12px;}
+  #saveMsg.ok{background:rgba(63,185,80,.15);color:var(--green);} #saveMsg.err{background:rgba(248,81,73,.15);color:#ff9b95;}
+</style>
+</head>
+<body>
+<header>
+  <h1>📬 NoniMail <span style="color:var(--muted);font-weight:400;">· Limpieza</span></h1>
+  <div class="ctrls">
+    <label>Query <input type="text" id="query" value="in:inbox"></label>
+    <label>Batch <input type="number" id="batchSize" value="30" min="1" max="50"></label>
+    <label>Workers <input type="number" id="concurrency" value="4" min="1" max="8"></label>
+    <span class="chk"><input type="checkbox" id="dryRun"><label for="dryRun">Dry-run</label></span>
+    <span class="chk"><input type="checkbox" id="autoUnsub" checked><label for="autoUnsub">✉️ baja auto</label></span>
+    <button id="btnScan">1 · 🔄 Escanear</button>
+    <button id="btnStart">2 · ▶ Ejecutar</button>
+    <button id="btnStop" disabled>3 · ■ Parar</button>
+    <button id="btnAuto" title="Recorre TODA la bandeja y borra lo claramente promocional, sin revisar">⚡ Limpiar TODO</button>
+    <button id="btnRules">⚙ Reglas</button>
+  </div>
+</header>
+
+<div class="stats">
+  <span class="stat"><span id="dot" class="dot"></span><span id="estado">listo</span></span>
+  <span class="stat">Batch <b id="s-batch">0</b></span>
+  <span class="stat">Cursor <b id="s-cursor">0</b></span>
+  <span class="stat">Revisados <b id="s-seen">0</b></span>
+  <span class="stat del">Borrados <b id="s-del">0</b></span>
+  <span class="stat keep">Conservados <b id="s-keep">0</b></span>
+</div>
+
+<div class="cols">
+  <div class="col left">
+    <h2><span>📊 Remitentes</span><span id="sn-info" style="color:var(--muted);font-weight:400;"></span></h2>
+    <div class="dureza-bar">
+      <span>Dureza</span>
+      <span style="font-size:10px;color:var(--green);">conservador</span>
+      <input type="range" id="dureza" min="0" max="100" value="50">
+      <span style="font-size:10px;color:var(--red);">agresivo</span>
+      <b id="dureza-val">50</b>
+      <span id="sel-counts" class="sel-counts"></span>
+    </div>
+    <div id="scanterm" class="scanterm"><div id="scanterm-lines"></div></div>
+    <div class="senders">
+      <table class="sn"><thead><tr><th>Remitente</th><th style="text-align:right;">Cant.</th><th>Ejemplos</th><th>Conservar</th><th>Baja</th></tr></thead><tbody id="sn-body"></tbody></table>
+      <div id="sn-empty" style="padding:20px;color:var(--muted);font-size:13px;">Tocá "🔄 Escanear remitentes" — irán apareciendo conforme se encuentran.</div>
+    </div>
+    <div id="unsubq" class="unsubq">
+      <div class="unsubq-h">✉️ Cola de desuscripción <span id="uq-count">0</span></div>
+      <div id="uq-list" class="uq-list"><span style="color:var(--muted);font-size:11px;">vacía — los remitentes con baja se encolan solos</span></div>
+    </div>
+  </div>
+  <div class="col right">
+    <div class="term">
+      <h2><span>🧮 CPU · heurística + escaneo</span><span class="meter"><span class="bar"><i id="cpu-bar"></i></span><b id="cpu-pct">—</b></span></h2>
+      <div class="feed" id="feed-cpu"></div>
+    </div>
+    <div class="term">
+      <h2><span>🎮 GPU · LLM (qwen3:8b)</span><span class="meter"><span class="bar"><i id="gpu-bar"></i></span><b id="gpu-pct">—</b><span id="vram" class="vram"></span></span></h2>
+      <div class="feed" id="feed-gpu"></div>
+    </div>
+  </div>
+</div>
+
+<div class="sysbar" id="sysbar">listo</div>
+
+<!-- MODAL REGLAS -->
+<div id="modal" class="modal-back">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>⚙ Reglas <span id="r-model" style="color:var(--muted);font-weight:400;font-size:13px;"></span></h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="btnEdit" style="background:var(--blue);color:#fff;">✏️ Editar</button>
+        <button id="btnSave" style="background:var(--green);color:#03240f;display:none;">💾 Guardar</button>
+        <button id="btnCancelEdit" style="background:#21262d;color:var(--txt);display:none;">Cancelar</button>
+        <button id="btnCloseRules">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="saveMsg" style="display:none;"></div>
+      <div id="rulesView">
+        <section class="rule prot"><h3>🛡️ Protección — SIEMPRE se conserva</h3><p class="rule-desc">Corre antes que todo. Banco, recibos, facturas, 2FA, seguridad. Nunca se borra.</p><div class="chips" id="chips-keep"></div><details><summary>ver patrón regex</summary><pre id="raw-keep"></pre></details></section>
+        <section class="rule del"><h3>🗑️ Auto-borrado heurística</h3><p class="rule-desc">Solo si NO está protegido. Match en asunto → borrado directo; en remitente/cuerpo → dentro del worker.</p><div class="sub"><span class="lbl">ASUNTO</span><div class="chips" id="chips-subj"></div></div><div class="sub"><span class="lbl">REMITENTE</span><div class="chips" id="chips-from"></div></div><div class="sub"><span class="lbl">CUERPO</span><div class="chips" id="chips-body"></div></div></section>
+        <section class="rule agent"><h3>🤖 Prompt exacto del agente (LLM)</h3><p class="rule-desc">Solo para correos que no cayeron en protección ni heurística. Responde una palabra.</p><pre id="prompt-box"></pre></section>
+      </div>
+      <div id="rulesEdit" style="display:none;">
+        <p class="rule-desc" style="color:var(--yellow);">⚠ Editás regex (separá con <code>|</code>). Se validan al guardar.</p>
+        <label class="ed-lbl prot-lbl">🛡️ Protección (keepOverride)</label><textarea id="ed-keep" class="ed-area" rows="5"></textarea>
+        <label class="ed-lbl del-lbl">🗑️ ASUNTO</label><textarea id="ed-subj" class="ed-area" rows="4"></textarea>
+        <label class="ed-lbl del-lbl">🗑️ REMITENTE</label><textarea id="ed-from" class="ed-area" rows="2"></textarea>
+        <label class="ed-lbl del-lbl">🗑️ CUERPO</label><textarea id="ed-body" class="ed-area" rows="2"></textarea>
+        <label class="ed-lbl agent-lbl">🤖 Prompt base del agente</label><textarea id="ed-prompt" class="ed-area" rows="10"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const MAXLINES = 500;
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ---- feeds terminales (CPU=heur, GPU=llm) ----
+function addLine(lane, text, kind, ts) {
+  if (lane === 'sys') { $('sysbar').textContent = `[${ts}] ${text}`; $('sysbar').className = 'sysbar k-' + kind; return; }
+  const feed = lane === 'heur' ? $('feed-cpu') : $('feed-gpu');
+  const div = document.createElement('div'); div.className='ln';
+  div.innerHTML = `<span class="ts">${ts}</span><span class="k-${kind}">${escapeHtml(text)}</span>`;
+  const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
+  feed.appendChild(div); while (feed.childElementCount > MAXLINES) feed.removeChild(feed.firstChild);
+  if (atBottom) feed.scrollTop = feed.scrollHeight;
+}
+function setMeter(barId, pctId, pct) {
+  const v = Math.max(0, Math.min(100, pct|0));
+  const bar = $(barId); bar.style.width = v + '%';
+  bar.style.background = v > 80 ? 'var(--red)' : v > 45 ? 'var(--yellow)' : 'var(--green)';
+  $(pctId).textContent = v + '%';
+}
+function onMetrics(m) {
+  if (typeof m.cpu === 'number') setMeter('cpu-bar','cpu-pct', m.cpu);
+  if (m.gpu) { setMeter('gpu-bar','gpu-pct', m.gpu.util); $('vram').textContent = `${(m.gpu.vramUsed/1024).toFixed(1)}/${(m.gpu.vramTotal/1024).toFixed(1)} GB`; }
+  else { $('gpu-pct').textContent = 'n/a'; }
+}
+function setStats(st, running, scanning) {
+  $('s-batch').textContent=st.batch; $('s-cursor').textContent=st.cursor; $('s-seen').textContent=st.heurSeen;
+  $('s-del').textContent=st.heurDel+st.llmDel; $('s-keep').textContent=st.llmKept;
+  const busy = running||scanning;
+  $('estado').textContent = running?'limpiando':(scanning?'escaneando':'listo');
+  $('dot').className='dot'+(busy?' on':'');
+  $('btnStart').disabled=busy; $('btnStop').disabled=!running; $('btnScan').disabled=busy;
+}
+
+// ---- mini terminal de escaneo (5 lineas) ----
+function scanLine(text, ts) {
+  const box = $('scanterm-lines');
+  const d = document.createElement('div'); d.className='sl';
+  d.innerHTML = `<span class="t">${ts||''}</span>${escapeHtml(text)}`;
+  box.appendChild(d);
+  while (box.childElementCount > 5) box.removeChild(box.firstChild);
+}
+
+// ---- remitentes (izquierda, upsert por email) ----
+const senders = new Map();
+function upsertSender(s) {
+  senders.set(s.email, s);
+  $('sn-empty').style.display='none';
+  renderSenders();
+}
+function renderSenders() {
+  const arr = [...senders.values()].sort((a,b)=>b.count-a.count);
+  const tb = $('sn-body'); tb.innerHTML='';
+  for (const s of arr) {
+    const eff = effDecision(s); // 'keep' | 'delete' | 'duda' | null
+    const tr = document.createElement('tr');
+    if (eff === 'delete') tr.style.background = 'rgba(248,81,73,.07)';
+    else if (eff === 'keep') tr.style.background = 'rgba(63,185,80,.05)';
+    else if (eff === 'duda') tr.style.background = 'rgba(210,153,34,.06)';
+    const scoreTxt = s.score==null ? '⏳ clasificando…'
+      : `ruido: <b style="color:${s.score>=60?'#ff9b95':s.score<=40?'var(--green)':'var(--yellow)'}">${s.score}</b>` + (s.reason==='protegido'?' 🛡️':'') + (eff==='duda'?' <span class="vb dud">❔ en duda</span>':'');
+    tr.innerHTML = `
+      <td><div class="sn-name">${escapeHtml(s.name)} ${s.protected?'🛡️':''}</div><div class="sn-email">${escapeHtml(s.email)}</div><div><span class="vr">${scoreTxt}</span></div></td>
+      <td class="sn-count">${s.count}</td>
+      <td class="sn-samples">${(s.samples||[]).map(escapeHtml).join('<br>')}</td>
+      <td><div class="sn-acts"></div></td>
+      <td class="sn-baja"></td>`;
+    const acts = tr.querySelector('.sn-acts');
+    // toggle Conservar(verde) / Descartar(rojo) — preseleccionado por puntaje+dureza, editable
+    const tg = document.createElement('div'); tg.className='toggle';
+    const bk = document.createElement('button'); bk.textContent='Conservar';
+    const bd = document.createElement('button'); bd.textContent='Descartar';
+    bk.className = eff==='keep' ? 'on-keep' : '';
+    bd.className = eff==='delete' ? 'on-del' : '';
+    bk.onclick = async () => { await setRule(s.email,'protect'); renderSenders(); };
+    bd.onclick = async () => { await setRule(s.email,'delete'); renderSenders(); };
+    tg.appendChild(bk); tg.appendChild(bd); acts.appendChild(tg);
+    // columna Baja: checkbox; preseleccionado para los DESCARTADOS con baja disponible
+    const cell = tr.children[4];
+    const wrap = document.createElement('label'); wrap.className='unsubchk' + (s.canUnsub ? '' : ' na');
+    if (s.unsubDone) { wrap.innerHTML = '✓ baja'; wrap.style.color='var(--green)'; }
+    else if (!s.canUnsub) { wrap.innerHTML = '—'; }
+    else {
+      const cb = document.createElement('input'); cb.type='checkbox';
+      const defChk = eff === 'delete'; // preseleccionado si se descarta
+      cb.checked = uq.has(s.email) ? (uq.get(s.email).status!=='removed') : defChk;
+      cb.onchange = () => { if (cb.checked) enqueueUnsub(s.email, s.name); else dequeueUnsub(s.email); };
+      wrap.appendChild(cb); wrap.appendChild(document.createTextNode('desuscribir'));
+      if (cb.checked) enqueueUnsub(s.email, s.name); // encola (no procesa hasta Ejecutar)
+    }
+    cell.innerHTML = ''; cell.appendChild(wrap);
+    tb.appendChild(tr);
+  }
+  updateCounts();
+}
+// decisión efectiva: regla del usuario gana; sino puntaje del LLM vs dureza
+const BAND = 12;
+function dureza(){ return +($('dureza').value); }
+function effDecision(s) {
+  if (s.rule === 'protect') return 'keep';
+  if (s.rule === 'delete') return 'delete';
+  if (s.score == null) return null;            // aún clasificando
+  const T = 100 - dureza();                    // más dureza → umbral más bajo → más descartes
+  if (s.score >= T + BAND) return 'delete';
+  if (s.score <= T - BAND) return 'keep';
+  return 'duda';                               // zona de duda → lo decidís vos
+}
+function updateCounts() {
+  let del=0, keep=0, dud=0;
+  for (const s of senders.values()) { const e=effDecision(s); if(e==='delete')del++; else if(e==='keep')keep++; else if(e==='duda')dud++; }
+  $('sel-counts').innerHTML = `<span style="color:var(--red)">🗑️ ${del}</span> · <span style="color:var(--green)">✓ ${keep}</span> · <span style="color:var(--yellow)">❔ ${dud} en duda</span>`;
+}
+$('dureza').oninput = () => { $('dureza-val').textContent = $('dureza').value; renderSenders(); };
+async function setRule(email, rule) {
+  const r = await fetch('/api/sender-rule', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,rule})});
+  const d = await r.json();
+  if (d.ok) { const s = senders.get(email); if (s){ s.rule = d.rule; s.protected = d.protected; } }
+}
+
+// ---- cola de desuscripción (auto, FIFO, uno a uno) ----
+const uq = new Map(); // email -> {name, status}  status: pending|proc|done|err
+let uqBusy = false;
+function enqueueUnsub(email, name) {
+  if (uq.has(email) && uq.get(email).status !== 'removed') return;
+  uq.set(email, { name, status: 'pending' });
+  renderQueue(); // NO procesa: se procesa en Paso 2 Ejecutar
+}
+function dequeueUnsub(email) {
+  const it = uq.get(email);
+  if (it && it.status === 'pending') { it.status = 'removed'; uq.delete(email); renderQueue(); }
+}
+function renderQueue() {
+  const list = $('uq-list'); const arr = [...uq.entries()];
+  const pend = arr.filter(([,v])=>v.status==='pending').length;
+  $('uq-count').textContent = pend;
+  if (!arr.length) { list.innerHTML = '<span style="color:var(--muted);font-size:11px;">vacía — los remitentes con baja se encolan solos</span>'; return; }
+  list.innerHTML = '';
+  for (const [email, v] of arr) {
+    const icon = v.status==='done'?'✓':v.status==='proc'?'⏳':v.status==='err'?'✗':'•';
+    const d = document.createElement('div'); d.className='uq-item uq-'+(v.status==='proc'?'proc':v.status);
+    d.textContent = `${icon} ${v.name} <${email}>`;
+    list.appendChild(d);
+  }
+}
+async function processQueue() {
+  if (uqBusy) return;
+  const next = [...uq.entries()].find(([,v])=>v.status==='pending');
+  if (!next) return;
+  uqBusy = true;
+  const [email, it] = next; it.status='proc'; renderQueue();
+  try {
+    const r = await fetch('/api/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d = await r.json();
+    it.status = (r.ok && d.ok) ? 'done' : 'err';
+    const s = senders.get(email); if (s && it.status==='done'){ s.unsubDone=true; renderSenders(); }
+  } catch(_) { it.status='err'; }
+  renderQueue(); uqBusy = false;
+  processQueue(); // siguiente
+}
+async function unsub(email, btn) {
+  btn.disabled=true; btn.textContent='dando de baja...';
+  const r = await fetch('/api/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+  const d = await r.json();
+  if (r.ok&&d.ok){ btn.textContent='✓ baja '+(d.method||''); const s=senders.get(email); if(s)s.unsubDone=true; }
+  else { btn.textContent='✗ '+(d.error||'err').slice(0,30); }
+}
+
+// ---- SSE ----
+let es;
+function connect() {
+  es = new EventSource('/api/stream');
+  es.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.t==='line') addLine(m.lane,m.text,m.kind,m.ts);
+    else if (m.t==='metrics') onMetrics(m);
+    else if (m.t==='stats') setStats(m.stats,m.running,m.scanning);
+    else if (m.t==='sender') upsertSender(m.sender);
+    else if (m.t==='scanline') scanLine(m.text, m.ts);
+    else if (m.t==='scanstart') { senders.clear(); $('sn-body').innerHTML=''; $('sn-info').textContent='escaneando...'; $('scanterm').classList.add('show'); $('scanterm-lines').innerHTML=''; }
+    else if (m.t==='scandone') { $('sn-info').textContent=`${m.total} remitentes · ${m.sampled} correos`; scanLine(`✓ clasificación lista: ${m.total} remitentes — ajustá la Dureza`, new Date().toISOString().slice(11,19)); setTimeout(()=>$('scanterm').classList.remove('show'), 5000); updateCounts(); }
+  };
+}
+connect();
+
+$('btnScan').onclick = async () => {
+  $('feed-cpu').innerHTML=''; $('feed-gpu').innerHTML='';  // limpiar al iniciar el análisis
+  const base = $('query').value.trim() || 'in:inbox';
+  const q = /newer_than|older_than|after:|before:/.test(base) ? base : base + ' newer_than:30d';
+  await fetch('/api/scan-senders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,sampleSize:2000})});
+};
+$('btnStart').onclick = async () => {
+  // Paso 2: ejecutar las decisiones del escaneo
+  const toDelete = [...senders.values()].filter(s => effDecision(s)==='delete').map(s=>s.email);
+  const toUnsub = [...uq.entries()].filter(([,v])=>v.status==='pending').length;
+  if (!toDelete.length && !toUnsub) { alert('Nada que ejecutar. Escaneá primero (Paso 1) — se clasifican solos.'); return; }
+  const dry = $('dryRun').checked;
+  if (!confirm(`Ejecutar:\n• Borrar ${toDelete.length} remitentes (a Papelera)\n• Desuscribir ${toUnsub} remitentes${dry?'\n[DRY-RUN: no borra]':''}\n\n¿Continuar?`)) return;
+  // NO limpiamos las terminales: queda visible lo que clasificó el LLM en el Paso 1
+  // 1) borrar promo
+  if (toDelete.length) await fetch('/api/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emails:toDelete,dryRun:dry})});
+  // 2) procesar cola de bajas
+  if (!dry) processQueue();
+};
+$('btnStop').onclick = async () => { await fetch('/api/stop',{method:'POST'}); };
+$('btnAuto').onclick = async () => {
+  const dry = $('dryRun').checked; const dz = dureza();
+  const unsub = $('autoUnsub').checked;
+  if (!confirm(`⚡ LIMPIAR TODA LA BANDEJA de corrido (sin revisar):\n\n• Recorre TODO in:inbox\n• Borra a Papelera solo lo claramente promocional (dureza ${dz})\n• Conserva financieros, dudosos y lo importante\n${unsub?'• ✉️ DESUSCRIBE automáticamente los descartados con baja disponible (acción real)\n':''}${dry?'\n[DRY-RUN: no borra ni desuscribe]':''}\n\n¿Continuar?`)) return;
+  $('feed-cpu').innerHTML=''; $('feed-gpu').innerHTML='';
+  await fetch('/api/autorun',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'in:inbox',dureza:dz,dryRun:dry,autoUnsub:unsub})});
+};
+
+// ---- modal reglas ----
+function regexToKeywords(p){ p=(p||'').trim().replace(/^\((.*)\)$/s,'$1'); return p.split('|').map(t=>t.replace(/\\b/g,'').replace(/\(\?:[^)]*\)/g,'').replace(/\\s\*/g,' ').replace(/\\s/g,' ').replace(/\\d\{[^}]*\}/g,'#').replace(/\\d/g,'#').replace(/\[[^\]]*\]/g,m=>m.replace(/[\[\]]/g,'')).replace(/\\/g,'').replace(/\s+/g,' ').trim()).filter(s=>s); }
+function renderChips(id,p){ const el=$(id); el.innerHTML=''; regexToKeywords(p).forEach(k=>{const s=document.createElement('span');s.className='chip';s.textContent=k;el.appendChild(s);}); }
+async function loadRules(){ const d=await (await fetch('/api/rules')).json(); $('r-model').textContent='· '+d.model; renderChips('chips-keep',d.keepOverride); $('raw-keep').textContent=d.keepOverride; renderChips('chips-subj',d.subject); renderChips('chips-from',d.from); renderChips('chips-body',d.body); $('prompt-box').textContent=d.promptTemplate; $('ed-keep').value=d.keepOverride; $('ed-subj').value=d.subject; $('ed-from').value=d.from; $('ed-body').value=d.body; $('ed-prompt').value=d.llmPrompt; }
+function setEdit(on){ $('rulesView').style.display=on?'none':''; $('rulesEdit').style.display=on?'':'none'; $('btnEdit').style.display=on?'none':''; $('btnSave').style.display=on?'':'none'; $('btnCancelEdit').style.display=on?'':'none'; }
+function showMsg(t,k){ const m=$('saveMsg'); m.textContent=t; m.className=k; m.style.display='block'; if(k==='ok')setTimeout(()=>m.style.display='none',3000); }
+$('btnRules').onclick=async()=>{ await loadRules(); setEdit(false); $('saveMsg').style.display='none'; $('modal').classList.add('open'); };
+$('btnCloseRules').onclick=()=>$('modal').classList.remove('open');
+$('btnEdit').onclick=()=>{ setEdit(true); $('saveMsg').style.display='none'; };
+$('btnCancelEdit').onclick=()=>{ setEdit(false); loadRules(); };
+$('btnSave').onclick=async()=>{ const p={keepOverride:$('ed-keep').value.trim(),subject:$('ed-subj').value.trim(),from:$('ed-from').value.trim(),body:$('ed-body').value.trim(),llmPrompt:$('ed-prompt').value}; const r=await fetch('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const d=await r.json(); if(r.ok&&d.ok){showMsg('✓ Guardado y aplicado','ok');await loadRules();setEdit(false);}else showMsg('✗ '+(d.error||'error'),'err'); };
+$('modal').onclick=(e)=>{ if(e.target===$('modal'))$('modal').classList.remove('open'); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')$('modal').classList.remove('open'); });
+</script>
+</body>
+</html>

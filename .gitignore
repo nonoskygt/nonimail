@@ -1,0 +1,27 @@
+# === Secretos y datos personales — NUNCA versionar ===
+# Contiene la clave del bridge, la URL de despliegue y tus direcciones reales.
+config.json
+# Reglas por remitente: direcciones de correo reales de terceros.
+senders.json
+# Copia local del bridge con la API key real hardcodeada.
+# Lo que se publica es gmail_bridge.example.gs
+gmail_bridge_patched.gs
+
+# === Salida de ejecución sobre el buzón real ===
+# Los logs registran asuntos, remitentes y decisiones de correos reales.
+logs/
+*.log
+server-stdout.txt
+
+# === Configuración local ===
+config.local.json
+.env
+.env.*
+
+# === Entorno ===
+node_modules/
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
