@@ -27,7 +27,7 @@ test('si el one-click falla, prueba la baja por correo', async () => {
   const s = await S.startSmtp();
   const smtpOptions = { host: '127.0.0.1', port: s.port, secure: false, requireTLS: false, auth: { user: 'smtpuser', pass: 'smtppass' } };
   const r = await u.unsubscribe({ lu: '<https://baja.tienda.invalid/x>, <mailto:baja@tienda.example?subject=baja>', luPost: 'List-Unsubscribe=One-Click', smtpOptions, from: 'yo@test.local' });
-  assert.deepEqual(r, { ok: true, method: 'correo' });
+  assert.deepEqual(r, { ok: true, method: 'correo a baja@tienda.example' });
   assert.deepEqual(s.messages[0].to, ['baja@tienda.example']);
   await s.close();
 });

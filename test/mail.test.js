@@ -123,13 +123,27 @@ test('connectionOptions explica qué falta', async () => {
   assert.equal(c.smtp, null);
 });
 
+test('mailto malicioso: no puede usar tu cuenta para mandar phishing', () => {
+  // varios destinatarios (coma, coma codificada, punto y coma) → se rechaza
+  for (const u of ['mailto:ceo@victima.com,finanzas@victima.com', 'mailto:a@x.com%2Cb@y.com', 'mailto:a@x.com;b@y.com', 'mailto:Juan <a@x.com>', 'mailto:a@x.com%20b@y.com'])
+    assert.equal(smtp.parseMailto(u), null, u);
+  // asunto y cuerpo del atacante se ignoran
+  const m = smtp.parseMailto('mailto:baja@lista.com?subject=Factura%20vencida%20-%20urgente&body=Pag%C3%A1%20en%20https%3A%2F%2Fevil.example');
+  assert.equal(m.to, 'baja@lista.com');
+  assert.equal(m.subject, 'unsubscribe');
+  assert.doesNotMatch(m.body, /evil|Pag/);
+  assert.equal(smtp.parseMailto('mailto:baja@lista.com?subject=unsubscribe%20https%3A%2F%2Fevil.example').subject, 'unsubscribe');
+  assert.equal(smtp.parseMailto('mailto:u-123@lista.com?subject=unsubscribe%20%23A9F2').subject, 'unsubscribe #A9F2', 'tokens de baja legítimos se respetan');
+});
+
 test('SMTP: verify, envío de baja y parseo de mailto', async () => {
   const s = await S.startSmtp();
   const o = { host: '127.0.0.1', port: s.port, secure: false, requireTLS: false, auth: { user: 'smtpuser', pass: 'smtppass' } };
   assert.deepEqual(await smtp.verify(o), { ok: true });
   assert.equal((await smtp.verify({ ...o, auth: { user: 'smtpuser', pass: 'mal' } })).ok, false);
   const m = smtp.parseMailto('mailto:baja%40t.com?subject=unsubscribe%20me&body=x');
-  assert.deepEqual(m, { to: 'baja@t.com', subject: 'unsubscribe me', body: 'x' });
+  assert.equal(m.to, 'baja@t.com'); assert.equal(m.subject, 'unsubscribe me');
+  assert.doesNotMatch(m.body, /^x$/, 'el cuerpo es siempre fijo');
   const r = await smtp.send(o, { from: 'yo@test.local', to: m.to, subject: m.subject, text: m.body });
   assert.equal(r.ok, true);
   assert.deepEqual(s.messages[0].to, ['baja@t.com']);
