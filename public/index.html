@@ -13,26 +13,41 @@
   h1 { font-size:15px; margin:0; color:#fff; font-weight:600; white-space:nowrap; }
   .ctrls { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
   label { font-size:12px; color:var(--muted); }
-  input, select { background:#0d1117; color:var(--txt); border:1px solid var(--border); border-radius:6px; padding:5px 7px; font-size:13px; }
-  input[type=text]{ width:170px; } input[type=number]{ width:56px; }
-  button { border:none; border-radius:6px; padding:6px 13px; font-size:13px; font-weight:600; cursor:pointer; }
+  input, select, textarea { background:#0d1117; color:var(--txt); border:1px solid var(--border); border-radius:6px; padding:5px 7px; font-size:13px; font-family:inherit; }
+  input:focus, select:focus, textarea:focus { outline:2px solid var(--blue); outline-offset:-1px; }
+  button { border:none; border-radius:6px; padding:6px 13px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+  button:focus-visible { outline:2px solid #fff; outline-offset:1px; }
   #btnStart{background:var(--green);color:#03240f;} #btnStop{background:var(--red);color:#fff;}
-  #btnScan{background:var(--blue);color:#fff;} #btnRules{background:#21262d;color:var(--txt);}
+  #btnScan{background:var(--blue);color:#fff;} #btnRules,#btnSettings{background:#21262d;color:var(--txt);}
   #btnAuto{background:#6e40c9;color:#fff;}
   button:disabled{opacity:.4;cursor:not-allowed;}
   .chk{display:flex;align-items:center;gap:4px;}
-  .stats{display:flex;gap:16px;padding:7px 14px;background:#0d1117;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap;}
-  .stat b{color:#fff;font-size:15px;} .stat.del b{color:var(--red);} .stat.keep b{color:var(--green);}
+  .acct{font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid var(--border);background:#0d1117;color:var(--muted);cursor:pointer;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis;}
+  .acct.ok{color:var(--green);border-color:rgba(63,185,80,.4);} .acct.bad{color:var(--yellow);border-color:rgba(210,153,34,.5);}
+  /* rango de días */
+  .range{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);}
+  .range input[type=range]{width:150px;accent-color:var(--cyan);padding:0;}
+  .range b{color:#fff;min-width:62px;}
+  /* barra de estado + progreso */
+  .stats{display:flex;gap:16px;padding:7px 14px;background:#0d1117;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap;align-items:center;}
+  .stat b{color:#fff;font-size:15px;} .stat.del b{color:var(--red);} .stat.keep b{color:var(--green);} .stat.prot b{color:var(--cyan);}
+  .prog{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+  .prog .bar{flex:1;height:8px;background:#161b22;border:1px solid var(--border);border-radius:5px;overflow:hidden;}
+  .prog .bar i{display:block;height:100%;width:0;background:var(--cyan);transition:width .4s;}
   .dot{width:9px;height:9px;border-radius:50%;background:#555;display:inline-block;margin-right:5px;}
   .dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.2s infinite;}
   @keyframes pulse{50%{opacity:.4;}}
+  @media (prefers-reduced-motion: reduce){ .dot.on{animation:none;} .prog .bar i{transition:none;} }
+  /* aviso de trabajo sin terminar */
+  .banner{display:none;padding:8px 14px;background:rgba(210,153,34,.1);border-bottom:1px solid rgba(210,153,34,.35);font-size:13px;gap:10px;align-items:center;flex-wrap:wrap;}
+  .banner.show{display:flex;} .banner .bmsg{flex:1;min-width:200px;} .banner .err{color:#ff9b95;font-size:12px;}
+  .banner button{font-size:12px;padding:4px 10px;} .b-go{background:var(--green);color:#03240f;} .b-x{background:#21262d;color:var(--txt);}
   .cols{flex:1;display:flex;min-height:0;}
   .col{display:flex;flex-direction:column;min-width:0;}
   .col.left{flex:1.25;border-right:1px solid var(--border);}
   .col.right{flex:1;}
   .col h2{margin:0;padding:8px 14px;font-size:13px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
   .col.left h2{color:var(--green);}
-  /* dos terminales apiladas */
   .col.right{display:flex;flex-direction:column;}
   .term{flex:1;display:flex;flex-direction:column;min-height:0;}
   .term:first-child{border-bottom:2px solid var(--border);}
@@ -42,7 +57,6 @@
   .meter .bar i{display:block;height:100%;width:0%;background:var(--green);transition:width .4s,background .4s;}
   .meter b{font-family:monospace;font-size:12px;min-width:38px;text-align:right;color:#fff;}
   .vram{font-size:11px;color:var(--muted);font-family:monospace;}
-  /* remitentes */
   .senders{flex:1;overflow-y:auto;}
   table.sn{width:100%;border-collapse:collapse;font-size:13px;}
   table.sn th{position:sticky;top:0;background:var(--panel);text-align:left;color:var(--muted);font-size:10px;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border);letter-spacing:.4px;}
@@ -52,26 +66,13 @@
   .sn-count{text-align:right;font-weight:700;color:#fff;font-family:monospace;font-size:15px;}
   .sn-samples{color:var(--muted);font-size:11px;line-height:1.4;}
   .sn-acts{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
-  /* botones toggle conservar/borrar */
   .toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
-  .toggle button{font-size:11px;padding:4px 10px;background:#0d1117;color:var(--muted);border:none;font-weight:600;}
+  .toggle button{font-size:11px;padding:4px 10px;background:#0d1117;color:var(--muted);border:none;font-weight:600;border-radius:0;}
   .toggle button.on-keep{background:var(--green);color:#03240f;}
   .toggle button.on-del{background:var(--red);color:#fff;}
-  .mini{font-size:11px;padding:4px 8px;border-radius:5px;}
-  .mini.unsub{background:#6e40c9;color:#fff;} .mini:disabled{opacity:.35;}
-  /* mini terminal de escaneo (arriba de remitentes) */
-  .scanterm{display:none;background:#0a0e14;border-bottom:1px solid var(--border);padding:6px 12px;font-family:'Cascadia Code','Consolas',monospace;font-size:11px;line-height:1.5;height:104px;overflow:hidden;}
-  .scanterm.show{display:block;}
-  .scanterm .sl{color:var(--yellow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .scanterm .sl .t{color:#484f58;margin-right:6px;}
-  /* boton conservar unico */
-  .keepbtn{background:#0d1117;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;white-space:nowrap;}
-  .keepbtn.on{background:var(--green);color:#03240f;}
-  /* checkbox baja */
   .unsubchk{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
   .unsubchk input{width:15px;height:15px;}
   .unsubchk.na{opacity:.35;}
-  /* cola desuscripcion (abajo) */
   .unsubq{border-top:2px solid var(--border);background:#0a0e14;padding:8px 12px;max-height:150px;display:flex;flex-direction:column;}
   .unsubq-h{font-size:12px;font-weight:600;color:#bc8cff;margin-bottom:5px;}
   .unsubq-h span{background:#6e40c9;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;}
@@ -79,28 +80,26 @@
   .uq-item{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .uq-pending{color:var(--muted);} .uq-proc{color:var(--yellow);} .uq-done{color:var(--green);} .uq-err{color:#ff9b95;}
   .vb{font-size:10px;padding:1px 6px;border-radius:8px;}
-  .vb.del{background:rgba(248,81,73,.18);color:#ff9b95;} .vb.keep{background:rgba(63,185,80,.18);color:var(--green);} .vb.dud{background:rgba(210,153,34,.18);color:var(--yellow);}
+  .vb.dud{background:rgba(210,153,34,.18);color:var(--yellow);}
   .vr{font-size:10px;color:#6e7681;}
-  /* barra de dureza */
   .dureza-bar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:#0d1117;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);}
-  .dureza-bar input[type=range]{flex:1;max-width:260px;accent-color:var(--cyan);}
+  .dureza-bar input[type=range]{flex:1;max-width:260px;accent-color:var(--cyan);padding:0;}
   .dureza-bar b{color:#fff;font-family:monospace;min-width:26px;text-align:center;}
   .sel-counts{margin-left:auto;font-family:monospace;font-size:12px;}
-  .vb.dud{background:rgba(210,153,34,.18);color:var(--yellow);}
-  /* feed terminales */
   .feed{flex:1;overflow-y:auto;padding:6px 12px;font-family:'Cascadia Code','Consolas',monospace;font-size:12px;line-height:1.5;}
   .ln{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .ln .ts{color:#484f58;margin-right:6px;} .ln .tag{color:#6e7681;margin-right:5px;}
+  .ln .ts{color:#484f58;margin-right:6px;}
   .k-info{color:var(--muted);} .k-delete{color:var(--red);} .k-keep{color:var(--green);}
   .k-dry{color:var(--magenta);} .k-warn{color:var(--yellow);} .k-err{color:var(--red);font-weight:700;}
   .sysbar{padding:6px 14px;background:var(--panel);border-top:1px solid var(--border);font-size:12px;color:var(--muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  /* modal reglas */
-  .modal-back{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;}
+  /* modales */
+  .modal-back{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;align-items:flex-start;justify-content:center;padding:32px 16px;overflow:auto;}
   .modal-back.open{display:flex;}
-  .modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:min(820px,100%);max-height:88vh;display:flex;flex-direction:column;}
-  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
-  .modal-head h2{margin:0;font-size:16px;color:#fff;} .modal-head button{background:transparent;color:var(--muted);font-size:18px;padding:2px 8px;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:min(820px,100%);max-height:90vh;display:flex;flex-direction:column;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);gap:10px;}
+  .modal-head h2{margin:0;font-size:16px;color:#fff;} .x{background:transparent;color:var(--muted);font-size:18px;padding:2px 8px;}
   .modal-body{padding:16px 18px;overflow-y:auto;}
+  .modal-foot{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--border);flex-wrap:wrap;}
   .rule{margin-bottom:22px;} .rule h3{font-size:14px;margin:0 0 4px;}
   .rule.prot h3{color:var(--green);} .rule.del h3{color:var(--red);} .rule.agent h3{color:var(--cyan);}
   .rule-desc{font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.45;}
@@ -112,65 +111,86 @@
   pre{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--txt);white-space:pre-wrap;word-break:break-word;margin:8px 0 0;line-height:1.5;}
   #prompt-box{color:#9fd0ff;}
   .ed-lbl{display:block;font-size:12px;font-weight:600;margin:14px 0 4px;} .prot-lbl{color:var(--green);} .del-lbl{color:#ff9b95;} .agent-lbl{color:var(--cyan);}
-  .ed-area{width:100%;background:#0d1117;color:var(--txt);border:1px solid var(--border);border-radius:6px;padding:9px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;}
-  #saveMsg{padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:12px;}
-  #saveMsg.ok{background:rgba(63,185,80,.15);color:var(--green);} #saveMsg.err{background:rgba(248,81,73,.15);color:#ff9b95;}
+  .ed-area{width:100%;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;}
+  .msg{padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:12px;display:none;white-space:pre-line;}
+  .msg.ok{display:block;background:rgba(63,185,80,.15);color:var(--green);} .msg.err{display:block;background:rgba(248,81,73,.15);color:#ff9b95;} .msg.info{display:block;background:rgba(88,166,255,.12);color:var(--cyan);}
+  /* configuración */
+  .tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--border);}
+  .tabs button{background:transparent;color:var(--muted);border-radius:0;border-bottom:2px solid transparent;padding:10px 12px;}
+  .tabs button[aria-selected=true]{color:#fff;border-bottom-color:var(--cyan);}
+  .pane{display:none;} .pane.on{display:block;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px 16px;}
+  .f{display:flex;flex-direction:column;gap:4px;} .f label{font-size:12px;color:var(--txt);font-weight:600;}
+  .f input:not([type=checkbox]), .f select, .f textarea{width:100%;}
+  .f .hint{font-size:11px;color:var(--muted);line-height:1.4;}
+  .f.wide{grid-column:1/-1;}
+  .f.chkf{flex-direction:row;align-items:center;gap:8px;} .f.chkf input{width:16px;height:16px;}
+  fieldset{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:0 0 14px;} legend{font-size:12px;color:var(--cyan);padding:0 6px;font-weight:600;}
+  .gstat{font-size:13px;padding:8px 10px;border-radius:6px;background:#0d1117;border:1px solid var(--border);}
+  .gstat.ok{color:var(--green);border-color:rgba(63,185,80,.4);}
+  .guide{font-size:12px;line-height:1.55;color:var(--txt);} .guide ol{padding-left:18px;margin:6px 0;} .guide code{background:#0d1117;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;}
+  .guide a, .hint a{color:var(--cyan);}
+  .tres{font-size:13px;line-height:1.7;} .tres .ok{color:var(--green);} .tres .bad{color:#ff9b95;} .tres .warn{color:var(--yellow);}
+  #btnTest{background:var(--blue);color:#fff;} #btnSaveSettings{background:var(--green);color:#03240f;}
+  .btn2{background:#21262d;color:var(--txt);} #btnGoogle{background:#fff;color:#1f1f1f;}
+  @media (max-width: 760px){ .cols{flex-direction:column;} .col.left{border-right:none;border-bottom:1px solid var(--border);min-height:55vh;} .col.right{min-height:50vh;} }
 </style>
 </head>
 <body>
 <header>
   <h1>📬 NoniMail <span style="color:var(--muted);font-weight:400;">· Limpieza</span></h1>
+  <button id="acct" class="acct" title="Cuenta de correo — abrir Configuración">…</button>
   <div class="ctrls">
-    <label>Query <input type="text" id="query" value="in:inbox"></label>
-    <label>Batch <input type="number" id="batchSize" value="30" min="1" max="50"></label>
-    <label>Workers <input type="number" id="concurrency" value="4" min="1" max="8"></label>
+    <span class="range"><label for="days">Revisar</label><input type="range" id="days" min="0" max="8" step="1" value="1" aria-describedby="days-val"><b id="days-val">30 días</b></span>
     <span class="chk"><input type="checkbox" id="dryRun"><label for="dryRun">Dry-run</label></span>
-    <span class="chk"><input type="checkbox" id="autoUnsub" checked><label for="autoUnsub">✉️ baja auto</label></span>
+    <span class="chk"><input type="checkbox" id="autoUnsub"><label for="autoUnsub">✉️ baja auto</label></span>
     <button id="btnScan">1 · 🔄 Escanear</button>
     <button id="btnStart">2 · ▶ Ejecutar</button>
     <button id="btnStop" disabled>3 · ■ Parar</button>
-    <button id="btnAuto" title="Recorre TODA la bandeja y borra lo claramente promocional, sin revisar">⚡ Limpiar TODO</button>
-    <button id="btnRules">⚙ Reglas</button>
+    <button id="btnAuto" title="Recorre el rango elegido y borra lo claramente promocional, sin revisar">⚡ Limpiar TODO</button>
+    <button id="btnRules">📜 Reglas</button>
+    <button id="btnSettings">⚙ Configuración</button>
   </div>
 </header>
 
 <div class="stats">
   <span class="stat"><span id="dot" class="dot"></span><span id="estado">listo</span></span>
-  <span class="stat">Batch <b id="s-batch">0</b></span>
-  <span class="stat">Cursor <b id="s-cursor">0</b></span>
+  <span class="stat">Lote <b id="s-win">–</b></span>
   <span class="stat">Revisados <b id="s-seen">0</b></span>
-  <span class="stat del">Borrados <b id="s-del">0</b></span>
+  <span class="stat del"><span id="s-del-l">Borrados</span> <b id="s-del">0</b></span>
   <span class="stat keep">Conservados <b id="s-keep">0</b></span>
+  <span class="stat prot">Protegidos <b id="s-prot">0</b></span>
+  <span class="prog" aria-live="polite"><span class="bar"><i id="p-bar"></i></span><span id="p-txt"></span></span>
 </div>
+<div id="banner" class="banner" role="status"></div>
 
 <div class="cols">
   <div class="col left">
     <h2><span>📊 Remitentes</span><span id="sn-info" style="color:var(--muted);font-weight:400;"></span></h2>
     <div class="dureza-bar">
-      <span>Dureza</span>
+      <label for="dureza">Dureza</label>
       <span style="font-size:10px;color:var(--green);">conservador</span>
       <input type="range" id="dureza" min="0" max="100" value="50">
       <span style="font-size:10px;color:var(--red);">agresivo</span>
       <b id="dureza-val">50</b>
       <span id="sel-counts" class="sel-counts"></span>
     </div>
-    <div id="scanterm" class="scanterm"><div id="scanterm-lines"></div></div>
     <div class="senders">
-      <table class="sn"><thead><tr><th>Remitente</th><th style="text-align:right;">Cant.</th><th>Ejemplos</th><th>Conservar</th><th>Baja</th></tr></thead><tbody id="sn-body"></tbody></table>
-      <div id="sn-empty" style="padding:20px;color:var(--muted);font-size:13px;">Tocá "🔄 Escanear remitentes" — irán apareciendo conforme se encuentran.</div>
+      <table class="sn"><thead><tr><th>Remitente</th><th style="text-align:right;">Cant.</th><th>Ejemplos</th><th>Decisión</th><th>Baja</th></tr></thead><tbody id="sn-body"></tbody></table>
+      <div id="sn-empty" style="padding:20px;color:var(--muted);font-size:13px;line-height:1.5;">Elegí cuántos días revisar y tocá <b>1 · Escanear</b>: los remitentes van apareciendo conforme se leen los lotes.</div>
     </div>
     <div id="unsubq" class="unsubq">
       <div class="unsubq-h">✉️ Cola de desuscripción <span id="uq-count">0</span></div>
-      <div id="uq-list" class="uq-list"><span style="color:var(--muted);font-size:11px;">vacía — los remitentes con baja se encolan solos</span></div>
+      <div id="uq-list" class="uq-list"><span style="color:var(--muted);font-size:11px;">vacía — los remitentes descartados con baja se encolan solos</span></div>
     </div>
   </div>
   <div class="col right">
     <div class="term">
-      <h2><span>🧮 CPU · heurística + escaneo</span><span class="meter"><span class="bar"><i id="cpu-bar"></i></span><b id="cpu-pct">—</b></span></h2>
+      <h2><span>🧮 CPU · lectura + heurística</span><span class="meter"><span class="bar"><i id="cpu-bar"></i></span><b id="cpu-pct">—</b></span></h2>
       <div class="feed" id="feed-cpu"></div>
     </div>
     <div class="term">
-      <h2><span>🎮 GPU · LLM (qwen3:8b)</span><span class="meter"><span class="bar"><i id="gpu-bar"></i></span><b id="gpu-pct">—</b><span id="vram" class="vram"></span></span></h2>
+      <h2><span>🎮 GPU · LLM (<span id="gpu-model">…</span>)</span><span class="meter"><span class="bar"><i id="gpu-bar"></i></span><b id="gpu-pct">—</b><span id="vram" class="vram"></span></span></h2>
       <div class="feed" id="feed-gpu"></div>
     </div>
   </div>
@@ -180,31 +200,152 @@
 
 <!-- MODAL REGLAS -->
 <div id="modal" class="modal-back">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rules-title">
     <div class="modal-head">
-      <h2>⚙ Reglas <span id="r-model" style="color:var(--muted);font-weight:400;font-size:13px;"></span></h2>
+      <h2 id="rules-title">📜 Reglas <span id="r-model" style="color:var(--muted);font-weight:400;font-size:13px;"></span></h2>
       <div style="display:flex;gap:8px;align-items:center;">
         <button id="btnEdit" style="background:var(--blue);color:#fff;">✏️ Editar</button>
         <button id="btnSave" style="background:var(--green);color:#03240f;display:none;">💾 Guardar</button>
-        <button id="btnCancelEdit" style="background:#21262d;color:var(--txt);display:none;">Cancelar</button>
-        <button id="btnCloseRules">✕</button>
+        <button id="btnCancelEdit" class="btn2" style="display:none;">Cancelar</button>
+        <button id="btnCloseRules" class="x" aria-label="Cerrar">✕</button>
       </div>
     </div>
     <div class="modal-body">
-      <div id="saveMsg" style="display:none;"></div>
+      <div id="saveMsg" class="msg"></div>
       <div id="rulesView">
         <section class="rule prot"><h3>🛡️ Protección — SIEMPRE se conserva</h3><p class="rule-desc">Corre antes que todo. Banco, recibos, facturas, 2FA, seguridad. Nunca se borra.</p><div class="chips" id="chips-keep"></div><details><summary>ver patrón regex</summary><pre id="raw-keep"></pre></details></section>
-        <section class="rule del"><h3>🗑️ Auto-borrado heurística</h3><p class="rule-desc">Solo si NO está protegido. Match en asunto → borrado directo; en remitente/cuerpo → dentro del worker.</p><div class="sub"><span class="lbl">ASUNTO</span><div class="chips" id="chips-subj"></div></div><div class="sub"><span class="lbl">REMITENTE</span><div class="chips" id="chips-from"></div></div><div class="sub"><span class="lbl">CUERPO</span><div class="chips" id="chips-body"></div></div></section>
-        <section class="rule agent"><h3>🤖 Prompt exacto del agente (LLM)</h3><p class="rule-desc">Solo para correos que no cayeron en protección ni heurística. Responde una palabra.</p><pre id="prompt-box"></pre></section>
+        <section class="rule del"><h3>🗑️ Patrones de ruido</h3><p class="rule-desc">Señales de publicidad en asunto, remitente y cuerpo. Un patrón vacío no coincide con nada.</p><div class="sub"><span class="lbl">ASUNTO</span><div class="chips" id="chips-subj"></div></div><div class="sub"><span class="lbl">REMITENTE</span><div class="chips" id="chips-from"></div></div><div class="sub"><span class="lbl">CUERPO</span><div class="chips" id="chips-body"></div></div></section>
+        <section class="rule agent"><h3>🤖 Prompt exacto del agente (LLM)</h3><p class="rule-desc">Para cada remitente nuevo que no cayó en protección ni en una regla tuya. Responde un puntaje de ruido 0-100.</p><pre id="prompt-box"></pre></section>
       </div>
       <div id="rulesEdit" style="display:none;">
         <p class="rule-desc" style="color:var(--yellow);">⚠ Editás regex (separá con <code>|</code>). Se validan al guardar.</p>
-        <label class="ed-lbl prot-lbl">🛡️ Protección (keepOverride)</label><textarea id="ed-keep" class="ed-area" rows="5"></textarea>
-        <label class="ed-lbl del-lbl">🗑️ ASUNTO</label><textarea id="ed-subj" class="ed-area" rows="4"></textarea>
-        <label class="ed-lbl del-lbl">🗑️ REMITENTE</label><textarea id="ed-from" class="ed-area" rows="2"></textarea>
-        <label class="ed-lbl del-lbl">🗑️ CUERPO</label><textarea id="ed-body" class="ed-area" rows="2"></textarea>
-        <label class="ed-lbl agent-lbl">🤖 Prompt base del agente</label><textarea id="ed-prompt" class="ed-area" rows="10"></textarea>
+        <label class="ed-lbl prot-lbl" for="ed-keep">🛡️ Protección (keepOverride)</label><textarea id="ed-keep" class="ed-area" rows="5"></textarea>
+        <label class="ed-lbl del-lbl" for="ed-subj">🗑️ ASUNTO</label><textarea id="ed-subj" class="ed-area" rows="4"></textarea>
+        <label class="ed-lbl del-lbl" for="ed-from">🗑️ REMITENTE</label><textarea id="ed-from" class="ed-area" rows="2"></textarea>
+        <label class="ed-lbl del-lbl" for="ed-body">🗑️ CUERPO</label><textarea id="ed-body" class="ed-area" rows="2"></textarea>
+        <label class="ed-lbl agent-lbl" for="ed-prompt">🤖 Prompt base del agente</label><textarea id="ed-prompt" class="ed-area" rows="10"></textarea>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIGURACIÓN -->
+<div id="smodal" class="modal-back">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="set-title" style="width:min(900px,100%);">
+    <div class="modal-head"><h2 id="set-title">⚙ Configuración</h2><button id="btnCloseSettings" class="x" aria-label="Cerrar">✕</button></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="cuenta" aria-selected="true">📧 Cuenta</button>
+      <button role="tab" data-tab="llm" aria-selected="false">🤖 LLM</button>
+      <button role="tab" data-tab="limpieza" aria-selected="false">🧹 Limpieza</button>
+      <button role="tab" data-tab="servidor" aria-selected="false">🖥️ Servidor</button>
+    </div>
+    <div class="modal-body">
+      <div id="setMsg" class="msg"></div>
+
+      <div class="pane on" data-pane="cuenta">
+        <div class="grid" style="margin-bottom:14px;">
+          <div class="f wide"><label for="a-type">Cómo te conectás</label>
+            <select id="a-type">
+              <option value="gmail-oauth">Gmail · Conectar con Google (recomendado)</option>
+              <option value="gmail-password">Gmail · contraseña de aplicación</option>
+              <option value="imap">Otro proveedor (IMAP): Yahoo, iCloud, Zoho, Carbonio, hosting…</option>
+              <option value="none">Sin configurar</option>
+            </select></div>
+        </div>
+
+        <fieldset data-show="gmail-oauth"><legend>Conectar con Google</legend>
+          <div class="grid">
+            <div class="f wide"><div id="g-status" class="gstat">No conectado</div></div>
+            <div class="f"><label for="g-cid">Client ID</label><input id="g-cid" autocomplete="off" spellcheck="false" placeholder="….apps.googleusercontent.com"></div>
+            <div class="f"><label for="g-secret">Client Secret</label><input id="g-secret" type="password" autocomplete="new-password" spellcheck="false"><span class="hint" id="g-secret-hint"></span></div>
+            <div class="f wide" style="flex-direction:row;gap:8px;flex-wrap:wrap;"><button id="btnGoogle" type="button">🔐 Conectar con Google</button><button id="btnGoogleOff" type="button" class="btn2">Desconectar</button></div>
+            <details class="f wide guide"><summary>Cómo crear tu Client ID (una sola vez, ~10 min)</summary>
+              <ol>
+                <li>Entrá a <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud Console</a> y creá un proyecto (por ejemplo "NoniMail").</li>
+                <li>En <b>APIs y servicios → Biblioteca</b>, habilitá la <b>Gmail API</b>.</li>
+                <li>En <b>Pantalla de consentimiento de OAuth</b>: tipo <b>Externo</b>, nombre de la app y tu correo. En <b>Permisos</b> agregá <code>https://mail.google.com/</code>.</li>
+                <li>En <b>Público</b>, tocá <b>Publicar app</b> (estado "En producción"). Si queda "En prueba", Google corta el acceso cada 7 días. No hace falta verificarla: es solo para vos.</li>
+                <li>En <b>Credenciales → Crear credenciales → ID de cliente de OAuth</b>, tipo <b>App de escritorio</b>. Copiá el Client ID y el Client Secret acá.</li>
+                <li>Tocá <b>Conectar con Google</b>. Google va a avisar "Google no verificó esta app": es la tuya, tocá <b>Configuración avanzada → Ir a NoniMail</b> y aceptá el acceso al correo.</li>
+              </ol>
+              <span class="hint">La app recibe la respuesta en <code id="g-redirect"></code> (solo esta PC). Tus correos nunca pasan por ningún servidor que no sea Google.</span>
+            </details>
+          </div>
+        </fieldset>
+
+        <fieldset data-show="gmail-password"><legend>Gmail con contraseña de aplicación</legend>
+          <div class="grid">
+            <div class="f"><label for="p-email">Correo de Gmail</label><input id="p-email" type="email" autocomplete="off" spellcheck="false"></div>
+            <div class="f"><label for="p-pass">Contraseña de aplicación</label><input id="p-pass" type="password" autocomplete="new-password" spellcheck="false"><span class="hint" id="p-pass-hint"></span></div>
+            <div class="f wide"><span class="hint">Requiere la verificación en 2 pasos activada. Creala en <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a> (16 letras) y pegala acá. No es tu contraseña normal de Google.</span></div>
+          </div>
+        </fieldset>
+
+        <fieldset data-show="imap"><legend>Servidor IMAP / SMTP</legend>
+          <div class="grid">
+            <div class="f"><label for="i-provider">Proveedor</label><select id="i-provider"></select><span class="hint">Outlook/Hotmail no está: Microsoft ya no acepta contraseñas por IMAP.</span></div>
+            <div class="f"><label for="i-email">Correo</label><input id="i-email" type="email" autocomplete="off" spellcheck="false"></div>
+            <div class="f"><label for="i-user">Usuario (si no es el correo)</label><input id="i-user" autocomplete="off" spellcheck="false"></div>
+            <div class="f"><label for="i-pass">Contraseña</label><input id="i-pass" type="password" autocomplete="new-password" spellcheck="false"><span class="hint" id="i-pass-hint"></span></div>
+            <div class="f"><label for="i-host">Servidor IMAP</label><input id="i-host" spellcheck="false" placeholder="imap.tudominio.com"></div>
+            <div class="f"><label for="i-port">Puerto IMAP</label><input id="i-port" type="number" min="1" max="65535"></div>
+            <div class="f chkf"><input id="i-secure" type="checkbox"><label for="i-secure">IMAP con SSL/TLS</label></div>
+            <div class="f"><label for="o-host">Servidor SMTP (para bajas por correo)</label><input id="o-host" spellcheck="false" placeholder="smtp.tudominio.com"></div>
+            <div class="f"><label for="o-port">Puerto SMTP</label><input id="o-port" type="number" min="1" max="65535"></div>
+            <div class="f chkf"><input id="o-secure" type="checkbox"><label for="o-secure">SMTP con SSL directo (465)</label></div>
+          </div>
+        </fieldset>
+
+        <fieldset data-show="gmail-oauth gmail-password imap"><legend>Carpetas</legend>
+          <div class="grid">
+            <div class="f"><label for="a-inbox">Carpeta a limpiar</label><input id="a-inbox" list="folders" spellcheck="false"></div>
+            <div class="f"><label for="a-trash">Papelera</label><input id="a-trash" list="folders" spellcheck="false" placeholder="(detectar sola)"><span class="hint">Vacío = se detecta. Si no se encuentra, la app no borra nada.</span></div>
+            <datalist id="folders"></datalist>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="pane" data-pane="llm">
+        <div class="grid">
+          <div class="f"><label for="l-url">Dirección de Ollama</label><input id="l-url" spellcheck="false"></div>
+          <div class="f"><label for="l-model">Modelo</label><div style="display:flex;gap:6px;"><select id="l-model" style="flex:1;"></select><button id="btnModels" type="button" class="btn2" title="Recargar modelos instalados" aria-label="Recargar modelos">↻</button></div><span class="hint" id="l-model-hint">Modelos instalados en Ollama.</span></div>
+          <div class="f wide" style="flex-direction:row;gap:10px;align-items:center;flex-wrap:wrap;"><button id="btnLlmTest" type="button" class="btn2">🧪 Probar LLM</button><span id="l-test" class="tres"></span></div>
+          <div class="f chkf"><input id="l-think" type="checkbox"><label for="l-think">Pensar los dudosos (más preciso, más lento)</label></div>
+          <div class="f"><label for="l-dlow">Dudoso desde</label><input id="l-dlow" type="number" min="0" max="100"></div>
+          <div class="f"><label for="l-dhigh">Dudoso hasta</label><input id="l-dhigh" type="number" min="0" max="100"></div>
+          <div class="f"><label for="l-tpred">Tokens de pensamiento</label><input id="l-tpred" type="number" min="64" max="32768"><span class="hint">Si el modelo se queda sin respuesta al pensar, subilo.</span></div>
+          <div class="f"><label for="l-ctx">Contexto (rápido)</label><input id="l-ctx" type="number" min="512" max="262144"></div>
+          <div class="f"><label for="l-tctx">Contexto al pensar</label><input id="l-tctx" type="number" min="512" max="262144"></div>
+          <div class="f"><label for="l-par">LLM en paralelo</label><input id="l-par" type="number" min="1" max="8"><span class="hint">En una GPU de 8 GB, 1 es lo más rápido.</span></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="limpieza">
+        <div class="grid">
+          <div class="f"><label for="c-days">Rango por defecto</label><select id="c-days"></select></div>
+          <div class="f"><label for="c-win">Días por lote</label><input id="c-win" type="number" min="1" max="3650"><span class="hint">El rango se parte en lotes de estos días; el progreso se guarda al terminar cada uno.</span></div>
+          <div class="f"><label for="c-chunk">Correos por bloque de lectura</label><input id="c-chunk" type="number" min="10" max="1000"></div>
+          <div class="f"><label for="c-dureza">Dureza por defecto</label><input id="c-dureza" type="number" min="0" max="100"></div>
+          <div class="f"><label for="c-band">Margen de duda</label><input id="c-band" type="number" min="0" max="50"></div>
+          <div class="f"><label for="c-body">Caracteres del cuerpo para el LLM</label><input id="c-body" type="number" min="100" max="50000"></div>
+          <div class="f chkf"><input id="c-conv" type="checkbox"><label for="c-conv">Proteger conversaciones (nunca borrar hilos donde respondiste)</label></div>
+          <div class="f chkf"><input id="c-unsub" type="checkbox"><label for="c-unsub">Baja automática por defecto</label></div>
+          <div class="f chkf"><input id="c-dry" type="checkbox"><label for="c-dry">Dry-run por defecto</label></div>
+          <div class="f wide"><label for="c-mine">Mis otras direcciones</label><textarea id="c-mine" rows="2" spellcheck="false" placeholder="ventas@tuempresa.com, alias@..."></textarea><span class="hint">La cuenta conectada ya se incluye sola. Un hilo con un mensaje de estas direcciones nunca se borra.</span></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="servidor">
+        <div class="grid">
+          <div class="f"><label for="s-port">Puerto</label><input id="s-port" type="number" min="1024" max="65535"><span class="hint">Cambiarlo requiere reiniciar la app.</span></div>
+          <div class="f"><label>Escucha en</label><input id="s-host" disabled><span class="hint">Solo esta PC: nadie más en tu red puede usar la app.</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="btnTest" type="button">🔌 Probar conexión</button>
+      <button id="btnSaveSettings" type="button">💾 Guardar</button>
+      <span id="t-res" class="tres" aria-live="polite" style="flex-basis:100%;"></span>
     </div>
   </div>
 </div>
@@ -212,9 +353,20 @@
 <script>
 const $ = id => document.getElementById(id);
 const MAXLINES = 500;
-function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const RANGES = [[7,'7 días'],[30,'30 días'],[90,'3 meses'],[180,'6 meses'],[365,'1 año'],[730,'2 años'],[1095,'3 años'],[1825,'5 años'],[0,'Todo']];
+function escapeHtml(s){ return String(s ?? '').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function api(method, url, body) {
+  const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+  return d;
+}
+const rangeLabel = (days) => (RANGES.find(r => r[0] === days) || [days, `${days} días`])[1];
+const daysValue = () => RANGES[+$('days').value][0];
+function setDays(days) { const i = RANGES.findIndex(r => r[0] === days); $('days').value = i < 0 ? 1 : i; $('days-val').textContent = rangeLabel(daysValue()); }
+$('days').oninput = () => { $('days-val').textContent = rangeLabel(daysValue()); };
 
-// ---- feeds terminales (CPU=heur, GPU=llm) ----
+// ---- terminales ----
 function addLine(lane, text, kind, ts) {
   if (lane === 'sys') { $('sysbar').textContent = `[${ts}] ${text}`; $('sysbar').className = 'sysbar k-' + kind; return; }
   const feed = lane === 'heur' ? $('feed-cpu') : $('feed-gpu');
@@ -235,87 +387,99 @@ function onMetrics(m) {
   if (m.gpu) { setMeter('gpu-bar','gpu-pct', m.gpu.util); $('vram').textContent = `${(m.gpu.vramUsed/1024).toFixed(1)}/${(m.gpu.vramTotal/1024).toFixed(1)} GB`; }
   else { $('gpu-pct').textContent = 'n/a'; }
 }
-function setStats(st, running, scanning) {
-  $('s-batch').textContent=st.batch; $('s-cursor').textContent=st.cursor; $('s-seen').textContent=st.heurSeen;
-  $('s-del').textContent=st.heurDel+st.llmDel; $('s-keep').textContent=st.llmKept;
-  const busy = running||scanning;
-  $('estado').textContent = running?'limpiando':(scanning?'escaneando':'listo');
-  $('dot').className='dot'+(busy?' on':'');
-  $('btnStart').disabled=busy; $('btnStop').disabled=!running; $('btnScan').disabled=busy;
-}
 
-// ---- mini terminal de escaneo (5 lineas) ----
-function scanLine(text, ts) {
-  const box = $('scanterm-lines');
-  const d = document.createElement('div'); d.className='sl';
-  d.innerHTML = `<span class="t">${ts||''}</span>${escapeHtml(text)}`;
-  box.appendChild(d);
-  while (box.childElementCount > 5) box.removeChild(box.firstChild);
+// ---- progreso del trabajo ----
+let JOB = { running: false }, MAIN = null;
+function fmtEta(s){ if (s == null) return ''; if (s < 60) return `~${s}s`; const m = Math.round(s/60); return m < 60 ? `~${m} min` : `~${Math.floor(m/60)} h ${m%60} min`; }
+function renderProgress(j) {
+  JOB = j || { running: false };
+  const busy = !!JOB.running;
+  $('estado').textContent = busy ? `${JOB.label}${JOB.dryRun ? ' [dry-run]' : ''}` : 'listo';
+  $('dot').className = 'dot' + (busy ? ' on' : '');
+  for (const id of ['btnStart','btnScan','btnAuto','btnSettings','btnRules']) $(id).disabled = busy;
+  $('btnStop').disabled = !busy;
+  const t = JOB.totals || { seen: 0, deleted: 0, kept: 0, protected: 0 };
+  if (JOB.key) {
+    $('s-win').textContent = JOB.windowCount ? `${JOB.windowIdx}/${JOB.windowCount}` : '–';
+    $('s-seen').textContent = t.seen; $('s-del').textContent = t.deleted; $('s-keep').textContent = t.kept; $('s-prot').textContent = t.protected;
+    $('s-del-l').textContent = JOB.dryRun ? 'Se borrarían' : 'Borrados';
+    const frac = JOB.status === 'done' ? 1 : JOB.windowCount ? ((JOB.windowIdx - 1) + (busy && JOB.windowTotal ? JOB.windowDone / JOB.windowTotal : 0)) / JOB.windowCount : 0;
+    $('p-bar').style.width = Math.round(Math.max(0, Math.min(1, frac)) * 100) + '%';
+    $('p-txt').textContent = busy ? `${JOB.windowLabel || ''}${JOB.windowTotal ? ` · ${JOB.windowDone}/${JOB.windowTotal}` : ''} ${fmtEta(JOB.etaSec)}` : (JOB.status === 'done' ? 'terminado' : JOB.status === 'paused' ? 'pausado' : '');
+  }
+}
+async function refreshPending() {
+  try { const d = await api('GET', '/api/jobs'); renderBanner(d.pending); } catch (_) {}
+}
+function renderBanner(pending) {
+  const b = $('banner'); const p = (pending || [])[0];
+  if (!p || JOB.running) { b.classList.remove('show'); b.innerHTML = ''; return; }
+  b.innerHTML = `<span class="bmsg">⏸ <b>${escapeHtml(p.label)}</b> sin terminar · ${escapeHtml(rangeLabel(p.daysBack))} · sigue en el lote ${p.windowIdx}/${p.windowCount} · revisados ${p.totals.seen}${p.dryRun ? ' · dry-run' : ''}${p.error ? `<br><span class="err">Se pausó por: ${escapeHtml(p.error)}</span>` : ''}</span>`;
+  const go = document.createElement('button'); go.className = 'b-go'; go.textContent = '▶ Continuar';
+  go.onclick = async () => { try { await api('POST', '/api/jobs/resume', { key: p.key }); b.classList.remove('show'); } catch (e) { alert(e.message); } };
+  const x = document.createElement('button'); x.className = 'b-x'; x.textContent = '✕ Descartar';
+  x.onclick = async () => { if (!confirm('¿Descartar el progreso guardado? Lo ya borrado sigue en la Papelera.')) return; const d = await api('POST', '/api/jobs/discard', { key: p.key }); renderBanner(d.pending); };
+  b.appendChild(go); b.appendChild(x); b.classList.add('show');
 }
 
 // ---- remitentes (izquierda, upsert por email) ----
 const senders = new Map();
-function upsertSender(s) {
-  senders.set(s.email, s);
-  $('sn-empty').style.display='none';
-  renderSenders();
+let renderTimer = null;
+function upsertSenders(list) {
+  for (const s of list) senders.set(s.email, s);
+  if (senders.size) $('sn-empty').style.display = 'none';
+  if (!renderTimer) renderTimer = setTimeout(() => { renderTimer = null; renderSenders(); }, 250);
 }
 function renderSenders() {
   const arr = [...senders.values()].sort((a,b)=>b.count-a.count);
   const tb = $('sn-body'); tb.innerHTML='';
   for (const s of arr) {
-    const eff = effDecision(s); // 'keep' | 'delete' | 'duda' | null
+    const eff = effDecision(s);
     const tr = document.createElement('tr');
     if (eff === 'delete') tr.style.background = 'rgba(248,81,73,.07)';
     else if (eff === 'keep') tr.style.background = 'rgba(63,185,80,.05)';
     else if (eff === 'duda') tr.style.background = 'rgba(210,153,34,.06)';
     const scoreTxt = s.score==null ? '⏳ clasificando…'
-      : `ruido: <b style="color:${s.score>=60?'#ff9b95':s.score<=40?'var(--green)':'var(--yellow)'}">${s.score}</b>` + (s.reason==='protegido'?' 🛡️':'') + (eff==='duda'?' <span class="vb dud">❔ en duda</span>':'');
+      : `ruido: <b style="color:${s.score>=60?'#ff9b95':s.score<=40?'var(--green)':'var(--yellow)'}">${s.score}</b>` + (s.reason==='protegido'?' 🛡️':'') + (s.reason==='llm-think'?' 🧠':'') + (eff==='duda'?' <span class="vb dud">❔ en duda</span>':'');
     tr.innerHTML = `
       <td><div class="sn-name">${escapeHtml(s.name)} ${s.protected?'🛡️':''}</div><div class="sn-email">${escapeHtml(s.email)}</div><div><span class="vr">${scoreTxt}</span></div></td>
       <td class="sn-count">${s.count}</td>
       <td class="sn-samples">${(s.samples||[]).map(escapeHtml).join('<br>')}</td>
       <td><div class="sn-acts"></div></td>
       <td class="sn-baja"></td>`;
-    const acts = tr.querySelector('.sn-acts');
-    // toggle Conservar(verde) / Descartar(rojo) — preseleccionado por puntaje+dureza, editable
     const tg = document.createElement('div'); tg.className='toggle';
     const bk = document.createElement('button'); bk.textContent='Conservar';
     const bd = document.createElement('button'); bd.textContent='Descartar';
-    bk.className = eff==='keep' ? 'on-keep' : '';
-    bd.className = eff==='delete' ? 'on-del' : '';
+    bk.className = eff==='keep' ? 'on-keep' : ''; bd.className = eff==='delete' ? 'on-del' : '';
     bk.onclick = async () => { await setRule(s.email,'protect'); renderSenders(); };
     bd.onclick = async () => { await setRule(s.email,'delete'); renderSenders(); };
-    tg.appendChild(bk); tg.appendChild(bd); acts.appendChild(tg);
-    // columna Baja: checkbox; preseleccionado para los DESCARTADOS con baja disponible
+    tg.appendChild(bk); tg.appendChild(bd); tr.querySelector('.sn-acts').appendChild(tg);
     const cell = tr.children[4];
     const wrap = document.createElement('label'); wrap.className='unsubchk' + (s.canUnsub ? '' : ' na');
-    if (s.unsubDone) { wrap.innerHTML = '✓ baja'; wrap.style.color='var(--green)'; }
-    else if (!s.canUnsub) { wrap.innerHTML = '—'; }
+    if (s.unsubDone) { wrap.textContent = '✓ baja'; wrap.style.color='var(--green)'; }
+    else if (!s.canUnsub) { wrap.textContent = '—'; }
     else {
       const cb = document.createElement('input'); cb.type='checkbox';
-      const defChk = eff === 'delete'; // preseleccionado si se descarta
-      cb.checked = uq.has(s.email) ? (uq.get(s.email).status!=='removed') : defChk;
+      cb.checked = uq.has(s.email) ? (uq.get(s.email).status!=='removed') : eff === 'delete';
       cb.onchange = () => { if (cb.checked) enqueueUnsub(s.email, s.name); else dequeueUnsub(s.email); };
       wrap.appendChild(cb); wrap.appendChild(document.createTextNode('desuscribir'));
-      if (cb.checked) enqueueUnsub(s.email, s.name); // encola (no procesa hasta Ejecutar)
+      if (cb.checked) enqueueUnsub(s.email, s.name);
     }
-    cell.innerHTML = ''; cell.appendChild(wrap);
+    cell.appendChild(wrap);
     tb.appendChild(tr);
   }
   updateCounts();
 }
-// decisión efectiva: regla del usuario gana; sino puntaje del LLM vs dureza
-const BAND = 12;
+let BAND = 12;
 function dureza(){ return +($('dureza').value); }
 function effDecision(s) {
   if (s.rule === 'protect') return 'keep';
   if (s.rule === 'delete') return 'delete';
-  if (s.score == null) return null;            // aún clasificando
-  const T = 100 - dureza();                    // más dureza → umbral más bajo → más descartes
+  if (s.score == null) return null;
+  const T = 100 - dureza();
   if (s.score >= T + BAND) return 'delete';
   if (s.score <= T - BAND) return 'keep';
-  return 'duda';                               // zona de duda → lo decidís vos
+  return 'duda';
 }
 function updateCounts() {
   let del=0, keep=0, dud=0;
@@ -324,33 +488,24 @@ function updateCounts() {
 }
 $('dureza').oninput = () => { $('dureza-val').textContent = $('dureza').value; renderSenders(); };
 async function setRule(email, rule) {
-  const r = await fetch('/api/sender-rule', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,rule})});
-  const d = await r.json();
-  if (d.ok) { const s = senders.get(email); if (s){ s.rule = d.rule; s.protected = d.protected; } }
+  const d = await api('POST', '/api/sender-rule', { email, rule });
+  const s = senders.get(email); if (s) { s.rule = d.rule; s.protected = d.protected; }
 }
 
-// ---- cola de desuscripción (auto, FIFO, uno a uno) ----
-const uq = new Map(); // email -> {name, status}  status: pending|proc|done|err
+// ---- cola de desuscripción (FIFO, uno a uno, se procesa en Ejecutar) ----
+const uq = new Map();
 let uqBusy = false;
-function enqueueUnsub(email, name) {
-  if (uq.has(email) && uq.get(email).status !== 'removed') return;
-  uq.set(email, { name, status: 'pending' });
-  renderQueue(); // NO procesa: se procesa en Paso 2 Ejecutar
-}
-function dequeueUnsub(email) {
-  const it = uq.get(email);
-  if (it && it.status === 'pending') { it.status = 'removed'; uq.delete(email); renderQueue(); }
-}
+function enqueueUnsub(email, name) { if (uq.has(email) && uq.get(email).status !== 'removed') return; uq.set(email, { name, status: 'pending' }); renderQueue(); }
+function dequeueUnsub(email) { const it = uq.get(email); if (it && it.status === 'pending') { uq.delete(email); renderQueue(); } }
 function renderQueue() {
   const list = $('uq-list'); const arr = [...uq.entries()];
-  const pend = arr.filter(([,v])=>v.status==='pending').length;
-  $('uq-count').textContent = pend;
-  if (!arr.length) { list.innerHTML = '<span style="color:var(--muted);font-size:11px;">vacía — los remitentes con baja se encolan solos</span>'; return; }
+  $('uq-count').textContent = arr.filter(([,v])=>v.status==='pending').length;
+  if (!arr.length) { list.innerHTML = '<span style="color:var(--muted);font-size:11px;">vacía — los remitentes descartados con baja se encolan solos</span>'; return; }
   list.innerHTML = '';
   for (const [email, v] of arr) {
     const icon = v.status==='done'?'✓':v.status==='proc'?'⏳':v.status==='err'?'✗':'•';
-    const d = document.createElement('div'); d.className='uq-item uq-'+(v.status==='proc'?'proc':v.status);
-    d.textContent = `${icon} ${v.name} <${email}>`;
+    const d = document.createElement('div'); d.className='uq-item uq-'+v.status;
+    d.textContent = `${icon} ${v.name} <${email}>${v.note ? ' — ' + v.note : ''}`;
     list.appendChild(d);
   }
 }
@@ -360,81 +515,234 @@ async function processQueue() {
   if (!next) return;
   uqBusy = true;
   const [email, it] = next; it.status='proc'; renderQueue();
-  try {
-    const r = await fetch('/api/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d = await r.json();
-    it.status = (r.ok && d.ok) ? 'done' : 'err';
-    const s = senders.get(email); if (s && it.status==='done'){ s.unsubDone=true; renderSenders(); }
-  } catch(_) { it.status='err'; }
+  try { const d = await api('POST', '/api/unsubscribe', { email }); it.status = 'done'; it.note = d.method; const s = senders.get(email); if (s) { s.unsubDone = true; renderSenders(); } }
+  catch (e) { it.status = 'err'; it.note = e.message; }
   renderQueue(); uqBusy = false;
-  processQueue(); // siguiente
+  processQueue();
 }
-async function unsub(email, btn) {
-  btn.disabled=true; btn.textContent='dando de baja...';
-  const r = await fetch('/api/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-  const d = await r.json();
-  if (r.ok&&d.ok){ btn.textContent='✓ baja '+(d.method||''); const s=senders.get(email); if(s)s.unsubDone=true; }
-  else { btn.textContent='✗ '+(d.error||'err').slice(0,30); }
+
+// ---- cuenta + configuración principal ----
+function renderMain(c) {
+  MAIN = c;
+  $('gpu-model').textContent = c.model || 'sin modelo';
+  BAND = c.cleaning.band;
+  const a = c.account, el = $('acct');
+  if (a.type === 'none') { el.textContent = '⚠ Conectá tu correo'; el.className = 'acct bad'; }
+  else if (!a.ready) { el.textContent = `⚠ ${a.email || 'cuenta'} · falta completar`; el.className = 'acct bad'; }
+  else { el.textContent = `📧 ${a.email}`; el.className = 'acct ok'; }
+}
+async function loadMain(first) {
+  const c = await api('GET', '/api/config');
+  renderMain(c);
+  if (first) {
+    setDays(c.cleaning.daysBack);
+    $('dureza').value = c.cleaning.dureza; $('dureza-val').textContent = c.cleaning.dureza;
+    $('dryRun').checked = c.cleaning.dryRun; $('autoUnsub').checked = c.cleaning.autoUnsub;
+    renderProgress(c.job); renderBanner(c.pending);
+    if (c.migratedFrom) addLine('sys', `Se migró la configuración anterior (el puente de Apps Script ya no se usa). Respaldo: ${c.migratedFrom}`, 'warn', new Date().toISOString().slice(11,19));
+    if (c.account.type === 'none') openSettings();
+  }
+  return c;
+}
+function needAccount() {
+  if (MAIN && MAIN.account.ready && MAIN.model) return false;
+  const noModel = MAIN && !MAIN.model && MAIN.account.ready;
+  alert(noModel ? 'Elegí un modelo en ⚙ Configuración → LLM.' : 'Primero conectá tu correo en ⚙ Configuración → Cuenta.');
+  openSettings(noModel ? 'llm' : 'cuenta'); return true;
+}
+async function startJob(url, body, kind) {
+  try {
+    const { pending } = await api('GET', '/api/jobs');
+    const same = pending.find(p => p.kind === kind && p.daysBack === body.daysBack && p.dryRun === !!body.dryRun);
+    if (same && !confirm(`Hay un "${same.label}" sin terminar para este mismo rango (iba por el lote ${same.windowIdx}/${same.windowCount}).\n\nAceptar = empezar de nuevo (se descarta ese progreso)\nCancelar = no hacer nada (usá "Continuar" en el aviso amarillo)`)) return false;
+    await api('POST', url, body); $('banner').classList.remove('show'); return true;
+  } catch (e) { alert(e.message); return false; }
 }
 
 // ---- SSE ----
-let es;
 function connect() {
-  es = new EventSource('/api/stream');
+  const es = new EventSource('/api/stream');
   es.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.t==='line') addLine(m.lane,m.text,m.kind,m.ts);
     else if (m.t==='metrics') onMetrics(m);
-    else if (m.t==='stats') setStats(m.stats,m.running,m.scanning);
-    else if (m.t==='sender') upsertSender(m.sender);
-    else if (m.t==='scanline') scanLine(m.text, m.ts);
-    else if (m.t==='scanstart') { senders.clear(); $('sn-body').innerHTML=''; $('sn-info').textContent='escaneando...'; $('scanterm').classList.add('show'); $('scanterm-lines').innerHTML=''; }
-    else if (m.t==='scandone') { $('sn-info').textContent=`${m.total} remitentes · ${m.sampled} correos`; scanLine(`✓ clasificación lista: ${m.total} remitentes — ajustá la Dureza`, new Date().toISOString().slice(11,19)); setTimeout(()=>$('scanterm').classList.remove('show'), 5000); updateCounts(); }
+    else if (m.t==='progress') { renderProgress(m.job); if (!m.job.running) refreshPending(); }
+    else if (m.t==='senders') upsertSenders(m.list);
+    else if (m.t==='scanstart') { senders.clear(); uq.clear(); renderQueue(); $('sn-body').innerHTML=''; $('sn-info').textContent='escaneando…'; upsertSenders(m.senders || []); }
+    else if (m.t==='scandone') { $('sn-info').textContent=`${m.total} remitentes · ${m.sampled} correos${m.status==='paused'?' · pausado':''}`; renderSenders(); }
+    else if (m.t==='config') { renderMain(m.config); if ($('smodal').classList.contains('open')) loadSettings(true); }
   };
 }
-connect();
 
+// ---- botones principales ----
+$('acct').onclick = () => openSettings('cuenta');
 $('btnScan').onclick = async () => {
-  $('feed-cpu').innerHTML=''; $('feed-gpu').innerHTML='';  // limpiar al iniciar el análisis
-  const base = $('query').value.trim() || 'in:inbox';
-  const q = /newer_than|older_than|after:|before:/.test(base) ? base : base + ' newer_than:30d';
-  await fetch('/api/scan-senders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,sampleSize:2000})});
+  if (needAccount()) return;
+  $('feed-cpu').innerHTML=''; $('feed-gpu').innerHTML='';
+  await startJob('/api/scan', { daysBack: daysValue() }, 'scan');
 };
 $('btnStart').onclick = async () => {
-  // Paso 2: ejecutar las decisiones del escaneo
+  if (needAccount()) return;
   const toDelete = [...senders.values()].filter(s => effDecision(s)==='delete').map(s=>s.email);
-  const toUnsub = [...uq.entries()].filter(([,v])=>v.status==='pending').length;
-  if (!toDelete.length && !toUnsub) { alert('Nada que ejecutar. Escaneá primero (Paso 1) — se clasifican solos.'); return; }
-  const dry = $('dryRun').checked;
-  if (!confirm(`Ejecutar:\n• Borrar ${toDelete.length} remitentes (a Papelera)\n• Desuscribir ${toUnsub} remitentes${dry?'\n[DRY-RUN: no borra]':''}\n\n¿Continuar?`)) return;
-  // NO limpiamos las terminales: queda visible lo que clasificó el LLM en el Paso 1
-  // 1) borrar promo
-  if (toDelete.length) await fetch('/api/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emails:toDelete,dryRun:dry})});
-  // 2) procesar cola de bajas
+  const toUnsub = [...uq.values()].filter(v=>v.status==='pending').length;
+  if (!toDelete.length && !toUnsub) { alert('Nada que ejecutar. Escaneá primero (paso 1): los remitentes se clasifican solos.'); return; }
+  const dry = $('dryRun').checked, days = daysValue();
+  if (!confirm(`Ejecutar sobre ${rangeLabel(days).toLowerCase()}:\n• Mover a la Papelera los correos de ${toDelete.length} remitentes\n• Dar de baja ${toUnsub} remitentes${dry?'\n\n[DRY-RUN: no borra ni da de baja]':''}\n\n¿Continuar?`)) return;
+  if (toDelete.length && !(await startJob('/api/execute', { daysBack: days, emails: toDelete, dryRun: dry }, 'execute'))) return;
   if (!dry) processQueue();
 };
-$('btnStop').onclick = async () => { await fetch('/api/stop',{method:'POST'}); };
+$('btnStop').onclick = async () => { await api('POST', '/api/stop', {}); };
 $('btnAuto').onclick = async () => {
-  const dry = $('dryRun').checked; const dz = dureza();
-  const unsub = $('autoUnsub').checked;
-  if (!confirm(`⚡ LIMPIAR TODA LA BANDEJA de corrido (sin revisar):\n\n• Recorre TODO in:inbox\n• Borra a Papelera solo lo claramente promocional (dureza ${dz})\n• Conserva financieros, dudosos y lo importante\n${unsub?'• ✉️ DESUSCRIBE automáticamente los descartados con baja disponible (acción real)\n':''}${dry?'\n[DRY-RUN: no borra ni desuscribe]':''}\n\n¿Continuar?`)) return;
+  if (needAccount()) return;
+  const dry = $('dryRun').checked, dz = dureza(), unsub = $('autoUnsub').checked, days = daysValue();
+  if (!confirm(`⚡ LIMPIAR ${rangeLabel(days).toUpperCase()} de ${MAIN.account.email} (sin revisar):\n\n• Se procesa en lotes de ${MAIN.cleaning.windowDays} días; podés parar y continuar después\n• Mueve a la Papelera solo lo claramente promocional (dureza ${dz})\n• Conserva bancos, conversaciones, dudosos y lo importante\n${unsub?'• ✉️ Da de baja automáticamente a los descartados (acción real)\n':''}${dry?'\n[DRY-RUN: no borra ni da de baja]':''}\n\n¿Continuar?`)) return;
   $('feed-cpu').innerHTML=''; $('feed-gpu').innerHTML='';
-  await fetch('/api/autorun',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'in:inbox',dureza:dz,dryRun:dry,autoUnsub:unsub})});
+  await startJob('/api/autorun', { daysBack: days, dureza: dz, dryRun: dry, autoUnsub: unsub }, 'auto');
 };
 
 // ---- modal reglas ----
 function regexToKeywords(p){ p=(p||'').trim().replace(/^\((.*)\)$/s,'$1'); return p.split('|').map(t=>t.replace(/\\b/g,'').replace(/\(\?:[^)]*\)/g,'').replace(/\\s\*/g,' ').replace(/\\s/g,' ').replace(/\\d\{[^}]*\}/g,'#').replace(/\\d/g,'#').replace(/\[[^\]]*\]/g,m=>m.replace(/[\[\]]/g,'')).replace(/\\/g,'').replace(/\s+/g,' ').trim()).filter(s=>s); }
 function renderChips(id,p){ const el=$(id); el.innerHTML=''; regexToKeywords(p).forEach(k=>{const s=document.createElement('span');s.className='chip';s.textContent=k;el.appendChild(s);}); }
-async function loadRules(){ const d=await (await fetch('/api/rules')).json(); $('r-model').textContent='· '+d.model; renderChips('chips-keep',d.keepOverride); $('raw-keep').textContent=d.keepOverride; renderChips('chips-subj',d.subject); renderChips('chips-from',d.from); renderChips('chips-body',d.body); $('prompt-box').textContent=d.promptTemplate; $('ed-keep').value=d.keepOverride; $('ed-subj').value=d.subject; $('ed-from').value=d.from; $('ed-body').value=d.body; $('ed-prompt').value=d.llmPrompt; }
+async function loadRules(){ const d=await api('GET','/api/rules'); $('r-model').textContent='· '+(d.model||'sin modelo'); renderChips('chips-keep',d.keepOverride); $('raw-keep').textContent=d.keepOverride; renderChips('chips-subj',d.subject); renderChips('chips-from',d.from); renderChips('chips-body',d.body); $('prompt-box').textContent=d.promptTemplate; $('ed-keep').value=d.keepOverride; $('ed-subj').value=d.subject; $('ed-from').value=d.from; $('ed-body').value=d.body; $('ed-prompt').value=d.llmPrompt; }
 function setEdit(on){ $('rulesView').style.display=on?'none':''; $('rulesEdit').style.display=on?'':'none'; $('btnEdit').style.display=on?'none':''; $('btnSave').style.display=on?'':'none'; $('btnCancelEdit').style.display=on?'':'none'; }
-function showMsg(t,k){ const m=$('saveMsg'); m.textContent=t; m.className=k; m.style.display='block'; if(k==='ok')setTimeout(()=>m.style.display='none',3000); }
-$('btnRules').onclick=async()=>{ await loadRules(); setEdit(false); $('saveMsg').style.display='none'; $('modal').classList.add('open'); };
+function showMsg(el,t,k){ const m=$(el); m.textContent=t; m.className='msg '+k; if(k==='ok')setTimeout(()=>{m.className='msg';},3000); }
+$('btnRules').onclick=async()=>{ await loadRules(); setEdit(false); $('saveMsg').className='msg'; $('modal').classList.add('open'); };
 $('btnCloseRules').onclick=()=>$('modal').classList.remove('open');
-$('btnEdit').onclick=()=>{ setEdit(true); $('saveMsg').style.display='none'; };
+$('btnEdit').onclick=()=>{ setEdit(true); $('saveMsg').className='msg'; };
 $('btnCancelEdit').onclick=()=>{ setEdit(false); loadRules(); };
-$('btnSave').onclick=async()=>{ const p={keepOverride:$('ed-keep').value.trim(),subject:$('ed-subj').value.trim(),from:$('ed-from').value.trim(),body:$('ed-body').value.trim(),llmPrompt:$('ed-prompt').value}; const r=await fetch('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const d=await r.json(); if(r.ok&&d.ok){showMsg('✓ Guardado y aplicado','ok');await loadRules();setEdit(false);}else showMsg('✗ '+(d.error||'error'),'err'); };
+$('btnSave').onclick=async()=>{ try { await api('POST','/api/rules',{keepOverride:$('ed-keep').value,subject:$('ed-subj').value,from:$('ed-from').value,body:$('ed-body').value,llmPrompt:$('ed-prompt').value}); showMsg('saveMsg','✓ Guardado y aplicado','ok'); await loadRules(); setEdit(false); } catch(e){ showMsg('saveMsg','✗ '+e.message,'err'); } };
 $('modal').onclick=(e)=>{ if(e.target===$('modal'))$('modal').classList.remove('open'); };
-document.addEventListener('keydown',e=>{ if(e.key==='Escape')$('modal').classList.remove('open'); });
+
+// ---- modal configuración ----
+let SET = null;
+function selectTab(name) {
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === name));
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => selectTab(b.dataset.tab));
+function showType() {
+  const t = $('a-type').value;
+  document.querySelectorAll('[data-show]').forEach(f => f.style.display = f.dataset.show.split(' ').includes(t) ? '' : 'none');
+}
+$('a-type').onchange = showType;
+function secretHint(id, has) { $(id).textContent = has ? '✓ guardada — dejala vacía para no cambiarla' : ''; }
+async function loadModels(selected) {
+  const url = $('l-url').value.trim();
+  const sel = $('l-model');
+  try {
+    const d = await api('GET', '/api/llm/models?url=' + encodeURIComponent(url));
+    const list = d.models.slice();
+    if (selected && !list.includes(selected)) list.unshift(selected);
+    sel.innerHTML = list.length ? list.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}${d.models.includes(m) ? '' : ' (no instalado)'}</option>`).join('') : '<option value="">(no hay modelos)</option>';
+    sel.value = selected || list[0] || '';
+    $('l-model-hint').textContent = d.ok ? `${d.models.length} modelos instalados en Ollama.` : `⚠ ${d.error}`;
+  } catch (e) { $('l-model-hint').textContent = '⚠ ' + e.message; }
+}
+async function loadSettings(keepTab) {
+  SET = await api('GET', '/api/settings');
+  const s = SET.settings, a = s.account, sec = SET.secrets;
+  $('a-type').value = a.type;
+  $('g-cid').value = s.google.clientId; $('g-secret').value = ''; secretHint('g-secret-hint', sec.hasGoogleClientSecret);
+  $('g-status').textContent = sec.googleConnected && a.type === 'gmail-oauth' ? `✓ Conectado como ${a.email}` : 'No conectado';
+  $('g-status').className = 'gstat' + (sec.googleConnected && a.type === 'gmail-oauth' ? ' ok' : '');
+  $('btnGoogleOff').style.display = sec.googleConnected ? '' : 'none';
+  $('g-redirect').textContent = SET.redirectUri;
+  $('p-email').value = a.type === 'gmail-password' ? a.email : ''; $('p-pass').value = ''; secretHint('p-pass-hint', sec.hasImapPassword && a.type === 'gmail-password');
+  const prov = $('i-provider');
+  prov.innerHTML = Object.entries(SET.presets).filter(([k]) => k !== 'gmail').map(([k, v]) => `<option value="${k}">${escapeHtml(v.label)}</option>`).join('');
+  prov.value = a.provider in SET.presets && a.provider !== 'gmail' ? a.provider : 'custom';
+  $('i-email').value = a.type === 'imap' ? a.email : ''; $('i-user').value = a.username; $('i-pass').value = ''; secretHint('i-pass-hint', sec.hasImapPassword && a.type === 'imap');
+  $('i-host').value = a.imap.host; $('i-port').value = a.imap.port; $('i-secure').checked = a.imap.secure;
+  $('o-host').value = a.smtp.host; $('o-port').value = a.smtp.port; $('o-secure').checked = a.smtp.secure;
+  $('a-inbox').value = a.inboxFolder; $('a-trash').value = a.trashFolder;
+  $('l-url').value = s.ollamaUrl; await loadModels(s.model);
+  const L = s.llm; $('l-think').checked = L.think; $('l-dlow').value = L.doubtLow; $('l-dhigh').value = L.doubtHigh; $('l-tpred').value = L.thinkNumPredict; $('l-ctx').value = L.numCtx; $('l-tctx').value = L.thinkNumCtx; $('l-par').value = L.parallel;
+  const c = s.cleaning;
+  $('c-days').innerHTML = RANGES.map(([d, l]) => `<option value="${d}">${l}</option>`).join(''); $('c-days').value = String(c.daysBack);
+  $('c-win').value = c.windowDays; $('c-chunk').value = c.fetchChunk; $('c-dureza').value = c.dureza; $('c-band').value = c.band; $('c-body').value = c.bodyMaxChars;
+  $('c-conv').checked = c.protectConversations; $('c-unsub').checked = c.autoUnsub; $('c-dry').checked = c.dryRun; $('c-mine').value = c.myAddresses.join(', ');
+  $('s-port').value = s.port; $('s-host').value = s.host;
+  showType();
+  if (!keepTab) selectTab('cuenta');
+}
+$('i-provider').onchange = () => {
+  const p = SET.presets[$('i-provider').value];
+  if (p && p.imap) { $('i-host').value = p.imap.host; $('i-port').value = p.imap.port; $('i-secure').checked = p.imap.secure; $('o-host').value = p.smtp.host; $('o-port').value = p.smtp.port; $('o-secure').checked = p.smtp.secure; }
+};
+function collect() {
+  const t = $('a-type').value;
+  const email = t === 'gmail-password' ? $('p-email').value.trim() : t === 'imap' ? $('i-email').value.trim() : SET.settings.account.email;
+  const settings = {
+    port: +$('s-port').value,
+    account: { type: t, email, username: $('i-user').value.trim(), provider: $('i-provider').value,
+      imap: { host: $('i-host').value.trim(), port: +$('i-port').value, secure: $('i-secure').checked },
+      smtp: { host: $('o-host').value.trim(), port: +$('o-port').value, secure: $('o-secure').checked },
+      inboxFolder: $('a-inbox').value.trim() || 'INBOX', trashFolder: $('a-trash').value.trim() },
+    google: { clientId: $('g-cid').value.trim() },
+    ollamaUrl: $('l-url').value.trim(), model: $('l-model').value,
+    llm: { think: $('l-think').checked, doubtLow: +$('l-dlow').value, doubtHigh: +$('l-dhigh').value, thinkNumPredict: +$('l-tpred').value, numCtx: +$('l-ctx').value, thinkNumCtx: +$('l-tctx').value, parallel: +$('l-par').value },
+    cleaning: { daysBack: +$('c-days').value, windowDays: +$('c-win').value, fetchChunk: +$('c-chunk').value, dureza: +$('c-dureza').value, band: +$('c-band').value, bodyMaxChars: +$('c-body').value,
+      protectConversations: $('c-conv').checked, autoUnsub: $('c-unsub').checked, dryRun: $('c-dry').checked, myAddresses: $('c-mine').value },
+  };
+  const pass = t === 'gmail-password' ? $('p-pass').value : t === 'imap' ? $('i-pass').value : '';
+  const secrets = { imapPassword: pass, googleClientSecret: $('g-secret').value };
+  return { settings, secrets };
+}
+async function openSettings(tab) {
+  $('setMsg').className = 'msg'; $('t-res').innerHTML = '';
+  $('smodal').classList.add('open');
+  try { await loadSettings(); if (tab) selectTab(tab); } catch (e) { showMsg('setMsg', '✗ ' + e.message, 'err'); }
+}
+$('btnSettings').onclick = () => openSettings();
+$('btnCloseSettings').onclick = () => $('smodal').classList.remove('open');
+$('smodal').onclick = (e) => { if (e.target === $('smodal')) $('smodal').classList.remove('open'); };
+$('btnModels').onclick = () => loadModels($('l-model').value);
+$('btnTest').onclick = async () => {
+  const btn = $('btnTest'); btn.disabled = true; $('t-res').innerHTML = '⏳ probando…';
+  try {
+    const r = await api('POST', '/api/settings/test', collect());
+    const line = (name, x, okText) => x ? `<div class="${x.ok ? (x.warning ? 'warn' : 'ok') : 'bad'}">${x.ok ? (x.warning ? '⚠' : '✓') : '✗'} <b>${name}</b>: ${escapeHtml(x.ok ? okText(x) : x.error)}${x.ok && x.warning ? ' — ' + escapeHtml(x.warning) : ''}</div>` : '';
+    $('t-res').innerHTML =
+      line('Correo (IMAP)', r.mail, x => `${x.inboxCount} correos en ${x.inbox}; Papelera: ${x.trash || '(no encontrada)'}${x.isGmail ? ' · Gmail' : ''}`) +
+      (r.mail && !r.mail.ok && r.mail.warning ? `<div class="bad">⚠ ${escapeHtml(r.mail.warning)}</div>` : '') +
+      line('Envío (SMTP)', r.smtp, () => 'listo para enviar bajas por correo') +
+      line('Ollama', r.llm, x => `v${x.version}, modelo instalado`);
+    if (r.mail && r.mail.folders) $('folders').innerHTML = r.mail.folders.map(f => `<option value="${escapeHtml(f)}">`).join('');
+  } catch (e) { $('t-res').innerHTML = `<div class="bad">✗ ${escapeHtml(e.message)}</div>`; }
+  btn.disabled = false;
+};
+$('btnSaveSettings').onclick = async () => {
+  try {
+    const d = await api('POST', '/api/settings', collect());
+    showMsg('setMsg', d.restartNeeded ? '✓ Guardado. Reiniciá la app para usar el puerto nuevo.' : '✓ Guardado', 'ok');
+    await loadSettings(true); await loadMain(false);
+  } catch (e) { showMsg('setMsg', '✗ ' + e.message, 'err'); }
+};
+$('btnLlmTest').onclick = async () => {
+  const btn = $('btnLlmTest'); btn.disabled = true; $('l-test').innerHTML = '⏳ probando (la primera vez carga el modelo)…';
+  try {
+    const r = await api('POST', '/api/llm/test', { ollamaUrl: $('l-url').value.trim(), model: $('l-model').value });
+    $('l-test').innerHTML = (r.results || []).map(x => `${escapeHtml(x.name)}: <b>${x.score ?? '?'}</b> (${(x.ms/1000).toFixed(1)} s)`).join(' · ') +
+      ` <span class="${r.ok ? 'ok' : 'bad'}">${r.ok ? '✓ distingue bien' : '✗ ' + escapeHtml(r.error)}</span>`;
+  } catch (e) { $('l-test').innerHTML = `<span class="bad">✗ ${escapeHtml(e.message)}</span>`; }
+  btn.disabled = false;
+};
+$('btnGoogle').onclick = async () => {
+  try {
+    const d = await api('POST', '/api/oauth/google/start', { clientId: $('g-cid').value.trim(), clientSecret: $('g-secret').value.trim() });
+    window.open(d.authUrl, '_blank', 'noopener');
+    $('g-status').textContent = '⏳ Esperando a que aceptes en Google (se abrió otra pestaña)…'; $('g-status').className = 'gstat';
+  } catch (e) { showMsg('setMsg', '✗ ' + e.message, 'err'); }
+};
+$('btnGoogleOff').onclick = async () => {
+  if (!confirm('¿Desconectar la cuenta de Google? Se revoca el acceso de NoniMail.')) return;
+  try { await api('POST', '/api/oauth/google/disconnect', {}); await loadSettings(true); await loadMain(false); } catch (e) { showMsg('setMsg', '✗ ' + e.message, 'err'); }
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('modal').classList.remove('open'); $('smodal').classList.remove('open'); } });
+
+// ---- arranque ----
+connect();
+loadMain(true).then(async () => { const d = await api('GET', '/api/senders'); if (d.senders.length) { upsertSenders(d.senders); $('sn-info').textContent = `${d.senders.length} remitentes (último escaneo)`; } }).catch(e => addLine('sys', 'No se pudo cargar: ' + e.message, 'err', ''));
 </script>
 </body>
 </html>

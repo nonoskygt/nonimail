@@ -1,32 +1,16 @@
 # Licencias de terceros
 
-## AnythingLLM Gmail Bridge
+Este repositorio no incluye código de terceros. Las dependencias se instalan con `npm install` y cada
+una trae su licencia en `node_modules/<paquete>/`.
 
-El archivo `gmail_bridge.example.gs` deriva del **Gmail Bridge** de
-[AnythingLLM](https://github.com/Mintplex-Labs/anything-llm), de Mintplex Labs Inc.,
-distribuido bajo licencia MIT. El aviso de copyright original se conserva en la
-cabecera del archivo.
+| Paquete | Uso | Licencia |
+|---|---|---|
+| [imapflow](https://github.com/postalsys/imapflow) | Cliente IMAP | MIT |
+| [nodemailer](https://github.com/nodemailer/nodemailer) | Envío SMTP de bajas por correo | MIT-0 |
+| [hoodiecrow-imap](https://github.com/andris9/hoodiecrow) (solo pruebas) | Servidor IMAP en memoria | MIT |
+| [smtp-server](https://github.com/nodemailer/smtp-server) (solo pruebas) | Servidor SMTP local | MIT-0 |
 
-```
-MIT License
+Las dependencias transitivas de producción (libmime, libqp, libbase64, iconv-lite, pino, etc.) son MIT o ISC.
 
-Copyright (c) Mintplex Labs Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+Hasta la versión 1.x, el repositorio incluía `gmail_bridge.example.gs`, derivado del Gmail Bridge de
+[AnythingLLM](https://github.com/Mintplex-Labs/anything-llm) (Mintplex Labs Inc., MIT). La versión 2.0 lo eliminó.
