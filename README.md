@@ -58,6 +58,16 @@ npm start
 
 Abrí <http://localhost:8765>. La primera vez se abre **⚙ Configuración** para conectar tu correo.
 
+**Sobre el modelo:** en **⚙ Configuración → LLM**, **🧪 Probar LLM** comprueba dos cosas: que el modelo
+distinga una promoción de un correo personal, y que termine de "pensar" un caso dudoso. Medido en una
+RTX 4070 de 8 GB:
+- `qwen3.5:9b` clasifica bien en modo rápido, pero al pensar no termina ni con 2048 tokens (más de un
+  minuto por correo).
+- Un derivado más escueto (`ornith:9b`, de la misma familia) responde pensando en unos 10 segundos.
+
+Si el modelo se corta pensando, el trabajo desactiva solo esa fase y sigue con el puntaje rápido. También
+podés desmarcar **Pensar los dudosos**.
+
 ## Conectar tu correo
 
 En **⚙ Configuración → Cuenta** elegí una de estas tres opciones y usá **🔌 Probar conexión** antes de **💾 Guardar**.

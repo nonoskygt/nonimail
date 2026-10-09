@@ -15,10 +15,10 @@ test('parseScore toma el veredicto, no la escala', () => {
   assert.equal(llm.parseScore(null, 33), 33);
 });
 
-test('buildPrompt incluye remitente, asuntos, BULK y cierre según modo', () => {
+test('buildPrompt incluye remitente, asuntos y BULK, y no pide razonar en el texto', () => {
   const p = llm.buildPrompt('BASE', { from: 'a@b', subjects: ['x', 'y'], bulk: true, body: 'cuerpo' });
   assert.match(p, /^BASE\n\nEmail:\nFROM: a@b\nSUBJECT: x \| y\nBULK: si\nBODY: cuerpo\n\nPuntaje \(0-100\):$/);
-  assert.match(llm.buildPrompt('B', { from: 'a', subjects: [], bulk: false }, true), /Razona brevemente/);
+  assert.doesNotMatch(p, /[Rr]azona/, 'contradiría el "solo un número" del prompt base');
 });
 
 function fakeOllama(handler) {
@@ -66,5 +66,19 @@ test('listModels y testModel contra Ollama falso', async () => {
     const t = await llm.testModel(cfgFor(url));
     assert.equal(t.ok, true);
     assert.deepEqual(t.results.map(r => r.score), [95, 3]);
+    assert.equal(t.think, null, 'sin "pensar" no se prueba el pensamiento');
+  } finally { srv.close(); }
+});
+
+test('testModel avisa si el modelo no termina de pensar', async () => {
+  const { srv, url } = await fakeOllama((path, body) => body.think
+    ? { body: { response: '', thinking: '…', done_reason: 'length' } }
+    : { body: { response: /90% OFF/.test(body.prompt) ? '95' : '3' } });
+  try {
+    const cfg = cfgFor(url); cfg.llm.think = true;
+    const t = await llm.testModel(cfg);
+    assert.equal(t.ok, true);
+    assert.equal(t.think.ok, false);
+    assert.match(t.think.error, /no termina de pensar con 100 tokens/);
   } finally { srv.close(); }
 });

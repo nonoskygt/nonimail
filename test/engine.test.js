@@ -26,8 +26,9 @@ function fakeOllama() {
       const pr = p.prompt || '';
       let score = '3';
       if (/FROM: .*ofertas@/.test(pr)) score = '95';
-      if (/FROM: .*dudoso@/.test(pr)) { score = p.think ? '85' : '50'; if (p.think) st.think++; }
+      if (/FROM: .*(dudoso@|otro-dudoso@)/.test(pr)) { score = p.think ? '85' : '50'; if (p.think) st.think++; }
       res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (p.think && st.truncateThink) return res.end(JSON.stringify({ response: '', thinking: 'pienso y pienso… Puntaje (0-100) 30 70', done_reason: 'length' }));
       res.end(JSON.stringify({ response: score, done_reason: 'stop' }));
     });
   });
@@ -165,6 +166,20 @@ test('execute: borra solo los remitentes elegidos dentro del rango, respetando p
     assert.deepEqual(await t.subjects('Papelera'), ['Gran OFERTA 100', 'Gran OFERTA 200', 'Gran OFERTA 3', 'Gran OFERTA 300', 'Gran OFERTA 40']);
     assert.ok((await t.subjects('INBOX')).includes('OFERTA vieja'), 'fuera del rango no se toca');
     assert.equal(t.ol.st.calls, 0, 'ejecutar no usa el LLM');
+  } finally { await t.cleanup(); }
+});
+
+test('si el modelo se corta pensando, deja de pensar en ese trabajo y conserva el puntaje rápido', async () => {
+  const t = await setup();
+  try {
+    t.ol.st.truncateThink = true;
+    t.eng.start('scan', { daysBack: 365 });
+    await t.done();
+    const by = Object.fromEntries(t.eng.scanSenders().map(s => [s.email, s]));
+    assert.equal(by['dudoso@club.com'].score, 50, 'no adivina con los números del razonamiento cortado');
+    assert.equal(by['dudoso@club.com'].reason, 'llm');
+    assert.equal(t.ol.st.think, 1, 'un solo intento de pensar en todo el trabajo');
+    assert.ok(t.lines.some(l => /no termina de pensar/.test(l)));
   } finally { await t.cleanup(); }
 });
 

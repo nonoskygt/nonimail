@@ -719,11 +719,13 @@ $('btnSaveSettings').onclick = async () => {
   } catch (e) { showMsg('setMsg', '✗ ' + e.message, 'err'); }
 };
 $('btnLlmTest').onclick = async () => {
-  const btn = $('btnLlmTest'); btn.disabled = true; $('l-test').innerHTML = '⏳ probando (la primera vez carga el modelo)…';
+  const btn = $('btnLlmTest'); btn.disabled = true; $('l-test').innerHTML = '⏳ probando (la primera vez carga el modelo; la prueba pensando puede tardar un minuto)…';
   try {
-    const r = await api('POST', '/api/llm/test', { ollamaUrl: $('l-url').value.trim(), model: $('l-model').value });
+    const r = await api('POST', '/api/llm/test', { ollamaUrl: $('l-url').value.trim(), model: $('l-model').value, think: $('l-think').checked, thinkNumPredict: +$('l-tpred').value });
+    const t = r.think;
     $('l-test').innerHTML = (r.results || []).map(x => `${escapeHtml(x.name)}: <b>${x.score ?? '?'}</b> (${(x.ms/1000).toFixed(1)} s)`).join(' · ') +
-      ` <span class="${r.ok ? 'ok' : 'bad'}">${r.ok ? '✓ distingue bien' : '✗ ' + escapeHtml(r.error)}</span>`;
+      ` <span class="${r.ok ? 'ok' : 'bad'}">${r.ok ? '✓ distingue bien' : '✗ ' + escapeHtml(r.error)}</span>` +
+      (t ? `<br>pensando un dudoso: <span class="${t.ok ? 'ok' : 'bad'}">${t.ok ? `✓ responde ${t.score ?? '?'} en ${(t.ms/1000).toFixed(1)} s` : '✗ ' + escapeHtml(t.error)}</span>` : '');
   } catch (e) { $('l-test').innerHTML = `<span class="bad">✗ ${escapeHtml(e.message)}</span>`; }
   btn.disabled = false;
 };

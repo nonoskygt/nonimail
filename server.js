@@ -270,7 +270,10 @@ const server = http.createServer(async (req, res) => {
       case 'POST /api/settings/test': return json(200, await testConnection(body));
       case 'GET /api/llm/models': return json(200, await llm.listModels(u.searchParams.get('url') || CFG.ollamaUrl));
       case 'POST /api/llm/test': {
-        const cfg = { ...CFG, ollamaUrl: body.ollamaUrl || CFG.ollamaUrl, model: body.model || CFG.model };
+        const cfg = { ...CFG, ollamaUrl: body.ollamaUrl || CFG.ollamaUrl, model: body.model || CFG.model, llm: { ...CFG.llm } };
+        if (typeof body.think === 'boolean') cfg.llm.think = body.think;
+        const tp = parseInt(body.thinkNumPredict, 10);
+        if (tp >= 64 && tp <= 32768) cfg.llm.thinkNumPredict = tp;
         if (!cfg.model) return json(400, { error: 'Elegí un modelo' });
         return json(200, await llm.testModel(cfg));
       }
