@@ -1,6 +1,12 @@
 # === Secretos y datos personales — NUNCA versionar ===
-# Contiene la clave del bridge, la URL de despliegue y tus direcciones reales.
+# Contraseña IMAP, Client Secret y token de Google.
+secrets.json
+# Tu cuenta, tus direcciones y (en 1.x) la clave del bridge; y los respaldos de la migración.
 config.json
+config.json.bak*
+# Trabajos sin terminar: remitentes y asuntos reales.
+progress.json
+*.tmp
 # Reglas por remitente: direcciones de correo reales de terceros.
 senders.json
 # Copia local del bridge con la API key real hardcodeada.
@@ -20,6 +26,8 @@ config.local.json
 
 # === Entorno ===
 node_modules/
+# Caché local de graphify (grafo del código generado en esta máquina)
+graphify-out/
 npm-debug.log*
 .DS_Store
 Thumbs.db

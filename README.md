@@ -1,99 +1,173 @@
 # Nono Mail Cleaner
 
-Limpiador de bandeja de entrada de Gmail con panel web local. Clasifica los correos
-en dos capas — heurísticas por expresión regular y un LLM local vía [Ollama](https://ollama.com) —
-y mueve a la papelera solo lo que ambas coinciden en marcar como ruido.
+Limpiador de bandeja de entrada con panel web local. Se conecta a tu correo por **IMAP** (Gmail u otro
+proveedor) y clasifica los correos en dos capas: protecciones y heurísticas por expresión regular, y un
+**LLM local vía [Ollama](https://ollama.com)**. Mueve a la Papelera solo lo claramente promocional.
 
-Todo el procesamiento del contenido de los correos ocurre en tu máquina. Ningún
-asunto ni cuerpo de correo sale hacia un servicio externo de IA.
+Todo el análisis ocurre en tu máquina. Ningún asunto ni cuerpo de correo sale hacia un servicio externo de IA.
 
 ## Cómo funciona
 
-Son tres piezas:
+- **`server.js`**: servidor Node que escucha solo en `127.0.0.1:8765`. Orquesta los trabajos y sirve el panel.
+- **`public/index.html`**: panel de control, con eventos en vivo por SSE: remitentes, progreso por lotes y métricas de CPU/GPU.
+- **`lib/`**: el motor.
+  - `mail/imap.js`: acceso IMAP con [imapflow](https://github.com/postalsys/imapflow).
+  - `mail/smtp.js`: bajas por correo con [nodemailer](https://nodemailer.com).
+  - `mail/google-oauth.js`: "Conectar con Google".
+  - `engine.js`: trabajos por lotes.
+  - `classify.js` y `llm.js`: decisión.
 
-- **`server.js`** — servidor Node sin dependencias externas (solo módulos nativos). Orquesta
-  el escaneo, la clasificación y las acciones. Escucha en `localhost:8765`.
-- **`public/index.html`** — panel de control. Recibe eventos en vivo por SSE: log por carriles,
-  contadores y métricas de CPU/GPU.
-- **`gmail_bridge.example.gs`** — Google Apps Script que se despliega como Web App y es
-  lo único que toca Gmail. El servidor local le habla por HTTP con una clave compartida.
+### Las capas de decisión
 
-No se usa la Gmail API ni OAuth: el acceso va por el puente de Apps Script, que se
-ejecuta bajo tu propia cuenta.
+1. **Protecciones**: siempre ganan.
+   - `keepOverride` (banco, factura, recibo, 2FA, alertas de seguridad): ese correo nunca se borra.
+   - Tus reglas por remitente (**Conservar** / **Descartar**), guardadas en `senders.json`.
+   - **Conversaciones**: no se borra un correo que sea una respuesta, ni uno de un hilo donde vos escribiste.
+     En Gmail se revisa el hilo completo; en otros servidores, tu carpeta de Enviados.
+2. **Puntaje del LLM**: un entero de 0 (importante) a 100 (basura segura) por remitente. Los dudosos se
+   vuelven a evaluar "pensando". La **dureza** decide desde qué puntaje se borra; lo que queda en el medio
+   se marca como duda y no se borra solo.
 
-### Las dos capas de clasificación
+### Lotes por fecha
 
-1. **Heurísticas** (`heuristics` en `config.json`). Un patrón `keepOverride` actúa como
-   salvavidas: si el correo coincide con banca, factura, recibo, código 2FA o alerta de
-   seguridad, se protege pase lo que pase, sin llegar al LLM. Después, los patrones de
-   `subject`, `from` y `body` detectan el ruido promocional evidente.
-2. **Puntaje del LLM.** El modelo local devuelve un entero de 0 a 100, donde 100 es basura
-   segura y 0 es importante. El prompt va en `config.json` y trae ejemplos calibrados.
+En la pantalla principal elegís cuánto revisar: **7 días, 30 días, 3 meses, 6 meses, 1 año, 2 años,
+3 años, 5 años o Todo**.
 
-Encima hay dos protecciones más: `protectConversations` detecta hilos reales de conversación
-cruzando los participantes contra `myAddresses`, y `senders.json` guarda reglas manuales
-(`protect` / `delete`) por remitente.
+- El rango se parte en lotes de N días (30 por defecto), del más nuevo al más viejo.
+- El progreso se guarda al terminar cada lote. Si tocás **Parar**, se cae Ollama o cerrás la app, aparece
+  un aviso con **▶ Continuar** que sigue desde donde quedó.
+
+### Reglas de seguridad del borrado
+
+- Borrar = **mover a la Papelera** (recuperable). Nunca hay borrado definitivo.
+- Si no se encuentra la carpeta Papelera, o el servidor no soporta MOVE/UIDPLUS, la app **no borra nada**.
+- La lectura se hace en solo lectura: los correos no se marcan como leídos.
+- **Dry-run** (activado por defecto) muestra lo que haría sin tocar el buzón. Empezá siempre por ahí.
 
 ## Instalación
 
-Requisitos: Node.js 18+ (por `fetch` nativo) y Ollama corriendo localmente.
+Requisitos: **Node.js 18+** y **Ollama** con un modelo instalado.
 
 ```bash
 git clone https://github.com/nonoskygt/nono-mail-cleaner.git
 cd nono-mail-cleaner
-
-cp config.example.json config.json
-cp senders.example.json senders.json
-
-ollama pull qwen3:8b
+npm install
+ollama pull qwen3.5:9b
+npm start
 ```
 
-### Desplegar el bridge
+Abrí <http://localhost:8765>. La primera vez se abre **⚙ Configuración** para conectar tu correo.
 
-1. Abrí [script.google.com](https://script.google.com) y creá un proyecto nuevo.
-2. Pegá el contenido de `gmail_bridge.example.gs`.
-3. **Cambiá `API_KEY` por una cadena aleatoria larga.** El script se niega a arrancar
-   mientras siga en `CHANGE_ME_TO_SOMETHING_SECURE`.
-4. *Deploy* → *New Deployment* → *Web App*, con *Execute as: Me* y *Who has access: Anyone*.
-5. Copiá la URL `/exec` resultante y la clave a tu `config.json` local
-   (campos `gmailBridge` y `gmailKey`).
+**Sobre el modelo:** en **⚙ Configuración → LLM**, **🧪 Probar LLM** comprueba dos cosas: que el modelo
+distinga una promoción de un correo personal, y que termine de "pensar" un caso dudoso. Medido en una
+RTX 4070 de 8 GB:
+- `qwen3.5:9b` clasifica bien en modo rápido, pero al pensar no termina ni con 2048 tokens (más de un
+  minuto por correo).
+- Un derivado más escueto (`ornith:9b`, de la misma familia) responde pensando en unos 10 segundos.
 
-Luego:
+Si el modelo se corta pensando, el trabajo desactiva solo esa fase y sigue con el puntaje rápido. También
+podés desmarcar **Pensar los dudosos**.
 
-```bash
-node server.js
-```
+## Conectar tu correo
 
-Y abrí <http://localhost:8765>.
+En **⚙ Configuración → Cuenta** elegí una de estas tres opciones y usá **🔌 Probar conexión** antes de **💾 Guardar**.
 
-## Seguridad
+### Gmail · Conectar con Google (recomendado)
 
-> [!WARNING]
-> El Web App se despliega con acceso `Anyone` y se ejecuta bajo tu cuenta. **La `API_KEY`
-> es lo único que protege tu buzón.** Quien tenga la URL `/exec` y esa clave puede leer,
-> enviar, responder, archivar, borrar tus correos y descargar adjuntos.
+Cada persona usa **su propio** cliente de Google. Así no hay una app compartida que Google tenga que
+auditar, y tus credenciales no pasan por nadie más. Es una sola vez y lleva unos 10 minutos:
 
-En consecuencia:
+1. En [Google Cloud Console](https://console.cloud.google.com/projectcreate) creá un proyecto.
+2. En **APIs y servicios → Biblioteca**, habilitá la **Gmail API**.
+3. En **Pantalla de consentimiento de OAuth**:
+   - Tipo **Externo**.
+   - En **Permisos**, agregá `https://mail.google.com/`.
+4. En **Público**, tocá **Publicar app** (estado "En producción"). En estado "En prueba", Google corta el
+   acceso cada 7 días. No hace falta verificar la app: es solo tuya.
+5. En **Credenciales → ID de cliente de OAuth**:
+   - Tipo **App de escritorio**.
+   - Copiá el **Client ID** y el **Client Secret** en el panel.
+6. Tocá **Conectar con Google** y aceptá. Google avisará que la app no está verificada: es la tuya,
+   entrá por **Configuración avanzada**.
 
-- Usá una clave larga y de alta entropía. Mejor aún: leela desde
-  `PropertiesService.getScriptProperties()` en vez de dejarla en el código.
-- `config.json`, `senders.json` y `logs/` están en el `.gitignore` y **no deben versionarse
-  nunca**. Contienen, respectivamente, la clave y la URL del bridge, correos reales de
-  terceros, y un volcado de asuntos y remitentes de tu bandeja.
-- Si alguna vez commiteás la clave por error, rotarla no basta con borrar el commit:
-  hay que generar una clave nueva **y un despliegue nuevo**, y archivar el anterior para
-  que la URL vieja deje de responder.
+El permiso `https://mail.google.com/` es el que exige Google para IMAP y SMTP. La app solo lee, mueve
+a la Papelera y envía correos de baja.
+
+### Gmail · contraseña de aplicación
+
+Requiere la verificación en 2 pasos. Creá una en <https://myaccount.google.com/apppasswords> y
+pegala junto con tu correo.
+
+### Otro proveedor (IMAP)
+
+Yahoo, iCloud y Zoho ya vienen configurados. Para Carbonio, cPanel o cualquier otro, cargá a mano
+el servidor IMAP (y SMTP, para las bajas por correo).
+
+**Outlook/Hotmail no está soportado:** Microsoft ya no acepta contraseñas por IMAP/SMTP.
 
 ## Uso
 
-El panel permite escanear remitentes, correr una pasada automática con nivel de dureza
-configurable, borrar por remitente y desuscribirse en masa. Casi todas las acciones aceptan
-**`dryRun`**, que registra lo que haría sin tocar el buzón. Empezá siempre por ahí.
+1. **🔄 Escanear**: lee el rango elegido, agrupa por remitente y puntúa cada uno. No borra nada.
+   Ajustá la **dureza** y corregí con **Conservar** / **Descartar**, que queda guardado para siempre.
+2. **▶ Ejecutar**:
+   - Mueve a la Papelera los correos de los remitentes descartados, en el mismo rango.
+   - Da de baja a los marcados en la cola. Prueba en orden: *one-click* (RFC 8058), correo (`mailto:`)
+     y enlace.
+3. **⚡ Limpiar TODO**: hace todo de corrido, borrando solo lo claramente promocional.
+
+**⚙ Configuración** reúne todas las variables:
+- **Cuenta y carpetas.**
+- **LLM**:
+  - Dirección de Ollama y modelo. Se elige entre los instalados; **🧪 Probar LLM** comprueba que
+    distinga una promoción de un correo personal.
+  - Pensamiento de dudosos, contexto y paralelismo.
+- **Limpieza**: días por lote, dureza, margen de duda, protección de conversaciones, tus otras direcciones.
+- **Servidor**: el puerto.
+
+**📜 Reglas** muestra y edita los patrones de protección y de ruido, y el prompt del LLM.
+
+## Archivos locales
+
+Ninguno de estos archivos se versiona (están en `.gitignore`):
+
+| Archivo | Contiene |
+|---|---|
+| `config.json` | Configuración, sin secretos. Se crea desde `config.example.json` |
+| `secrets.json` | Contraseña IMAP, Client Secret y token de Google. **No lo compartas** |
+| `senders.json` | Tus reglas por remitente y las bajas hechas |
+| `progress.json` | Trabajos sin terminar (para "Continuar") |
+| `logs/` | Registro de cada corrida, con asuntos y remitentes reales |
+
+Para guardarlos en otra carpeta, usá `NONIMAIL_DATA_DIR=/ruta npm start`.
+
+## Seguridad
+
+- El servidor escucha solo en `127.0.0.1`. Rechaza pedidos con un `Host` ajeno (DNS rebinding) y POST
+  de otro origen o sin `Content-Type: application/json` (CSRF).
+- La API nunca devuelve secretos; el panel solo muestra "guardada".
+- Los enlaces de baja vienen del remitente: solo se abren si son `https` y nunca hacia direcciones de tu
+  red local.
+
+## Actualizar desde la versión 1.x (Apps Script)
+
+La 2.0 ya no usa el puente de Google Apps Script. Al arrancar:
+- `config.json` se migra solo y queda un respaldo `config.json.bak-<fecha>`.
+- Después conectás tu correo desde **⚙ Configuración**.
+
+**Importante:** archivá el despliegue viejo en <https://script.google.com>, en **Implementar → Gestionar
+implementaciones → Archivar**. Mientras siga activo, su URL más la clave dan acceso a tu buzón.
+
+## Pruebas
+
+```bash
+npm test
+```
+
+Usan un servidor IMAP en memoria ([hoodiecrow-imap](https://github.com/andris9/hoodiecrow)), un SMTP
+local y servidores falsos de Google y Ollama. No tocan ningún buzón real.
 
 ## Licencia
 
 El código propio de este repositorio no lleva licencia declarada: todos los derechos reservados.
-Si querés abrirlo, añadí un archivo `LICENSE`.
-
-`gmail_bridge.example.gs` deriva del Gmail Bridge de [AnythingLLM](https://github.com/Mintplex-Labs/anything-llm)
-(Mintplex Labs Inc.), bajo licencia MIT. Ver [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+Para abrirlo, agregá un archivo `LICENSE`. Las dependencias y sus licencias están en
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

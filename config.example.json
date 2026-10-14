@@ -1,18 +1,49 @@
 {
-  "gmailBridge": "https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec",
-  "gmailKey": "CHANGE_ME_TO_SOMETHING_SECURE",
-  "ollamaUrl": "http://localhost:11434",
-  "model": "qwen3:8b",
+  "host": "127.0.0.1",
   "port": 8765,
-  "protectConversations": true,
-  "myAddresses": ["tu-correo@example.com", "ventas@tudominio.com"],
-  "defaults": {
-    "query": "in:inbox",
-    "batchSize": 30,
-    "concurrency": 4,
-    "maxBatches": 600,
-    "stopAfterEmpty": 2,
-    "bodyMaxChars": 2500
+  "account": {
+    "type": "none",
+    "email": "",
+    "username": "",
+    "provider": "custom",
+    "imap": {
+      "host": "",
+      "port": 993,
+      "secure": true
+    },
+    "smtp": {
+      "host": "",
+      "port": 465,
+      "secure": true
+    },
+    "inboxFolder": "INBOX",
+    "trashFolder": ""
+  },
+  "google": {
+    "clientId": ""
+  },
+  "ollamaUrl": "http://localhost:11434",
+  "model": "qwen3.5:9b",
+  "llm": {
+    "numCtx": 4096,
+    "parallel": 1,
+    "think": true,
+    "thinkNumPredict": 2048,
+    "thinkNumCtx": 8192,
+    "doubtLow": 35,
+    "doubtHigh": 65
+  },
+  "cleaning": {
+    "daysBack": 30,
+    "windowDays": 30,
+    "fetchChunk": 100,
+    "dureza": 50,
+    "band": 12,
+    "bodyMaxChars": 2500,
+    "protectConversations": true,
+    "myAddresses": [],
+    "autoUnsub": true,
+    "dryRun": true
   },
   "heuristics": {
     "keepOverride": "(bi en l[ií]nea|bi-?b@?nking|banco industrial|banrural|\\bbac\\b|g&t|bantrab|promerica|\\bbam\\b|\\bbanco\\b|\\bbank\\b|estado de cuenta|operaci[oó]n electr[oó]nica|transferencia|comprobante|\\brecibo\\b|receipt|\\bfactura\\b|invoice|\\bfel\\b|\\bsat\\b|\\bsaldo\\b|tarjeta de cr[eé]dito|dep[oó]sito|c[oó]digo de (verificaci[oó]n|seguridad)|c[oó]digo es \\d|verification code|\\botp\\b|inicio de sesi[oó]n|new login|alerta de seguridad|security alert|sesi[oó]n (expirada|restaurada|confirmada)|payment|pago|recordatorio de pago|\\bcotizaci[oó]n\\b)",
