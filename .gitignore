@@ -26,6 +26,8 @@ config.local.json
 
 # === Entorno ===
 node_modules/
+# Caché local de graphify (grafo del código generado en esta máquina)
+graphify-out/
 npm-debug.log*
 .DS_Store
 Thumbs.db
