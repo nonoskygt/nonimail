@@ -1,173 +1,170 @@
-# Nono Mail Cleaner
+# NoniMail Tools
 
-Limpiador de bandeja de entrada con panel web local. Se conecta a tu correo por **IMAP** (Gmail u otro
-proveedor) y clasifica los correos en dos capas: protecciones y heurísticas por expresión regular, y un
-**LLM local vía [Ollama](https://ollama.com)**. Mueve a la Papelera solo lo claramente promocional.
+**English** · [Español](README.es.md)
 
-Todo el análisis ocurre en tu máquina. Ningún asunto ni cuerpo de correo sale hacia un servicio externo de IA.
+Desktop app (Windows and Linux) with two tools for your mailbox. No account, no sign-up.
 
-## Cómo funciona
+- **Clean**: clean your inbox by sender. Everything promotional goes to Trash. Nothing is ever deleted.
+- **Sync**: copy one IMAP mailbox into another without duplicates, keeping folders, flags and dates.
+  The source is never touched.
 
-- **`server.js`**: servidor Node que escucha solo en `127.0.0.1:8765`. Orquesta los trabajos y sirve el panel.
-- **`public/index.html`**: panel de control, con eventos en vivo por SSE: remitentes, progreso por lotes y métricas de CPU/GPU.
-- **`lib/`**: el motor.
-  - `mail/imap.js`: acceso IMAP con [imapflow](https://github.com/postalsys/imapflow).
-  - `mail/smtp.js`: bajas por correo con [nodemailer](https://nodemailer.com).
-  - `mail/google-oauth.js`: "Conectar con Google".
-  - `engine.js`: trabajos por lotes.
-  - `classify.js` y `llm.js`: decisión.
+Spanish and English, picked from your system language. Theme "Dulce" with light, dark and auto mode and six accent colors.
 
-### Las capas de decisión
+## Download
 
-1. **Protecciones**: siempre ganan.
-   - `keepOverride` (banco, factura, recibo, 2FA, alertas de seguridad): ese correo nunca se borra.
-   - Tus reglas por remitente (**Conservar** / **Descartar**), guardadas en `senders.json`.
-   - **Conversaciones**: no se borra un correo que sea una respuesta, ni uno de un hilo donde vos escribiste.
-     En Gmail se revisa el hilo completo; en otros servidores, tu carpeta de Enviados.
-2. **Puntaje del LLM**: un entero de 0 (importante) a 100 (basura segura) por remitente. Los dudosos se
-   vuelven a evaluar "pensando". La **dureza** decide desde qué puntaje se borra; lo que queda en el medio
-   se marca como duda y no se borra solo.
+| System | Primary download | Alternative |
+|---|---|---|
+| Windows installer (per user) | [`/api/descargas/windows`](https://mt.nonosky.com/api/descargas/windows) | [GitHub Releases](https://github.com/nonoskygt/nonimail-tools/releases/latest) |
+| Windows portable | [`/api/descargas/windows-portable`](https://mt.nonosky.com/api/descargas/windows-portable) | [GitHub Releases](https://github.com/nonoskygt/nonimail-tools/releases/latest) |
+| Linux AppImage | [`/api/descargas/linux-appimage`](https://mt.nonosky.com/api/descargas/linux-appimage) | [GitHub Releases](https://github.com/nonoskygt/nonimail-tools/releases/latest) |
+| Linux `.deb` | [`/api/descargas/linux-deb`](https://mt.nonosky.com/api/descargas/linux-deb) | [GitHub Releases](https://github.com/nonoskygt/nonimail-tools/releases/latest) |
 
-### Lotes por fecha
+Each release also carries `SHA256SUMS.txt`.
 
-En la pantalla principal elegís cuánto revisar: **7 días, 30 días, 3 meses, 6 meses, 1 año, 2 años,
-3 años, 5 años o Todo**.
+## Install
 
-- El rango se parte en lotes de N días (30 por defecto), del más nuevo al más viejo.
-- El progreso se guarda al terminar cada lote. Si tocás **Parar**, se cae Ollama o cerrás la app, aparece
-  un aviso con **▶ Continuar** que sigue desde donde quedó.
+**Windows (PowerShell):**
 
-### Reglas de seguridad del borrado
-
-- Borrar = **mover a la Papelera** (recuperable). Nunca hay borrado definitivo.
-- Si no se encuentra la carpeta Papelera, o el servidor no soporta MOVE/UIDPLUS, la app **no borra nada**.
-- La lectura se hace en solo lectura: los correos no se marcan como leídos.
-- **Dry-run** (activado por defecto) muestra lo que haría sin tocar el buzón. Empezá siempre por ahí.
-
-## Instalación
-
-Requisitos: **Node.js 18+** y **Ollama** con un modelo instalado.
-
-```bash
-git clone https://github.com/nonoskygt/nono-mail-cleaner.git
-cd nono-mail-cleaner
-npm install
-ollama pull qwen3.5:9b
-npm start
+```powershell
+irm https://raw.githubusercontent.com/nonoskygt/nonimail-tools/main/scripts/install.ps1 | iex
 ```
 
-Abrí <http://localhost:8765>. La primera vez se abre **⚙ Configuración** para conectar tu correo.
+**Linux:**
 
-**Sobre el modelo:** en **⚙ Configuración → LLM**, **🧪 Probar LLM** comprueba dos cosas: que el modelo
-distinga una promoción de un correo personal, y que termine de "pensar" un caso dudoso. Medido en una
-RTX 4070 de 8 GB:
-- `qwen3.5:9b` clasifica bien en modo rápido, pero al pensar no termina ni con 2048 tokens (más de un
-  minuto por correo).
-- Un derivado más escueto (`ornith:9b`, de la misma familia) responde pensando en unos 10 segundos.
+```bash
+curl -fsSL https://raw.githubusercontent.com/nonoskygt/nonimail-tools/main/scripts/install.sh | bash
+```
 
-Si el modelo se corta pensando, el trabajo desactiva solo esa fase y sigue con el puntaje rápido. También
-podés desmarcar **Pensar los dudosos**.
+The Linux script puts the AppImage in `~/.local/bin`, adds a menu entry and, if you say yes, installs Ollama.
+Both scripts download from `https://github.com/nonoskygt/nonimail-tools/releases/latest/download/` and check the SHA256 sum.
 
-## Conectar tu correo
+Or download the installer from the table above and run it. For the `.deb`: `sudo apt install ./nonimail-tools_amd64.deb`.
 
-En **⚙ Configuración → Cuenta** elegí una de estas tres opciones y usá **🔌 Probar conexión** antes de **💾 Guardar**.
+## First run: the setup
 
-### Gmail · Conectar con Google (recomendado)
+The setup opens the first time and again any time from **Settings → System → Run the setup**.
 
-Cada persona usa **su propio** cliente de Google. Así no hay una app compartida que Google tenga que
-auditar, y tus credenciales no pasan por nadie más. Es una sola vez y lleva unos 10 minutos:
+1. **Language and appearance**: language, mode (auto, light, dark) and accent color. Auto mode follows the clock: light from 06:00 to 17:59.
+2. **Dependencies**: detects [Ollama](https://ollama.com) (local AI).
+   - Not installed: **Install** downloads the official installer over HTTPS and runs it, with progress.
+     Windows runs `OllamaSetup.exe` silently. Linux runs the official script with `pkexec` (a system password window);
+     without a desktop it shows the exact command for a terminal.
+   - Then it downloads the model with Ollama's `/api/pull`, with a progress bar.
+   - **Skip (no AI)** uses heuristics only.
+3. **Telemetry**: one switch, on by default. See [Privacy](#privacy-and-telemetry).
+4. **First account**: pick a provider (Gmail, Yahoo, iCloud, AOL, Zoho, GMX, Yandex, Fastmail or manual), enter email and password, and test the connection.
 
-1. En [Google Cloud Console](https://console.cloud.google.com/projectcreate) creá un proyecto.
-2. En **APIs y servicios → Biblioteca**, habilitá la **Gmail API**.
-3. En **Pantalla de consentimiento de OAuth**:
-   - Tipo **Externo**.
-   - En **Permisos**, agregá `https://mail.google.com/`.
-4. En **Público**, tocá **Publicar app** (estado "En producción"). En estado "En prueba", Google corta el
-   acceso cada 7 días. No hace falta verificar la app: es solo tuya.
-5. En **Credenciales → ID de cliente de OAuth**:
-   - Tipo **App de escritorio**.
-   - Copiá el **Client ID** y el **Client Secret** en el panel.
-6. Tocá **Conectar con Google** y aceptá. Google avisará que la app no está verificada: es la tuya,
-   entrá por **Configuración avanzada**.
+## Clean
 
-El permiso `https://mail.google.com/` es el que exige Google para IMAP y SMTP. La app solo lee, mueve
-a la Papelera y envía correos de baja.
+1. **Scan** reads the chosen range in date batches, groups by sender and scores each one (0 = important, 100 = sure junk). Nothing is changed.
+2. Adjust **Strictness** and fix single senders with **Keep** / **Move**. **Protect** keeps a sender forever.
+3. **Move to Trash** moves the emails of the marked senders. **Clean all** does everything in one go.
 
-### Gmail · contraseña de aplicación
+Safety rules:
 
-Requiere la verificación en 2 pasos. Creá una en <https://myaccount.google.com/apppasswords> y
-pegala junto con tu correo.
+- Moving means **Trash**, which you can recover. There is no permanent delete.
+- No Trash folder, or a server without MOVE/UIDPLUS: nothing is moved.
+- Banks, receipts, security codes and conversations you took part in are protected before any score counts.
+- **Dry run** is on by default and shows what would happen.
+- If you stop, Ollama goes down or you close the app, **Resume** continues from the last finished batch.
+- **Unsubscribe** tries one-click (RFC 8058), then a `mailto:` message, then the link. Only `https` links to public addresses are opened.
 
-### Otro proveedor (IMAP)
+Scoring uses your local Ollama model; no subject or body ever goes to an outside AI service. Without Ollama, heuristics decide.
 
-Yahoo, iCloud y Zoho ya vienen configurados. Para Carbonio, cPanel o cualquier otro, cargá a mano
-el servidor IMAP (y SMTP, para las bajas por correo).
+## Sync
 
-**Outlook/Hotmail no está soportado:** Microsoft ya no acepta contraseñas por IMAP/SMTP.
+Pick **Source** and **Destination** among your accounts (optionally filter folders), then **Simulate** or **Sync**.
 
-## Uso
+- Copies only what is missing, comparing by Message-ID (or a hash when there is none).
+- Keeps folders, flags (read, starred) and the original dates. Sent, Trash, Drafts and Junk merge with the destination's own.
+- Verifies at the end that everything in the source is in the destination.
+- A second run copies nothing new.
 
-1. **🔄 Escanear**: lee el rango elegido, agrupa por remitente y puntúa cada uno. No borra nada.
-   Ajustá la **dureza** y corregí con **Conservar** / **Descartar**, que queda guardado para siempre.
-2. **▶ Ejecutar**:
-   - Mueve a la Papelera los correos de los remitentes descartados, en el mismo rango.
-   - Da de baja a los marcados en la cola. Prueba en orden: *one-click* (RFC 8058), correo (`mailto:`)
-     y enlace.
-3. **⚡ Limpiar TODO**: hace todo de corrido, borrando solo lo claramente promocional.
+## Licenses and prices
 
-**⚙ Configuración** reúne todas las variables:
-- **Cuenta y carpetas.**
-- **LLM**:
-  - Dirección de Ollama y modelo. Se elige entre los instalados; **🧪 Probar LLM** comprueba que
-    distinga una promoción de un correo personal.
-  - Pensamiento de dudosos, contexto y paralelismo.
-- **Limpieza**: días por lote, dureza, margen de duda, protección de conversaciones, tus otras direcciones.
-- **Servidor**: el puerto.
+- **Personal accounts** (Gmail, Hotmail, Outlook, Yahoo, iCloud, Proton and other public providers) are **free**.
+- **Accounts on your own domain** are commercial use. You can always **simulate** (dry run). A real run needs a key **per account and per function**, valid 30 days.
 
-**📜 Reglas** muestra y edita los patrones de protección y de ruido, y el prompt del LLM.
-
-## Archivos locales
-
-Ninguno de estos archivos se versiona (están en `.gitignore`):
-
-| Archivo | Contiene |
+| Function | Price (30 days) |
 |---|---|
-| `config.json` | Configuración, sin secretos. Se crea desde `config.example.json` |
-| `secrets.json` | Contraseña IMAP, Client Secret y token de Google. **No lo compartas** |
-| `senders.json` | Tus reglas por remitente y las bajas hechas |
-| `progress.json` | Trabajos sin terminar (para "Continuar") |
-| `logs/` | Registro de cada corrida, con asuntos y remitentes reales |
+| Clean | USD 1 |
+| Sync | USD 2 |
 
-Para guardarlos en otra carpeta, usá `NONIMAIL_DATA_DIR=/ruta npm start`.
+The **Licenses** tab shows each account's state and a **Buy** link. Paste the key (`NMT1.…`) in **Add key**.
+Keys are signed (Ed25519) and checked offline with the public key bundled in the app. Licenses bought on the web service work too.
 
-## Seguridad
+## Connect with Google
 
-- El servidor escucha solo en `127.0.0.1`. Rechaza pedidos con un `Host` ajeno (DNS rebinding) y POST
-  de otro origen o sin `Content-Type: application/json` (CSRF).
-- La API nunca devuelve secretos; el panel solo muestra "guardada".
-- Los enlaces de baja vienen del remitente: solo se abren si son `https` y nunca hacia direcciones de tu
-  red local.
+You use **your own** Google client, so no shared app has to be audited and your credentials go nowhere else. One time, about 10 minutes:
 
-## Actualizar desde la versión 1.x (Apps Script)
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com/projectcreate).
+2. Enable the **Gmail API**.
+3. **OAuth consent screen**: type **External**; add the scope `https://mail.google.com/`.
+4. Publish the app (status "In production"); in "Testing" Google cuts access every 7 days. It needs no verification: it is only yours.
+5. **Credentials → OAuth client ID**, type **Desktop app**. Copy the **Client ID** and **Client Secret** into **Settings → Accounts → Google**.
+6. Click **Connect with Google** and accept. Google warns the app is not verified: it is yours, continue under **Advanced**.
 
-La 2.0 ya no usa el puente de Google Apps Script. Al arrancar:
-- `config.json` se migra solo y queda un respaldo `config.json.bak-<fecha>`.
-- Después conectás tu correo desde **⚙ Configuración**.
+Simpler: Gmail with an [app password](https://myaccount.google.com/apppasswords) (needs 2-step verification).
+Outlook/Hotmail with a password is not supported: Microsoft no longer accepts passwords over IMAP.
 
-**Importante:** archivá el despliegue viejo en <https://script.google.com>, en **Implementar → Gestionar
-implementaciones → Archivar**. Mientras siga activo, su URL más la clave dan acceso a tu buzón.
+## Privacy and telemetry
 
-## Pruebas
+Everything is analyzed on your computer. Passwords and tokens are stored encrypted (Electron `safeStorage`: Windows DPAPI, the system keyring on Linux).
+
+If you leave telemetry on (the default), the app sends **only this** to `https://mt.nonosky.com`:
+
+- On install and once a day at most: a random install id, app (`desktop`), version, system (`windows`/`linux`), system version, architecture, language, time zone, download origin (`github`, `mt` or `desconocido`), whether local AI is on and its model name.
+- Events: `inicio` (the app opened) · `cuenta` (an account was added or tested: address, provider, personal or not) · `limpiar` (counts and duration of a scan or clean) · `sincronizar` (accounts and counts of a sync) · `licencia` (a valid key was added: account, function, channel, expiry) · `error` (message and stack, with passwords, tokens and addresses other than your accounts removed).
+
+**Never sent:** passwords, tokens, full license keys, subjects, bodies or the senders of your emails. The server adds the date and a GeoIP location from the request; the app does not send its IP.
+Events wait in a queue on disk and go out in batches every 5 minutes, after each operation and on exit.
+
+**Turn it off:** the switch in the setup, **Settings → Privacy**, or the environment variable `NMT_TELEMETRY=0`. When off, the app sends nothing, not even the install ping, and the queue is emptied.
+
+## Settings
+
+All of this lives in `config/defaults.json` and can be overridden by your own `config.json` and by environment variables:
+
+| Variable | What |
+|---|---|
+| `NMT_SERVICE_URL` | Service base URL (default `https://mt.nonosky.com`) |
+| `NMT_OLLAMA_URL`, `NMT_MODEL` | Ollama address and model |
+| `NMT_OLLAMA_INSTALLER_WINDOWS`, `NMT_OLLAMA_INSTALLER_LINUX` | Installer URLs |
+| `NMT_GOOGLE_CLIENT_ID` | Google client id |
+| `NMT_LANGUAGE` | `es` or `en` |
+| `NMT_TELEMETRY` | `0` / `1` |
+| `NMT_PORT`, `NMT_HOST` | Port and host of the headless server |
+| `NMT_DATA_DIR` | Data folder |
+| `NMT_CONFIG_FILE` | Extra JSON file with overrides |
+
+Data folder: `%APPDATA%\NoniMail Tools` on Windows, `~/.config/nonimail-tools` on Linux. It holds `config.json`, `secrets.json`, `licenses.json`, `senders.json`, `progress.json`, the telemetry queue and `logs/`.
+The log (`logs/nonimail-tools.log`) rotates by size; errors also go to the log. **Settings → System → Open logs folder** opens it.
+
+## Run without a window
 
 ```bash
-npm test
+npm install
+npm start        # prints http://127.0.0.1:8765/
 ```
 
-Usan un servidor IMAP en memoria ([hoodiecrow-imap](https://github.com/andris9/hoodiecrow)), un SMTP
-local y servidores falsos de Google y Ollama. No tocan ningún buzón real.
+## Build from source
 
-## Licencia
+Requires Node.js 20+.
 
-El código propio de este repositorio no lleva licencia declarada: todos los derechos reservados.
-Para abrirlo, agregá un archivo `LICENSE`. Las dependencias y sus licencias están en
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+```bash
+git clone https://github.com/nonoskygt/nonimail-tools.git
+cd nonimail-tools
+npm install
+npm test                # tests with in-memory IMAP/SMTP servers; no real mailbox is touched
+npm run desktop         # run the Electron app
+npm run dist:linux      # AppImage + deb in dist/
+npm run dist:win        # NSIS installer + portable in dist/ (best on Windows)
+npm run icons           # regenerate the icons in build/
+```
+
+A `v*` tag builds the installers on GitHub Actions and publishes them with `SHA256SUMS.txt` and stable-name copies
+(`NoniMail-Tools-Setup.exe`, `NoniMail-Tools-Portable.exe`, `NoniMail-Tools.AppImage`, `nonimail-tools_amd64.deb`).
+
+## License
+
+[MIT](LICENSE) © Danilo Estuardo Gonzalez Rizzo. Dependencies and the Figtree font: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
