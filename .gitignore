@@ -1,0 +1,25 @@
+# Gradle / Android
+.gradle/
+build/
+*/build/
+local.properties
+*.iml
+.idea/
+.kotlin/
+captures/
+.cxx/
+
+# Signing material: never in the repository
+*.jks
+*.keystore
+*.p12
+credenciales.properties
+keystore.properties
+
+# Local design-tool context
+.impeccable/
+PRODUCT.md
+
+# OS
+.DS_Store
+Thumbs.db
