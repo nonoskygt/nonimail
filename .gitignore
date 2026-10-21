@@ -33,3 +33,7 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Artefactos de compilación (electron-builder) y datos de la compilación de GitHub Releases
+dist/
+config/build-info.json
