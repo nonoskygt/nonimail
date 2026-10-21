@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="url_ayuda_gmail" translatable="false">https://myaccount.google.com/apppasswords</string>
+    <string name="url_ayuda_outlook" translatable="false">https://support.microsoft.com/account-billing/manage-app-passwords-for-two-step-verification-d6dc8c6d-4bf7-4851-ad95-6d07799387e9</string>
+    <string name="url_ayuda_yahoo" translatable="false">https://login.yahoo.com/account/security/app-passwords</string>
+    <string name="url_ayuda_icloud" translatable="false">https://account.apple.com/account/manage</string>
+</resources>
