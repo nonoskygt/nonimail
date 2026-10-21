@@ -101,6 +101,16 @@ class Operaciones(private val app: NmtApp) {
 
     fun cancelar() { cancelada = true }
 
+    /** Test hook (screenshots): shows a state without running anything. */
+    @androidx.annotation.VisibleForTesting
+    fun mostrar(e: EstadoEscaneo) { _escaneo.value = e }
+
+    @androidx.annotation.VisibleForTesting
+    fun mostrar(e: EstadoLimpieza) { _limpieza.value = e }
+
+    @androidx.annotation.VisibleForTesting
+    fun mostrar(e: EstadoSync) { _sync.value = e }
+
     fun reiniciarLimpieza() { _limpieza.value = EstadoLimpieza.Reposo }
     fun reiniciarSync() { _sync.value = EstadoSync.Reposo }
     fun reiniciarEscaneo() { _escaneo.value = EstadoEscaneo.Reposo; _limpieza.value = EstadoLimpieza.Reposo }

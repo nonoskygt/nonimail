@@ -14,7 +14,20 @@ import javax.crypto.spec.GCMParameterSpec
  * (it never leaves the secure hardware/TEE and cannot be read from the app's files).
  * Output: base64(iv || ciphertext+tag). The plain text is never logged.
  */
-object Secretos {
+/** The cipher behind [Secretos]; replaced only by tests, where there is no Android Keystore. */
+interface MotorCifrado {
+    fun cifrar(plain: String): String
+    fun descifrar(blob: String): String?
+}
+
+object Secretos : MotorCifrado {
+    /** Production: the Keystore. Tests may swap it. */
+    @Volatile var motor: MotorCifrado = KeystoreCifrado
+    override fun cifrar(plain: String): String = motor.cifrar(plain)
+    override fun descifrar(blob: String): String? = motor.descifrar(blob)
+}
+
+private object KeystoreCifrado : MotorCifrado {
     private const val ALIAS = "nmt_password_key"
     private const val PROVIDER = "AndroidKeyStore"
     private const val TRANSFORM = "AES/GCM/NoPadding"
@@ -33,7 +46,7 @@ object Secretos {
         return gen.generateKey()
     }
 
-    fun cifrar(plain: String): String {
+    override fun cifrar(plain: String): String {
         val c = Cipher.getInstance(TRANSFORM)
         c.init(Cipher.ENCRYPT_MODE, key())
         val ct = c.doFinal(plain.toByteArray(Charsets.UTF_8))
@@ -41,7 +54,7 @@ object Secretos {
     }
 
     /** Null when the blob is damaged or the key is gone (e.g. app data restored on another phone). */
-    fun descifrar(blob: String): String? = runCatching {
+    override fun descifrar(blob: String): String? = runCatching {
         val raw = Base64.decode(blob, Base64.NO_WRAP)
         val c = Cipher.getInstance(TRANSFORM)
         c.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, raw, 0, 12))

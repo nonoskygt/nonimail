@@ -83,7 +83,7 @@ fun BloqueApariencia() {
             val nombre = stringResource(nombreAcento(a.id))
             val relleno = Color(if (d.oscuro) a.oscuroRelleno else a.claro)
             Box(
-                Modifier.size(48.dp).clip(CircleShape).background(relleno)
+                Modifier.size(44.dp).clip(CircleShape).background(relleno)
                     .border(if (elegido) 3.dp else 1.dp, if (elegido) d.text else d.border, CircleShape)
                     .clickable(role = Role.RadioButton) { app.ajustes.acento(a) }
                     .descripcion(nombre),

@@ -88,9 +88,9 @@ fun Raiz() {
 private data class Pestana(val titulo: Int, val icono: ImageVector)
 
 @Composable
-private fun Cascaron(repetirConfigurador: () -> Unit) {
+internal fun Cascaron(repetirConfigurador: () -> Unit, tabInicial: Int = 0) {
     val d = dulce
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(tabInicial) }
     val pestanas = listOf(
         Pestana(R.string.tab_limpiar, Iconos.Brillo),
         Pestana(R.string.tab_sincronizar, Icons.Filled.Refresh),

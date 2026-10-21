@@ -98,7 +98,23 @@ android {
     }
 
     testOptions {
-        unitTests.isReturnDefaultValues = true
+        unitTests {
+            isReturnDefaultValues = true
+            isIncludeAndroidResources = true
+            all { t ->
+                t.maxHeapSize = "768m"
+                t.jvmArgs("-XX:+UseSerialGC")
+                // Screenshot tests (Robolectric + Roborazzi) only run on request:
+                //   ./gradlew :app:testDebugUnitTest -Pnmt.shotsDir=/path/to/shots
+                val shots = providers.gradleProperty("nmt.shotsDir").orNull
+                if (shots == null) {
+                    t.exclude("**/Capturas*")
+                } else {
+                    t.systemProperty("nmt.shots.dir", shots)
+                    t.systemProperty("roborazzi.test.record", "true")
+                }
+            }
+        }
     }
 }
 
@@ -128,4 +144,10 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
 }
