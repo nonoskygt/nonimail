@@ -122,6 +122,7 @@
   "setup.err.pull": "La descarga del modelo falló (HTTP {status}).",
   "setup.err.pullIncomplete": "La descarga del modelo no terminó.",
   "setup.err.timeout": "Se agotó el tiempo de espera.",
+  "setup.err.unsafeTemp": "La carpeta temporal no es segura (enlace, otro dueño o permisos abiertos).",
   "sync.appendNoReply": "APPEND sin respuesta del destino",
   "sync.connectFailed": "No se pudo conectar al {side} ({host}:{port}): {error}",
   "sync.connectionLost": "Conexión IMAP perdida copiando [{folder}]: {error}",

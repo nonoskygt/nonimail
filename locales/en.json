@@ -122,6 +122,7 @@
   "setup.err.pull": "The model download failed (HTTP {status}).",
   "setup.err.pullIncomplete": "The model download did not finish.",
   "setup.err.timeout": "Timed out.",
+  "setup.err.unsafeTemp": "The temporary folder is not safe (symlink, other owner or open permissions).",
   "sync.appendNoReply": "APPEND got no reply from the destination",
   "sync.connectFailed": "Could not connect to the {side} ({host}:{port}): {error}",
   "sync.connectionLost": "IMAP connection lost while copying [{folder}]: {error}",
