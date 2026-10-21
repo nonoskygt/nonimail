@@ -83,7 +83,7 @@ class Ollama(
 
     companion object {
         /**
-         * Accepts "192.168.1.20", "192.168.1.20:11434" or a full URL; adds `http://` and the
+         * Accepts "192.168.0.50", "192.168.0.50:11434" or a full URL; adds `http://` and the
          * default port when missing. Returns "" for blank input.
          */
         fun normalizeUrl(input: String?, defaultPort: Int): String {

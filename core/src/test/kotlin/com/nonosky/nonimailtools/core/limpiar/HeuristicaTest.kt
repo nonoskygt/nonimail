@@ -81,8 +81,8 @@ class HeuristicaTest {
     }
 
     @Test fun ollamaUrlNormalization() {
-        assertEquals("http://192.168.1.20:11434", Ollama.normalizeUrl("192.168.1.20", 11434))
-        assertEquals("http://192.168.1.20:8080", Ollama.normalizeUrl("192.168.1.20:8080/", 11434))
+        assertEquals("http://192.168.0.50:11434", Ollama.normalizeUrl("192.168.0.50", 11434))
+        assertEquals("http://192.168.0.50:8080", Ollama.normalizeUrl("192.168.0.50:8080/", 11434))
         assertEquals("https://ia.casa", Ollama.normalizeUrl("https://ia.casa", 11434))
         assertEquals("", Ollama.normalizeUrl("  ", 11434))
     }

@@ -119,7 +119,7 @@ fun BloqueIA() {
     val textoFalla = stringResource(R.string.ia_no_responde)
 
     Titulo(stringResource(R.string.ia_local))
-    Campo(url, { url = it; app.ajustes.ollamaUrl(it); estado = null }, stringResource(R.string.ia_url), placeholder = "192.168.1.20:${BuildConfig.OLLAMA_PORT}", teclado = KeyboardType.Uri)
+    Campo(url, { url = it; app.ajustes.ollamaUrl(it); estado = null }, stringResource(R.string.ia_url), placeholder = "192.168.0.50:${BuildConfig.OLLAMA_PORT}", teclado = KeyboardType.Uri)
     Campo(modelo, { modelo = it; app.ajustes.ollamaModelo(it) }, stringResource(R.string.ia_modelo), placeholder = BuildConfig.OLLAMA_MODEL)
     BotonSecundario(
         stringResource(R.string.probar_conexion),
