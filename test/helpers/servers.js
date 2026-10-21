@@ -31,7 +31,10 @@ function startImap({ inbox = [], sent = [], trash = true, plugins = ALL_PLUGINS 
   const server = hoodiecrow({ plugins, storage: { INBOX: { messages: inbox }, '': { separator: '/', folders } } });
   return new Promise(res => server.listen(0, '127.0.0.1', () => {
     const port = server.server ? server.server.address().port : server.address().port;
-    res({ port, server, storage: server.storage || null, close: () => new Promise(r => server.close(r)) });
+    const socks = new Set(), raw = server.server || server;
+    if (raw.on) raw.on('connection', (c) => { socks.add(c); c.on('close', () => socks.delete(c)); });
+    // se cierran también las conexiones que hayan quedado abiertas, para que la prueba termine
+    res({ port, server, storage: server.storage || null, close: () => new Promise(r => { for (const c of socks) c.destroy(); server.close(r); setTimeout(r, 1500).unref(); }) });
   }));
 }
 

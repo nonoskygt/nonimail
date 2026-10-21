@@ -115,7 +115,7 @@ test('Google OAuth: sin permiso de Gmail se rechaza', async () => {
 
 test('connectionOptions explica qué falta', async () => {
   const sec = (o) => ({ get: (k) => o[k] || '' });
-  await assert.rejects(connectionOptions({ account: { type: 'none' } }, sec({})), /No hay cuenta/);
+  await assert.rejects(connectionOptions({ account: { type: 'none' } }, sec({})), /No hay una cuenta/);
   await assert.rejects(connectionOptions({ account: { type: 'gmail-password', email: 'a@gmail.com' } }, sec({})), /contraseña de aplicación/);
   await assert.rejects(connectionOptions({ account: { type: 'gmail-oauth', email: 'a@gmail.com' }, google: { clientId: '' } }, sec({})), /Client ID/);
   const c = await connectionOptions({ account: { type: 'imap', email: 'a@x.com', username: '', imap: { host: 'mail.x.com', port: 993, secure: true }, smtp: { host: '', port: 465, secure: true } } }, sec({ imapPassword: 'p' }));

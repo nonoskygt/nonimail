@@ -11,6 +11,7 @@ const { ProgressStore, addDays, toDay } = require('../lib/batches');
 const { MailClient } = require('../lib/mail/imap');
 const { compileRules } = require('../lib/classify');
 const C = require('../lib/config');
+const { defaults } = require('../lib/defaults');
 const S = require('./helpers/servers');
 
 const today = toDay(Date.now());
@@ -56,11 +57,11 @@ async function setup({ daysBack = 365, windowDays = 30, retry = [20, 20, 20], fe
   const ol = await fakeOllama();
   const imap = await S.startImap(mailbox());
   const smtpSrv = await S.startSmtp();
-  const cfg = C.deepDefaults(C.DEFAULTS, {
+  const cfg = C.deepDefaults(defaults(), {
     model: 'm', ollamaUrl: ol.url, llmPrompt: 'P',
     account: { type: 'imap', email: 'yo@test.local' },
     cleaning: { daysBack, windowDays, fetchChunk, dryRun: false },
-    heuristics: { keepOverride: 'factura' },
+    heuristics: { keepOverride: 'factura', subject: '', from: '', body: '' },
   });
   const rules = compileRules(cfg.heuristics), senderRules = {}, unsub = {};
   const lines = [], events = [];
