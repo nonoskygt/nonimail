@@ -1,12 +1,31 @@
 {
-  "name": "nono-mail-cleaner",
-  "version": "2.0.0",
-  "description": "Limpiador de bandeja de entrada por IMAP (Gmail y otros) con heurísticas y un LLM local vía Ollama",
-  "private": true,
-  "main": "server.js",
+  "name": "nonimail-tools",
+  "version": "1.0.0",
+  "description": "NoniMail Tools: limpie su bandeja de entrada por remitente y sincronice buzones IMAP sin duplicados. Clean your inbox by sender and sync IMAP mailboxes without duplicates.",
+  "license": "MIT",
+  "author": {
+    "name": "Danilo Estuardo Gonzalez Rizzo",
+    "email": "nonoskygt@users.noreply.github.com",
+    "url": "https://github.com/nonoskygt"
+  },
+  "homepage": "https://github.com/nonoskygt/nonimail-tools#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nonoskygt/nonimail-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nonoskygt/nonimail-tools/issues"
+  },
+  "keywords": ["imap", "email", "inbox", "cleaner", "sync", "ollama", "electron"],
+  "main": "electron/main.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test \"test/*.test.js\""
+    "desktop": "electron .",
+    "test": "node scripts/test.js",
+    "icons": "node scripts/make-icons.js",
+    "dist": "electron-builder --publish never",
+    "dist:linux": "electron-builder --linux AppImage deb --publish never",
+    "dist:win": "electron-builder --win nsis portable --publish never"
   },
   "engines": {
     "node": ">=18"
@@ -16,7 +35,77 @@
     "nodemailer": "10.0.10"
   },
   "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8",
     "hoodiecrow-imap": "2.1.0",
     "smtp-server": "3.19.13"
+  },
+  "build": {
+    "appId": "com.nonosky.nonimailtools",
+    "productName": "NoniMail Tools",
+    "copyright": "Copyright © 2026 Danilo Estuardo Gonzalez Rizzo",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**",
+      "lib/**",
+      "public/**",
+      "locales/**",
+      "config/**",
+      "server.js",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY_LICENSES.md",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "compression": "normal",
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "multiLanguageInstaller": true,
+      "installerLanguages": ["en_US", "es_ES"],
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NoniMail Tools",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "NoniMail-Tools-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "NoniMail-Tools-Portable-${version}.${ext}"
+    },
+    "linux": {
+      "icon": "build/icons",
+      "category": "Office",
+      "synopsis": "Clean your inbox and sync IMAP mailboxes",
+      "maintainer": "Danilo Estuardo Gonzalez Rizzo <nonoskygt@users.noreply.github.com>",
+      "executableName": "nonimail-tools",
+      "target": ["AppImage", "deb"],
+      "desktop": {
+        "Name": "NoniMail Tools",
+        "Name[es]": "NoniMail Tools",
+        "Comment": "Clean your inbox and sync IMAP mailboxes",
+        "Comment[es]": "Limpie su bandeja de entrada y sincronice buzones IMAP",
+        "Categories": "Office;Email;Utility;",
+        "Keywords": "email;imap;inbox;sync;clean;correo;"
+      }
+    },
+    "appImage": {
+      "artifactName": "NoniMail-Tools-${version}.${ext}"
+    },
+    "deb": {
+      "artifactName": "nonimail-tools_${version}_${arch}.${ext}"
+    }
   }
 }
