@@ -23,7 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
@@ -146,7 +145,7 @@ private fun PasoPermisos() {
     }
     Tarjeta {
         Fila {
-            Icon(Icons.Filled.BatteryChargingFull, null, tint = d.accent)
+            Icon(Iconos.Bateria, null, tint = d.accent)
             Column(Modifier.weight(1f)) {
                 Titulo(stringResource(R.string.perm_bateria))
                 Pista(stringResource(R.string.perm_bateria_pista))

@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -94,7 +94,7 @@ fun SelectorCuenta(
                     elegida?.email ?: "—", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
                     color = d.text, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
-                Icon(Icons.Filled.UnfoldMore, null, tint = d.muted)
+                Icon(Icons.Filled.KeyboardArrowDown, null, tint = d.muted)
             }
         }
         DropdownMenu(abierto, { abierto = false }, containerColor = d.panel, shape = FormaControl) {

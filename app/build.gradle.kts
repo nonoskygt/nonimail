@@ -86,6 +86,7 @@ android {
                 "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/DEPENDENCIES", "META-INF/INDEX.LIST",
                 "META-INF/versions/**", "META-INF/*.version", "META-INF/AL2.0", "META-INF/LGPL2.1",
                 "META-INF/*.kotlin_module", "**/*.kotlin_builtins", "**/*.kotlin_metadata", "DebugProbesKt.bin",
+                "doc-files/**", "org/bouncycastle/x509/**", "org/bouncycastle/**/*.properties",
             )
         }
     }
@@ -113,7 +114,7 @@ dependencies {
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
-    implementation(libs.compose.material.icons.extended)
+    implementation(libs.compose.material.icons.core)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)

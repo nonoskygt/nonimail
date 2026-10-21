@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -165,11 +163,8 @@ fun Campo(
                 suffix = sufijo?.let { { Text(it) } },
                 trailingIcon = if (secreto) {
                     {
-                        IconButton({ visible = !visible }) {
-                            Icon(
-                                if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                stringResource(if (visible) R.string.ocultar else R.string.mostrar),
-                            )
+                        TextButton({ visible = !visible }) {
+                            Text(stringResource(if (visible) R.string.ocultar else R.string.mostrar), color = d.accent, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 } else null,

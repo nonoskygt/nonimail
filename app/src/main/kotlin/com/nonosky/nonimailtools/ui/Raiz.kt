@@ -4,10 +4,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -94,9 +92,9 @@ private fun Cascaron(repetirConfigurador: () -> Unit) {
     val d = dulce
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val pestanas = listOf(
-        Pestana(R.string.tab_limpiar, Icons.Filled.CleaningServices),
-        Pestana(R.string.tab_sincronizar, Icons.Filled.Sync),
-        Pestana(R.string.tab_licencias, Icons.Filled.VpnKey),
+        Pestana(R.string.tab_limpiar, Iconos.Brillo),
+        Pestana(R.string.tab_sincronizar, Icons.Filled.Refresh),
+        Pestana(R.string.tab_licencias, Iconos.Llave),
         Pestana(R.string.tab_ajustes, Icons.Filled.Settings),
     )
     Scaffold(

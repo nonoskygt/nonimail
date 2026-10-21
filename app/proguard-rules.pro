@@ -14,3 +14,5 @@
 -keepclassmembers class com.nonosky.nonimailtools.** { *** Companion; }
 -keepattributes *Annotation*, InnerClasses, Signature
 -keep class com.nonosky.nonimailtools.core.Defaults** { *; }
+# Open source app that users share logs from: keep readable class and method names in stack traces.
+-dontobfuscate

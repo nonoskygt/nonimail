@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -245,7 +243,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
                             },
                             Modifier.fillMaxWidth(),
                             activo = !ocupada && (resumen?.remitentes ?: 0) > 0 && !bloqueada,
-                            icono = Icons.Filled.CleaningServices,
+                            icono = Iconos.Brillo,
                         )
                         when (estado) {
                             is EstadoLimpieza.Listo -> ResultadoLimpieza(estado)
@@ -306,7 +304,7 @@ private fun FilaRemitente(s: SenderScore, corte: Int, marcado: Boolean, onCambio
     Tarjeta(onClick = if (bloqueado) null else ({ onCambio(!marcado) })) {
         Fila(espacio = 8.dp) {
             if (bloqueado) {
-                Icon(Icons.Filled.Shield, stringResource(R.string.protegido), tint = d.teal, modifier = Modifier.size(24.dp).padding(2.dp))
+                Icon(Iconos.Escudo, stringResource(R.string.protegido), tint = d.teal, modifier = Modifier.size(24.dp).padding(2.dp))
             } else {
                 Checkbox(
                     marcado, null,
@@ -346,7 +344,7 @@ private fun Proteccion(
     var abierto by rememberSaveable { mutableStateOf(false) }
     Tarjeta {
         Fila(Modifier.fillMaxWidth().clickable { abierto = !abierto }.heightIn(min = 48.dp)) {
-            Icon(Icons.Filled.Shield, null, tint = dulce.teal)
+            Icon(Iconos.Escudo, null, tint = dulce.teal)
             Titulo(stringResource(R.string.protecciones), Modifier.weight(1f))
             Etiqueta(stringResource(if (abierto) R.string.ocultar else R.string.mostrar))
         }

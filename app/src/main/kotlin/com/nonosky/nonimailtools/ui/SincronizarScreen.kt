@@ -9,7 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -92,7 +92,7 @@ fun SincronizarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier
                             app.ajustes.sync(origen.id, destino.id, incluir, excluir)
                             app.operaciones.iniciar(ctx, Trabajo.Sincronizar(origen, destino, simulacion, listaDe(incluir), listaDe(excluir)))
                         },
-                        Modifier.fillMaxWidth(), icono = Icons.Filled.Sync,
+                        Modifier.fillMaxWidth(), icono = Icons.Filled.Refresh,
                         activo = !ocupada && (simulacion || puerta?.permitido == true),
                     )
                     (estado as? EstadoSync.Error)?.let { Pista(textoFallo(it.f), error = true) }

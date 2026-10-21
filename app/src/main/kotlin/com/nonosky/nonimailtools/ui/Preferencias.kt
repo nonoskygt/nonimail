@@ -15,7 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -137,7 +137,7 @@ fun BloqueIA() {
                     .onFailure { ok = false; modelos = emptyList(); estado = textoFalla; app.telemetry.log.w("ia", "Ollama probe failed: ${it.message}") }
             }
         },
-        Modifier.fillMaxWidth(), activo = url.isNotBlank() && !probando, icono = Icons.Filled.Wifi,
+        Modifier.fillMaxWidth(), activo = url.isNotBlank() && !probando, icono = Icons.Filled.Refresh,
     )
     estado?.let { Pista(it, error = !ok) }
     if (modelos.isNotEmpty()) {

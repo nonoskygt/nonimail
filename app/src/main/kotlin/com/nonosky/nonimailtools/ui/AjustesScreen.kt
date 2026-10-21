@@ -17,10 +17,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -90,14 +90,14 @@ fun AjustesScreen(repetirConfigurador: () -> Unit, modifier: Modifier = Modifier
             Tarjeta {
                 Titulo(stringResource(R.string.registros))
                 Fila {
-                    BotonSecundario(stringResource(R.string.ver_registros), { verLog = true }, Modifier.weight(1f), icono = Icons.Filled.Description)
+                    BotonSecundario(stringResource(R.string.ver_registros), { verLog = true }, Modifier.weight(1f), icono = Icons.Filled.Info)
                     BotonSecundario(stringResource(R.string.compartir_registros), { compartirRegistros(ctx) }, Modifier.weight(1f), icono = Icons.Filled.Share)
                 }
             }
         }
         item {
             Tarjeta {
-                BotonSecundario(stringResource(R.string.repetir_configurador), repetirConfigurador, Modifier.fillMaxWidth(), icono = Icons.Filled.Replay)
+                BotonSecundario(stringResource(R.string.repetir_configurador), repetirConfigurador, Modifier.fillMaxWidth(), icono = Icons.Filled.Refresh)
             }
         }
         item {
@@ -108,7 +108,7 @@ fun AjustesScreen(repetirConfigurador: () -> Unit, modifier: Modifier = Modifier
                     Cifra("MIT", stringResource(R.string.licencia), Modifier.weight(1f))
                 }
                 Pista("© Danilo Estuardo Gonzalez Rizzo · ${BuildConfig.ORIGEN_DESCARGA}")
-                BotonSecundario(stringResource(R.string.github), { abrirUrl(ctx, BuildConfig.REPO_URL) }, Modifier.fillMaxWidth(), icono = Icons.AutoMirrored.Filled.OpenInNew)
+                BotonSecundario(stringResource(R.string.github), { abrirUrl(ctx, BuildConfig.REPO_URL) }, Modifier.fillMaxWidth(), icono = Icons.AutoMirrored.Filled.ArrowForward)
             }
         }
     }
