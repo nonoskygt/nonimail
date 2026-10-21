@@ -179,7 +179,8 @@
     if (s.rule === 'delete') return 'delete';
     if (s.rule === 'protect' || s.protected) return 'keep';
     if (s.score == null) return 'keep';
-    return s.score >= dureza() ? 'delete' : 'keep';
+    // igual que classify.decide(): solo se marca lo claro; el margen de duda queda en Conservar
+    return s.score >= (100 - dureza()) + ((S.config.cleaning || {}).band || 0) ? 'delete' : 'keep';
   }
   function renderClean() {
     const acct = activeAcct();

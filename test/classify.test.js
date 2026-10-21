@@ -55,3 +55,28 @@ test('htmlToText quita etiquetas, estilos y entidades', () => {
   const t = c.htmlToText('<html><head><style>p{}</style></head><body><h1>Hola</h1><p>Lee &amp; compra&nbsp;ya &#233;&#x41;</p><script>x()</script></body></html>');
   assert.equal(t, 'Hola\nLee & compra ya éA');
 });
+
+test('sin IA, un remitente personal sin baja ni señales de ruido no sube del puntaje base', () => {
+  const { defaults } = require('../lib/defaults');
+  const d = defaults(), rules = c.compileRules(d.heuristics);
+  const s = c.heuristicScore(rules, d.heuristicScore, { subjects: ['Re: cena del viernes', 'hola'], from: 'Ana Pérez <ana@amiga.com>', bulk: false, body: 'nos vemos a las 8' });
+  assert.ok(s <= 20, `puntaje ${s}`);
+  const promo = c.heuristicScore(rules, d.heuristicScore, { subjects: ['50% OFF solo hoy'], from: 'ofertas@tienda.com', bulk: true, body: 'unsubscribe' });
+  assert.ok(promo >= 80, `puntaje ${promo}`);
+});
+
+test('el escaneo protege la respuesta personal (Re:, In-Reply-To) sin baja, no la de un boletín', () => {
+  const { Engine } = require('../lib/engine');
+  const { defaults } = require('../lib/defaults');
+  const cfg = JSON.parse(JSON.stringify(defaults()));
+  const eng = new Engine({ cfg: () => cfg, senderRules: () => ({}) });
+  const ctx = { cfg, mine: new Set(), rules: c.compileRules({}), senderRules: {} };
+  const score = (meta) => { const g = { email: meta.email }; eng._initialScore(g, ctx, { from: meta.email, ...meta }); return g; };
+  assert.deepEqual([score({ email: 'ana@amiga.com', subject: 'Re: cena del viernes' }).score, score({ email: 'ana@amiga.com', subject: 'Re: cena del viernes' }).reason], [0, 'conversación']);
+  assert.equal(score({ email: 'b@x.com', subject: 'cena', inReplyTo: '<a@b>' }).score, 0);
+  assert.equal(score({ email: 'c@x.com', subject: 'cena', references: '<a@b>' }).score, 0);
+  assert.equal(score({ email: 'ofertas@t.com', subject: 'Re: oferta', listUnsubscribe: '<mailto:x@y>' }).score, null, 'con baja es envío masivo');
+  assert.equal(score({ email: 'd@x.com', subject: 'hola' }).score, null, 'sin señales de respuesta se puntúa normal');
+  cfg.cleaning.protectConversations = false;
+  assert.equal(score({ email: 'ana@amiga.com', subject: 'Re: cena' }).score, null, 'si se apaga la protección, no aplica');
+});
