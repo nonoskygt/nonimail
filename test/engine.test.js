@@ -221,3 +221,19 @@ test('terminales: el escaneo emite lectura, respuesta del modelo y fases; la baj
     assert.ok(f2.includes('delete') && f2.includes('unsub') && f2.pop() === 'done');
   } finally { await t.cleanup(); }
 });
+
+test('reputación: ≥90 y ≤10 omiten la IA; con n<10 se ignora y decide la IA', async () => {
+  const t = await setup();
+  try {
+    const tabla = { 'ofertas@tienda.com': { eliminar_pct: 94, n: 37 }, 'ana@amiga.com': { eliminar_pct: 4, n: 20 }, 'dudoso@club.com': { eliminar_pct: 99, n: 9 } };
+    t.eng.reputacion = { buscar: (e) => tabla[e] || null };
+    t.eng.start('scan', { daysBack: 365 });
+    await t.done();
+    const by = Object.fromEntries(t.eng.scanSenders().map(s => [s.email, s]));
+    assert.equal(by['ofertas@tienda.com'].score, 95); assert.equal(by['ofertas@tienda.com'].reason, 'Reputación: el 94% lo elimina');
+    assert.equal(by['ana@amiga.com'].score, 5); assert.equal(by['ana@amiga.com'].reason, 'Reputación: casi todos lo conservan');
+    assert.equal(by['dudoso@club.com'].score, 85, 'n<10: decide la IA');
+    assert.ok(t.lines.some(l => l.startsWith('[heur] reputación=95')), 'línea en la terminal de heurística');
+    assert.ok(!t.lines.some(l => /ofertas@tienda|tienda/i.test(l) && l.startsWith('[llm]')), 'la IA no vio a los de reputación');
+  } finally { await t.cleanup(); }
+});

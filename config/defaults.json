@@ -168,6 +168,19 @@
     "timeoutMs": 10000,
     "quitTimeoutMs": 3000
   },
+  "filtro": {
+    "compartir": true,
+    "reputacion": true,
+    "decisionesPath": "/api/filtro/v1/decisiones",
+    "reputacionPath": "/api/filtro/v1/reputacion",
+    "intervalMs": 86400000,
+    "timeoutMs": 15000,
+    "maxBatch": 500,
+    "maxQueue": 5000,
+    "minN": 10,
+    "alto": 90,
+    "bajo": 10
+  },
   "log": {
     "dir": "logs",
     "file": "nonimail-tools.log",
