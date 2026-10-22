@@ -191,6 +191,7 @@
     const act = activeAcct();
     if (act) sel.value = act.id;
     sel.disabled = !list.length || !!busy();
+    renderUpdate(); // el botón «Reiniciar ahora» depende de si hay una operación en curso
   }
   $('acctSel').addEventListener('change', async (e) => {
     try { S.config = await api('POST', '/api/accounts/active', { id: e.target.value }); S.senders.clear(); S.over.clear(); S.scanDone = false; renderAll(); }
@@ -800,6 +801,8 @@
   }).catch(() => {});
   $('tel-on').addEventListener('change', (e) => saveSettings({ telemetry: { enabled: e.target.checked } }).catch(() => {}));
   $('sys-close').onchange = (e) => api('POST', '/api/prefs/close', { closeAction: e.target.value }).then(() => toast(t('ui.saved'), 'ok')).catch(fail);
+  $('upd-auto').addEventListener('change', (e) => api('POST', '/api/prefs/updates', { auto: e.target.checked }).then((r) => { upd = r.update; renderUpdate(); toast(t('ui.saved'), 'ok'); }).catch(fail));
+  $('upd-check').onclick = () => api('POST', '/api/update/check', {}).then((u) => { upd = u; renderUpdate(); }).catch(fail);
   $('sys-logs').onclick = () => api('POST', '/api/system/open-logs', {}).catch(fail);
   $('sys-setup').onclick = () => Wizard.open();
 
@@ -1011,7 +1014,42 @@
       onSync(m);
     } else if (m.t === 'google') {
       onGoogle(m);
+    } else if (m.t === 'update') {
+      upd = m.update; renderUpdate();
     }
+  }
+  // ---- actualizaciones: aviso flotante («Versión X lista · Reiniciar ahora» / «Versión X disponible · Descargar») y línea de Ajustes
+  let upd = null, updLater = '';
+  function renderUpdate() {
+    const box = $('upd-banner'); if (!box) return;
+    const u = upd;
+    const show = u && u.banner && updLater !== `${u.banner}${u.version}`;
+    box.hidden = !show; clear(box);
+    if (show) {
+      const later = h('button', { class: 'btn', text: t('ui.upd.b.later'), onclick: () => { updLater = `${u.banner}${u.version}`; renderUpdate(); } });
+      if (u.banner === 'ready') {
+        const wait = !!busy(); // el servidor vuelve a comprobarlo (también la descarga de modelos)
+        const go = h('button', { class: 'btn primary', text: t('ui.upd.b.restart'), title: wait ? t('ui.upd.b.wait') : '' });
+        go.disabled = wait;
+        go.onclick = () => api('POST', '/api/update/restart', {}).catch(fail);
+        box.append(h('span', { class: 'msg', text: t('ui.upd.b.ready', { v: u.version }) }), go, later);
+      } else if (u.url) {
+        box.append(h('span', { class: 'msg', text: t('ui.upd.b.avail', { v: u.version }) }), h('a', { class: 'btn primary', href: u.url, target: '_blank', rel: 'noopener', text: t('ui.upd.b.download') }), later);
+      } else { box.hidden = true; }
+    }
+    const line = $('upd-line'); if (!line) return;
+    $('upd-auto').checked = !u || u.auto;
+    $('upd-check').disabled = !!u && (!u.supported || u.phase === 'checking');
+    const v = u ? u.version : '', cur = u ? u.current : S.config.version;
+    let msg = '';
+    if (u && !u.supported) msg = t('ui.upd.r.dev');
+    else if (u && u.phase === 'checking') msg = t('ui.upd.r.checking');
+    else if (u && u.phase === 'uptodate') msg = t('ui.upd.r.uptodate');
+    else if (u && u.phase === 'downloading') msg = t('ui.upd.r.downloading', { v, p: u.percent });
+    else if (u && u.phase === 'downloaded') msg = t('ui.upd.r.ready', { v });
+    else if (u && u.phase === 'available') msg = t('ui.upd.r.available', { v });
+    else if (u && u.phase === 'error') msg = t('ui.upd.r.error');
+    line.textContent = `${t('ui.upd.current', { v: cur })}${msg ? ` · ${msg}` : ''}`;
   }
   function onGoogle(m) {
     S.googleWait = false;
@@ -1075,6 +1113,7 @@
       try { S.presets = (await api('GET', '/api/accounts')).presets; } catch (_) { /* sin plantillas */ }
       setCleanView('senders');
       renderAll(); showTab(tabEnabled('limpiar') ? 'limpiar' : 'cuentas'); renderSync();
+      try { upd = await api('GET', '/api/update'); renderUpdate(); } catch (_) { /* sin actualizaciones */ }
       connectStream();
       if (!S.config.setup.done) await Wizard.open();
     } catch (e) {

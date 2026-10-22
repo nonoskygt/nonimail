@@ -9,6 +9,7 @@ const { resolveDataDir, PRODUCT } = require('../lib/paths');
 const { createApp } = require('../lib/app');
 const { resolveClose, trayUsable } = require('../lib/closeaction');
 const { t } = require('../lib/i18n');
+const { installKind } = require('../lib/updates');
 
 app.setName(PRODUCT);
 // La misma carpeta de datos que el modo sin ventana (npm start): así no hay dos configuraciones
@@ -126,11 +127,23 @@ if (!lock) {
   process.on('unhandledRejection', (e) => { const err = e instanceof Error ? e : new Error(String(e)); if (server) server.reportError(err, 'app'); else console.error(err); });
 
   app.whenReady().then(async () => {
+    // Actualización automática: solo en la app empaquetada. electron-updater lee de qué repositorio actualizar
+    // de la sección build.publish de package.json (queda en app-update.yml al compilar).
+    let kind = installKind({ platform: process.platform, env: process.env, packaged: app.isPackaged });
+    let updates;
+    if (kind !== 'dev') {
+      let autoUpdater = null;
+      if (kind === 'nsis' || kind === 'appimage') {
+        try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.error(e); kind = 'other'; } // sin el módulo: solo aviso con enlace
+      }
+      updates = { kind, autoUpdater, quitAndInstall: () => autoUpdater && autoUpdater.quitAndInstall(true, true) };
+    }
     server = await createApp({
       desktop: true, host: '127.0.0.1', cipher, locale: app.getLocale(),
       dataDir: app.getPath('userData'),
       openPath: (p) => shell.openPath(p),
       onAppearance: () => applyBackground(),
+      updates,
     });
     ensureTray();
     createWindow();
@@ -148,6 +161,8 @@ if (!lock) {
     e.preventDefault(); quitting = true;
     clearInterval(bgTimer);
     if (tray) { try { tray.destroy(); } catch (_) {} tray = null; }
-    server.close().catch(() => {}).finally(() => app.exit(0));
+    // app.quit() (y no app.exit) para que se emita «quit»: ahí electron-updater instala la versión descargada
+    const forced = setTimeout(() => app.exit(0), 8000);
+    server.close().catch(() => {}).finally(() => { clearTimeout(forced); app.quit(); });
   });
 }

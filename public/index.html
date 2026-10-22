@@ -269,6 +269,13 @@
               <h3 data-i18n="ui.set.system"></h3>
               <div class="info-grid" id="sys-info"></div>
               <label class="fld" id="sys-close-fld"><span data-i18n="ui.sys.closeAction"></span><select id="sys-close"><option value="ask" data-i18n="ui.sys.close.ask"></option><option value="minimize" data-i18n="ui.sys.close.minimize"></option><option value="quit" data-i18n="ui.sys.close.quit"></option></select></label>
+              <h3 data-i18n="ui.upd.title"></h3>
+              <label class="switch"><input type="checkbox" id="upd-auto"><i></i><span data-i18n="ui.upd.auto"></span></label>
+              <div class="hint" data-i18n="ui.upd.autoHint"></div>
+              <div class="row">
+                <button class="btn" id="upd-check" data-i18n="ui.upd.check"></button>
+                <span class="hint" id="upd-line" role="status" aria-live="polite"></span>
+              </div>
               <div class="row">
                 <button class="btn" id="sys-logs" data-i18n="ui.sys.openLogs"></button>
                 <button class="btn" id="sys-setup" data-i18n="ui.sys.setup"></button>
@@ -297,6 +304,7 @@
   </div>
 </div>
 
+<div class="banner upd-banner" id="upd-banner" role="status" hidden></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="/app.js"></script>
 </body>

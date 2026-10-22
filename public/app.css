@@ -117,6 +117,8 @@ input[type=range] { padding: 0; min-height: 0; border: 0; background: none; widt
 
 .banner { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius-lg); background: var(--amber-tint); border: 1px solid var(--amber-line); }
 .banner.bad { background: var(--red-tint); border-color: var(--red-line); }
+.upd-banner { position: fixed; left: 16px; bottom: 16px; z-index: 70; max-width: min(520px, calc(100vw - 32px)); background: var(--panel); border-color: var(--border2); box-shadow: var(--shadow-pop); }
+.upd-banner[hidden] { display: none; }
 .banner .msg { flex: 1; min-width: 200px; }
 
 /* ---- tablas ---- */

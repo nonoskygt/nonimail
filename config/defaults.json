@@ -149,6 +149,12 @@
       "sincronizar": "2"
     }
   },
+  "updates": {
+    "auto": true,
+    "apiUrl": "",
+    "startDelayMs": 10000,
+    "intervalMs": 14400000
+  },
   "telemetry": {
     "enabled": true,
     "installPath": "/api/telemetria/v1/instalacion",
