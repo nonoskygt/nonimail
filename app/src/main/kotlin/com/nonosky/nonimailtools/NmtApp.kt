@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.nonosky.nonimailtools.actualizar.Actualizaciones
 import com.nonosky.nonimailtools.core.telemetria.Telemetria
 import com.nonosky.nonimailtools.data.Ajustes
 import com.nonosky.nonimailtools.data.RepoCuentas
@@ -30,6 +31,7 @@ class NmtApp : Application() {
     lateinit var telemetry: Telemetry; private set
     lateinit var operaciones: Operaciones; private set
     lateinit var ia: IaManager; private set
+    lateinit var actualizaciones: Actualizaciones; private set
 
     private var periodico: Job? = null
 
@@ -46,6 +48,7 @@ class NmtApp : Application() {
         telemetry = Telemetry(this, ajustes, cuentas)
         operaciones = Operaciones(this)
         ia = IaManager(this)
+        actualizaciones = Actualizaciones(this)
         instalarManejadorDeErrores()
         telemetry.log.i("app", "Start ${BuildConfig.VERSION_NAME} (${BuildConfig.ORIGEN_DESCARGA})")
 
@@ -54,6 +57,7 @@ class NmtApp : Application() {
                 telemetry.registrar(Telemetria.inicio())
                 telemetry.programarPeriodico()
                 telemetry.enviarYa()
+                actualizaciones.alIniciar()
                 // While the app is open, a batch goes out every 5 minutes.
                 periodico = scope.launch {
                     while (true) { delay(5 * 60_000L); telemetry.enviarYa() }
@@ -62,6 +66,7 @@ class NmtApp : Application() {
 
             override fun onStop(owner: LifecycleOwner) {
                 periodico?.cancel(); periodico = null
+                actualizaciones.alSalir()
                 telemetry.enviarYa()
             }
         })

@@ -54,6 +54,10 @@ data class Valores(
     val syncDestino: String = "",
     val syncIncluir: String = "",
     val syncExcluir: String = "",
+    /** «Actualizar automáticamente»: on by default. */
+    val actualizarAuto: Boolean = true,
+    /** Last time the update check ran (epoch ms); throttles the check at app start. */
+    val actualizarUltimaMs: Long = 0,
 ) {
     /** Installs from before 1.1 only had the Ollama address. */
     val iaModoEfectivo: String get() = iaModo.ifBlank { if (ollamaUrl.isNotBlank()) "red" else "" }
@@ -95,6 +99,8 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
         val syncDestino = stringPreferencesKey("sync_destino")
         val syncIncluir = stringPreferencesKey("sync_incluir")
         val syncExcluir = stringPreferencesKey("sync_excluir")
+        val actualizarAuto = booleanPreferencesKey("actualizar_auto")
+        val actualizarUltima = longPreferencesKey("actualizar_ultima_ms")
     }
 
     private fun read(p: Preferences) = Valores(
@@ -115,6 +121,7 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
         cuentaLimpiar = p[K.cuentaLimpiar] ?: "",
         syncOrigen = p[K.syncOrigen] ?: "", syncDestino = p[K.syncDestino] ?: "",
         syncIncluir = p[K.syncIncluir] ?: "", syncExcluir = p[K.syncExcluir] ?: "",
+        actualizarAuto = p[K.actualizarAuto] ?: true, actualizarUltimaMs = p[K.actualizarUltima] ?: 0,
     )
 
     /** Read once, synchronously, before the first frame: language and theme are applied before painting. */
@@ -155,6 +162,8 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
     fun sync(origen: String, destino: String, incluir: String, excluir: String) = edit {
         it[K.syncOrigen] = origen; it[K.syncDestino] = destino; it[K.syncIncluir] = incluir; it[K.syncExcluir] = excluir
     }
+    fun actualizarAuto(v: Boolean) = edit { it[K.actualizarAuto] = v }
+    fun actualizarUltima(ms: Long) = edit { it[K.actualizarUltima] = ms }
     fun installEnviada(ms: Long, hash: String) = edit { it[K.installEnviada] = ms; it[K.installHash] = hash }
 
     /** The install id is a UUID v4 made on the first launch and kept in the app data. */

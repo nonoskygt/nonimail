@@ -216,4 +216,22 @@
     <string name="op_limpiando">Moving to Trash</string>
     <string name="op_sincronizando">Syncing mailboxes</string>
     <string name="op_trabajando">Working…</string>
+    <string name="act_titulo">Updates</string>
+    <string name="act_auto">Update automatically</string>
+    <string name="act_auto_linea">Looks for new versions in the background and installs them when nothing is running.</string>
+    <string name="act_version">Current version %1$s</string>
+    <string name="act_buscar">Check for updates</string>
+    <string name="act_buscando">Checking…</string>
+    <string name="act_al_dia">You are up to date (%1$s).</string>
+    <string name="act_disponible">Version %1$s found. Downloading in the background.</string>
+    <string name="act_lista_linea">Version %1$s is ready to install.</string>
+    <string name="act_instalando">Installing…</string>
+    <string name="act_fallo">Could not check now. Try again later.</string>
+    <string name="act_debug">Test builds do not update themselves.</string>
+    <string name="act_banner">Version %1$s ready</string>
+    <string name="act_instalar">Install</string>
+    <string name="act_permiso">Allow this app to install updates</string>
+    <string name="act_espera">Waiting for the running task to finish</string>
+    <string name="act_canal">Updates</string>
+    <string name="act_notif_texto">Tap to install the update</string>
 </resources>

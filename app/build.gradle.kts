@@ -45,6 +45,12 @@ android {
         buildConfigField("int", "PRICE_SINCRONIZAR", prop("nmt.priceSincronizar"))
         buildConfigField("int", "LICENSE_DAYS", prop("nmt.licenseDays"))
         buildConfigField("String", "ORIGEN_DESCARGA", quoted(prop("nmt.origenDescarga")))
+        buildConfigField("String", "UPDATE_REPO", quoted(prop("nmt.updateRepo")))
+        buildConfigField("String", "UPDATE_API_BASE", quoted(prop("nmt.updateApiBase")))
+        buildConfigField("String", "UPDATE_APK_ASSET", quoted(prop("nmt.updateApkAsset")))
+        buildConfigField("String", "UPDATE_SUMS_ASSET", quoted(prop("nmt.updateSumsAsset")))
+        buildConfigField("int", "UPDATE_MIN_HOURS", prop("nmt.updateMinHours"))
+        buildConfigField("int", "UPDATE_PERIOD_HOURS", prop("nmt.updatePeriodHours"))
     }
 
     buildFeatures {

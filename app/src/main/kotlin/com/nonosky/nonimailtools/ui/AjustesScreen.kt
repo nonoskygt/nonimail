@@ -78,6 +78,7 @@ fun AjustesScreen(repetirConfigurador: () -> Unit, modifier: Modifier = Modifier
         item { Tarjeta { BloqueIdioma() } }
         item { Tarjeta { BloqueApariencia() } }
         item { Tarjeta { BloqueIA() } }
+        item { Tarjeta { BloqueActualizacion() } }
         item { Tarjeta { BloqueTelemetria() } }
         item {
             Tarjeta {

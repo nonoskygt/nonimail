@@ -1,6 +1,7 @@
 package com.nonosky.nonimailtools.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -114,12 +115,15 @@ internal fun Cascaron(repetirConfigurador: () -> Unit, tabInicial: Int = 0) {
             }
         },
     ) { inner ->
-        val m = Modifier.padding(inner)
-        when (tab) {
-            0 -> LimpiarScreen({ tab = 3 }, { tab = 2 }, m)
-            1 -> SincronizarScreen({ tab = 3 }, { tab = 2 }, m)
-            2 -> LicenciasScreen(m)
-            else -> AjustesScreen(repetirConfigurador, m)
+        Column(Modifier.padding(inner)) {
+            BannerActualizacion()
+            val m = Modifier.weight(1f)
+            when (tab) {
+                0 -> LimpiarScreen({ tab = 3 }, { tab = 2 }, m)
+                1 -> SincronizarScreen({ tab = 3 }, { tab = 2 }, m)
+                2 -> LicenciasScreen(m)
+                else -> AjustesScreen(repetirConfigurador, m)
+            }
         }
     }
 }
