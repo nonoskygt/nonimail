@@ -28,6 +28,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.Timeout
 import java.util.Properties
 import javax.mail.Flags
 import javax.mail.Folder
@@ -37,7 +38,9 @@ import javax.mail.internet.MimeMessage
 
 /** Real IMAP conversations against an in-process GreenMail server. */
 class ImapIntegracionTest {
-    @get:Rule val gm = GreenMailRule(ServerSetupTest.IMAP)
+    // No IMAP conversation may take more than a minute; a stuck one fails instead of hanging CI.
+    @get:Rule(order = 0) val limite: Timeout = Timeout.seconds(60)
+    @get:Rule(order = 1) val gm = GreenMailRule(ServerSetupTest.IMAP)
 
     private val d = Defaults.instance
     private val timeouts = ImapTimeouts(5_000, 20_000)

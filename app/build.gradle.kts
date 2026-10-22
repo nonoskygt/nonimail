@@ -1,3 +1,4 @@
+import java.time.Duration
 import java.util.Properties
 
 plugins {
@@ -103,6 +104,7 @@ android {
             isIncludeAndroidResources = true
             all { t ->
                 t.maxHeapSize = "768m"
+                t.timeout.set(Duration.ofMinutes(10))
                 t.jvmArgs("-XX:+UseSerialGC")
                 // Screenshot tests (Robolectric + Roborazzi) only run on request:
                 //   ./gradlew :app:testDebugUnitTest -Pnmt.shotsDir=/path/to/shots

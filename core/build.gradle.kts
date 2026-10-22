@@ -1,3 +1,4 @@
+import java.time.Duration
 // Pure Kotlin/JVM: all mail, license, scoring and telemetry logic lives here so it can be
 // unit-tested on any JVM, without a device or Robolectric.
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -32,5 +33,7 @@ tasks.test {
     maxHeapSize = "512m"
     // GreenMail binds local ports; one fork keeps the run predictable on small machines.
     maxParallelForks = 1
+    // A hung test must fail the build with a report, never wait for the CI job limit.
+    timeout.set(Duration.ofMinutes(10))
     testLogging { events("failed"); exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }
