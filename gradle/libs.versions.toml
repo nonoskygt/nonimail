@@ -17,6 +17,8 @@ coroutines = "1.11.0"
 serialization = "1.12.0"
 androidMail = "1.6.8"
 bouncycastle = "1.86"
+# On-device LLM runtime (Google Maven). Successor of MediaPipe LLM Inference (tasks-genai).
+litertlm = "0.18.1"
 
 junit = "4.13.2"
 greenmail = "1.6.15"
@@ -48,6 +50,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 android-mail = { module = "com.sun.mail:android-mail", version.ref = "androidMail" }
 android-activation = { module = "com.sun.mail:android-activation", version.ref = "androidMail" }
 bouncycastle-prov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 junit = { module = "junit:junit", version.ref = "junit" }
 greenmail = { module = "com.icegreen:greenmail", version.ref = "greenmail" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }

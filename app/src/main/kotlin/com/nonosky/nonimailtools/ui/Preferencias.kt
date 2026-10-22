@@ -103,9 +103,9 @@ fun nombreAcento(id: String): Int = when (id) {
     else -> R.string.acento_verde
 }
 
-/** Ollama URL + model with a live connection test. */
+/** Ollama URL + model with a live connection test («Servidor en mi red»). */
 @Composable
-fun BloqueIA() {
+fun PanelServidorRed() {
     val app = NmtApp.instance
     val v by app.ajustes.valores.collectAsState()
     val scope = rememberCoroutineScope()
@@ -118,7 +118,6 @@ fun BloqueIA() {
     val textoOk = stringResource(R.string.ia_conectado)
     val textoFalla = stringResource(R.string.ia_no_responde)
 
-    Titulo(stringResource(R.string.ia_local))
     Campo(url, { url = it; app.ajustes.ollamaUrl(it); estado = null }, stringResource(R.string.ia_url), placeholder = "192.168.0.50:${BuildConfig.OLLAMA_PORT}", teclado = KeyboardType.Uri)
     Campo(modelo, { modelo = it; app.ajustes.ollamaModelo(it) }, stringResource(R.string.ia_modelo), placeholder = BuildConfig.OLLAMA_MODEL)
     BotonSecundario(

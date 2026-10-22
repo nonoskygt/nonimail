@@ -28,7 +28,7 @@ A short configurator runs once and can be repeated from Settings:
 
 1. Language (Spanish, English, or the device's) and appearance (mode and accent color).
 2. Permissions: notifications (Android 13+) and battery optimization exemption, so long tasks are not cut.
-3. Optional local AI: the address of an Ollama server on your LAN, with a connection test. You can skip it.
+3. Optional AI: a model that runs on the phone itself (Basic, Medium or Large; the app recommends the largest your RAM and storage allow) or an Ollama server on your LAN. One progress bar covers verifying, downloading (resumable, with Cancel) and setting up the model; you can skip it.
 4. Telemetry switch (see [Privacy](#privacy--telemetry)).
 5. Your first account: Gmail, Outlook/Hotmail, Yahoo, iCloud or custom IMAP, with a connection test.
 
@@ -37,11 +37,13 @@ A short configurator runs once and can be repeated from Settings:
 ## Clean
 
 - Scan the last N messages or the last N days. The scan only reads; nothing is marked as read.
-- Senders are scored 0-100 with the shared heuristics (promotions, bulk headers, automatic senders). With an Ollama URL configured, the local AI can score them too.
+- Senders are scored 0-100 with the shared heuristics (promotions, bulk headers, automatic senders). With AI set up (on the phone or Ollama), it can score them too.
 - The **hardness** slider draws a cut line over all scores; the senders above it are ticked. You can tick or untick any of them.
 - **Protections always win**: banks, invoices, verification codes (a keep-override regex you can edit), your own protected list, and people you write to. Protected senders are never moved.
 - Mail goes to the Trash only (found by the `\Trash` special-use flag or by name). If the mailbox has no Trash folder, the run is refused.
 - **Simulate only** is on by default.
+
+**On-device AI.** Three tiers (Basic, Medium, Large) run on the phone with [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM); the app reads your RAM and free storage and recommends the largest that fits (RAM of at least 2x the model plus 2 GB, storage of at least the model plus 1 GB). The models come from the ungated `litert-community` repositories on Hugging Face, so no login is needed; URLs, sizes and SHA-256 sums are in the `localAi` block of `core/src/main/resources/com/nonosky/nonimailtools/core/defaults.json`, and the file is checked before it is loaded. "Server on my network" (Ollama) stays as a fourth choice, and the heuristics are always the fallback.
 
 ## Sync
 

@@ -34,6 +34,10 @@ data class Valores(
     val configurado: Boolean = false,
     val ollamaUrl: String = "",
     val ollamaModelo: String = BuildConfig.OLLAMA_MODEL,
+    /** "" = none, "basico" / "mediano" / "grande" = model on the phone, "red" = Ollama on the LAN. */
+    val iaModo: String = "",
+    /** Id of the tier whose model was downloaded, verified and loaded once. */
+    val iaListoId: String = "",
     val telemetria: Boolean = true,
     val serviceUrl: String = BuildConfig.SERVICE_URL,
     val installId: String = "",
@@ -51,6 +55,13 @@ data class Valores(
     val syncIncluir: String = "",
     val syncExcluir: String = "",
 ) {
+    /** Installs from before 1.1 only had the Ollama address. */
+    val iaModoEfectivo: String get() = iaModo.ifBlank { if (ollamaUrl.isNotBlank()) "red" else "" }
+    val iaActiva: Boolean get() = when (val m = iaModoEfectivo) {
+        "" -> false
+        "red" -> ollamaUrl.isNotBlank()
+        else -> iaListoId == m
+    }
     val modo: Modo get() = Modo.of(modoElegido)
     val acento: Acento get() = Acento.of(acentoElegido)
     val keepEfectivo: String get() = keepOverride.ifBlank { Defaults.instance.heuristics.keepOverride }
@@ -66,6 +77,8 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
         val configurado = booleanPreferencesKey("configurado")
         val ollamaUrl = stringPreferencesKey("ollama_url")
         val ollamaModelo = stringPreferencesKey("ollama_modelo")
+        val iaModo = stringPreferencesKey("ia_modo")
+        val iaListoId = stringPreferencesKey("ia_listo_id")
         val telemetria = booleanPreferencesKey("telemetria")
         val serviceUrl = stringPreferencesKey("service_url")
         val installId = stringPreferencesKey("install_id")
@@ -90,6 +103,7 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
         configurado = p[K.configurado] ?: false,
         ollamaUrl = p[K.ollamaUrl] ?: "",
         ollamaModelo = p[K.ollamaModelo]?.takeIf { it.isNotBlank() } ?: BuildConfig.OLLAMA_MODEL,
+        iaModo = p[K.iaModo] ?: "", iaListoId = p[K.iaListoId] ?: "",
         telemetria = p[K.telemetria] ?: true,
         serviceUrl = p[K.serviceUrl]?.takeIf { it.isNotBlank() } ?: BuildConfig.SERVICE_URL,
         installId = p[K.installId] ?: "",
@@ -128,6 +142,8 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
     fun configurado(v: Boolean) = edit { it[K.configurado] = v }
     fun ollamaUrl(v: String) = edit { it[K.ollamaUrl] = v.trim() }
     fun ollamaModelo(v: String) = edit { it[K.ollamaModelo] = v.trim() }
+    fun iaModo(v: String) = edit { it[K.iaModo] = v }
+    fun iaListoId(v: String) = edit { it[K.iaListoId] = v }
     fun telemetria(v: Boolean) = edit { it[K.telemetria] = v }
     fun serviceUrl(v: String) = edit { it[K.serviceUrl] = v.trim() }
     fun keepOverride(v: String) = edit { it[K.keep] = v }

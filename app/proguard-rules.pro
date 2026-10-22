@@ -16,3 +16,6 @@
 -keep class com.nonosky.nonimailtools.core.Defaults** { *; }
 # Open source app that users share logs from: keep readable class and method names in stack traces.
 -dontobfuscate
+# LiteRT-LM: JNI callbacks and Gson/kotlin-reflect read these classes by name.
+-keep class com.google.ai.edge.litertlm.** { *; }
+-dontwarn com.google.ai.edge.litertlm.**

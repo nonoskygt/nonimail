@@ -99,12 +99,12 @@ class Telemetry(
 
     private fun installRecord(): Instalacion {
         val v = ajustes.valores.value
-        val ia = v.ollamaUrl.isNotBlank()
+        val ia = v.iaActiva
         return Instalacion(
             installId = ajustes.asegurarInstallId(), app = "android", version = version, os = "android",
             osVersion = "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})", arch = arch,
             locale = Locale.getDefault().toLanguageTag(), zonaHoraria = TimeZone.getDefault().id,
-            origenDescarga = BuildConfig.ORIGEN_DESCARGA, iaLocal = ia, modelo = if (ia) v.ollamaModelo else null,
+            origenDescarga = BuildConfig.ORIGEN_DESCARGA, iaLocal = ia, modelo = if (ia) (if (v.iaModoEfectivo == "red") v.ollamaModelo else v.iaModoEfectivo) else null,
         )
     }
 

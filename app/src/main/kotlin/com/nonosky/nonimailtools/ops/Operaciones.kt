@@ -12,6 +12,7 @@ import com.nonosky.nonimailtools.core.licencias.Tipo
 import com.nonosky.nonimailtools.core.limpiar.CleanOptions
 import com.nonosky.nonimailtools.core.limpiar.CleanProgress
 import com.nonosky.nonimailtools.core.limpiar.CleanResult
+import com.nonosky.nonimailtools.core.limpiar.IaScorer
 import com.nonosky.nonimailtools.core.limpiar.Limpieza
 import com.nonosky.nonimailtools.core.limpiar.Ollama
 import com.nonosky.nonimailtools.core.limpiar.Rules
@@ -171,9 +172,13 @@ class Operaciones(private val app: NmtApp) {
         val acc = app.cuentas.imap(cuenta)
         if (acc == null) { _escaneo.value = EstadoEscaneo.Error(Fallo(Fallo.Tipo2.CUENTA_ILEGIBLE, "")); return }
         val v = app.ajustes.valores.value
-        val ia = if (t.usarIa && v.ollamaUrl.isNotBlank()) {
-            Ollama(Ollama.normalizeUrl(v.ollamaUrl, BuildConfig.OLLAMA_PORT), v.ollamaModelo, BuildConfig.OLLAMA_TIMEOUT_MS, d.llm.numCtx, d.llm.numPredict)
-        } else null
+        // Same interface for both engines; if the model cannot be loaded the heuristics score alone.
+        val ia: IaScorer? = if (!t.usarIa || !v.iaActiva) null else when (val modo = v.iaModoEfectivo) {
+            "red" -> Ollama(Ollama.normalizeUrl(v.ollamaUrl, BuildConfig.OLLAMA_PORT), v.ollamaModelo, BuildConfig.OLLAMA_TIMEOUT_MS, d.llm.numCtx, d.llm.numPredict)
+            else -> runCatching { app.ia.puntuador(modo) }
+                .onFailure { app.telemetry.error("ia", "On-device model failed to load: ${it.message}", it, cuenta.email) }
+                .getOrNull()
+        }
         val opts = ScanOptions(
             t.modo, t.cantidad, t.protegidos, rulesOf(t.keep, d), d.scores, d.cleaning, d.folders.sent, ia, d.llm.prompt,
         )
@@ -196,6 +201,8 @@ class Operaciones(private val app: NmtApp) {
         } catch (e: Exception) {
             _escaneo.value = EstadoEscaneo.Error(fallo("limpiar", cuenta.email, e))
             app.telemetry.registrar(Telemetria.limpiar(cuenta.email, "escaneo", true, null, null, null, secs(), "error", true))
+        } finally {
+            runCatching { ia?.close() }
         }
         app.telemetry.enviarYa()
     }

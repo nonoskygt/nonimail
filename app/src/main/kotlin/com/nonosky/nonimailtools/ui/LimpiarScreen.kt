@@ -113,7 +113,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
     val keepValido = Rules.isValid(keepTexto)
     val protegidos = remember(v.protegidos) { v.protegidosLista }
     val keepEfectivo = if (keepValido) keepTexto else defaults.heuristics.keepOverride
-    val usarIa = v.usarIa && v.ollamaUrl.isNotBlank()
+    val usarIa = v.usarIa && v.iaActiva
     val cantidadInt = cantidad.toIntOrNull()?.coerceIn(1, 100_000)
     val resumen = resultado?.let { Seleccion.resumen(it.senders, elegidos.toSet()) }
     val puerta = cuenta?.let { LicenseGate.check(listOf(it.email), Tipo.LIMPIAR, licencias, System.currentTimeMillis() / 1000) }
@@ -145,7 +145,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
                     stringResource(if (modo == "dias") R.string.cantidad_dias else R.string.cantidad_mensajes),
                     teclado = KeyboardType.Number,
                 )
-                if (v.ollamaUrl.isNotBlank()) {
+                if (v.iaActiva) {
                     FilaInterruptor(stringResource(R.string.usar_ia), v.usarIa, { app.ajustes.usarIa(it) })
                 }
                 if (escaneo is EstadoEscaneo.Corriendo) {

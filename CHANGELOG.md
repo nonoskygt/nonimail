@@ -3,6 +3,23 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-22
+
+### Added
+- **On-device AI with model tiers** (Basic, Medium, Large) running on the phone with LiteRT-LM 0.18.1 (CPU). The app
+  reads the RAM and free storage and recommends the largest tier that fits; a badge marks it.
+- **One progress bar** for the whole setup: "Verifying…", "Downloading model… 37% (210 / 555 MB)",
+  "Setting up model…" (load plus a warm-up question) and "Ready". Download with WorkManager as a foreground job,
+  resumable (HTTP Range), checked by size and SHA-256. Errors take one line with Retry.
+- **Cancel** at every phase: stops the WorkManager job, deletes the partial file and shows "Canceled" with Retry and
+  Skip. The app stays usable during the download.
+- "Server on my network" (Ollama) is kept as the fourth choice. Local and Ollama scoring share one interface; the
+  heuristics remain the fallback.
+- Model URLs, sizes, checksums and the recommendation rule live in `defaults.json` (`localAi`), not in code.
+
+### Changed
+- Version 1.1.0 (versionCode 10100).
+
 ## [1.0.0] - 2026-10-21
 
 First public release.

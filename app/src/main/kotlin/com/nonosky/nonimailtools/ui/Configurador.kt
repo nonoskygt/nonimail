@@ -103,8 +103,9 @@ fun Configurador(onTerminar: () -> Unit, onSalir: (() -> Unit)? = null) {
                 else if (onSalir != null) BotonSecundario(stringResource(R.string.cancelar), onSalir, Modifier.weight(1f))
                 when {
                     paso == 2 -> {
-                        val hayUrl = app.ajustes.valores.collectAsState().value.ollamaUrl.isNotBlank()
-                        BotonPrimario(stringResource(if (hayUrl) R.string.siguiente else R.string.omitir), { paso++ }, Modifier.weight(1f))
+                        // The download keeps going in the background: the person can move on.
+                        val hayIa = app.ajustes.valores.collectAsState().value.iaModoEfectivo.isNotBlank()
+                        BotonPrimario(stringResource(if (hayIa) R.string.siguiente else R.string.omitir), { paso++ }, Modifier.weight(1f))
                     }
                     paso < PASOS - 1 -> BotonPrimario(stringResource(R.string.siguiente), { paso++ }, Modifier.weight(1f))
                     cuentas.isNotEmpty() -> BotonPrimario(stringResource(R.string.finalizar), onTerminar, Modifier.weight(1f))

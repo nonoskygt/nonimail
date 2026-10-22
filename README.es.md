@@ -28,7 +28,7 @@ Un configurador corto se ejecuta una vez y puede repetirse desde Ajustes:
 
 1. Idioma (español, inglés o el del dispositivo) y apariencia (modo y color).
 2. Permisos: notificaciones (Android 13+) y exención de optimización de batería, para que las tareas largas no se corten.
-3. IA local opcional: la dirección de un servidor Ollama en su red local, con prueba de conexión. Puede omitirla.
+3. IA opcional: un modelo que corre en el propio teléfono (Básico, Mediano o Grande; la app recomienda el mayor que su RAM y su espacio permiten) o un servidor Ollama en su red. Una sola barra de progreso cubre la verificación, la descarga (reanudable, con Cancelar) y la configuración del modelo. Puede omitirla.
 4. Interruptor de telemetría (vea [Privacidad](#privacidad--telemetría)).
 5. Su primera cuenta: Gmail, Outlook/Hotmail, Yahoo, iCloud o IMAP personalizado, con prueba de conexión.
 
@@ -37,11 +37,13 @@ Un configurador corto se ejecuta una vez y puede repetirse desde Ajustes:
 ## Limpiar
 
 - Escanee los últimos N mensajes o los últimos N días. El escaneo solo lee; no marca nada como leído.
-- Cada remitente recibe una calificación de 0 a 100 con las reglas compartidas (promociones, encabezados de envío masivo, remitentes automáticos). Si configuró una dirección de Ollama, la IA local también puede calificar.
+- Cada remitente recibe una calificación de 0 a 100 con las reglas compartidas (promociones, encabezados de envío masivo, remitentes automáticos). Si configuró la IA (en el teléfono o con Ollama), también puede calificar.
 - El control de **dureza** traza una línea de corte sobre las calificaciones; los remitentes por encima quedan marcados. Usted puede marcar o desmarcar cualquiera.
 - **Las protecciones siempre ganan**: bancos, facturas, códigos de verificación (un patrón regex que usted puede editar), su lista de protegidos y las personas a quienes usted escribe. Un remitente protegido nunca se mueve.
 - El correo va solo a la papelera (se detecta con la marca `\Trash` o por nombre). Si el buzón no tiene papelera, la ejecución se rechaza.
 - **Solo simular** viene encendido de fábrica.
+
+**IA en el teléfono.** Tres niveles (Básico, Mediano y Grande) corren en el teléfono con [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM); la app lee su RAM y su espacio libre y recomienda el mayor que cabe (RAM de al menos 2 veces el modelo más 2 GB, y espacio de al menos el modelo más 1 GB). Los modelos salen de los repositorios `litert-community` de Hugging Face que no piden inicio de sesión; las direcciones, los tamaños y las sumas SHA-256 están en el bloque `localAi` de `core/src/main/resources/com/nonosky/nonimailtools/core/defaults.json`, y el archivo se comprueba antes de cargarlo. «Servidor en mi red» (Ollama) queda como cuarta opción y las reglas siempre son el respaldo.
 
 ## Sincronizar
 

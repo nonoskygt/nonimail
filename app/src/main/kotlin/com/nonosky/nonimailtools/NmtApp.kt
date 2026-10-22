@@ -9,6 +9,7 @@ import com.nonosky.nonimailtools.core.telemetria.Telemetria
 import com.nonosky.nonimailtools.data.Ajustes
 import com.nonosky.nonimailtools.data.RepoCuentas
 import com.nonosky.nonimailtools.data.RepoLicencias
+import com.nonosky.nonimailtools.ia.IaManager
 import com.nonosky.nonimailtools.lang.Idioma
 import com.nonosky.nonimailtools.ops.Operaciones
 import com.nonosky.nonimailtools.telemetria.Telemetry
@@ -28,6 +29,7 @@ class NmtApp : Application() {
     lateinit var licencias: RepoLicencias; private set
     lateinit var telemetry: Telemetry; private set
     lateinit var operaciones: Operaciones; private set
+    lateinit var ia: IaManager; private set
 
     private var periodico: Job? = null
 
@@ -43,6 +45,7 @@ class NmtApp : Application() {
         licencias = RepoLicencias(this, scope)
         telemetry = Telemetry(this, ajustes, cuentas)
         operaciones = Operaciones(this)
+        ia = IaManager(this)
         instalarManejadorDeErrores()
         telemetry.log.i("app", "Start ${BuildConfig.VERSION_NAME} (${BuildConfig.ORIGEN_DESCARGA})")
 
