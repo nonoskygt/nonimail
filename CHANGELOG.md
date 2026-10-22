@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0
+
+Actualización automática.
+
+- **La app busca sola versiones nuevas** (a los 10 s de abrir y cada 4 horas, también minimizada en la bandeja) con `electron-updater`; el repositorio sale de `build.publish` de `package.json`. Instalador de Windows (NSIS) y AppImage: la descarga es en segundo plano; con la versión lista aparece el aviso «Versión X lista · Reiniciar ahora» y, si no, se instala al cerrar la aplicación. Nunca se reinicia con una sincronización, una limpieza o la descarga de un modelo en curso: espera a que terminen.
+- **Portable y `.deb`** no pueden actualizarse solos: se consulta `releases/latest` de GitHub y el aviso «Versión X disponible · Descargar» abre el archivo que corresponde.
+- **Ajustes → Sistema → Actualizaciones**: interruptor «Actualizar automáticamente» (encendido de fábrica; apagado, solo se avisa), versión instalada y «Buscar actualizaciones» con el resultado en una línea. Los fallos se registran y se envían como evento `error` de telemetría con contexto `actualizacion`; nunca abren avisos.
+- Las versiones sin firma de código no se rechazan (no se define `publisherName`).
+- **Versión**: el flujo de publicación ahora también sube `latest.yml` y su `.blockmap` (Windows) y `latest-linux.yml` (Linux), que citan los archivos con versión en el nombre. La versión anterior (1.1.1) no se actualiza sola: instale la 1.2.0 una vez a mano.
+- Al cerrar se usa `app.quit()` en lugar de `app.exit()`, para que se emita `quit` y se instale la versión ya descargada.
+
 ## 1.1.1
 
 Arreglos de la IA local y de la ventana.

@@ -22,6 +22,8 @@ Spanish and English, picked from your system language. Theme "Dulce" with light,
 
 Each release also carries `SHA256SUMS.txt`.
 
+The installer and the AppImage update themselves (Settings → System → Updates); the portable and `.deb` builds only show a "Download" notice.
+
 ## Install
 
 **Windows (PowerShell):**

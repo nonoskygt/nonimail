@@ -2,6 +2,11 @@ name: Release
 
 # Al subir una etiqueta v* se compilan los instaladores en Windows y Linux y se publican en GitHub Releases,
 # con sumas SHA256 y copias con nombre estable (las que enlazan los scripts de instalación y el sitio).
+# Para la actualización automática también se publican latest.yml (+ .blockmap) en Windows y latest-linux.yml
+# en Linux: electron-builder los genera junto al instalador (con --publish never igual, porque package.json
+# trae build.publish) y citan los archivos CON versión en el nombre, que se suben tal cual.
+# Se compila con --publish never y se sube todo en un único paso (publish): así los dos sistemas no compiten por crear
+# la misma release ni se sube nada dos veces.
 on:
   push:
     tags: ['v*']
@@ -77,6 +82,7 @@ jobs:
             dist/NoniMail-Tools-*.exe
             dist/NoniMail-Tools*.AppImage
             dist/nonimail-tools_*.deb
+            dist/*.blockmap
             dist/latest*.yml
 
   publish:
@@ -91,12 +97,17 @@ jobs:
       - name: Sumas SHA256
         working-directory: release
         run: |
-          rm -f latest*.yml
           ls -la
-          sha256sum * > SHA256SUMS.txt
+          # los metadatos de actualización (latest*.yml) y los .blockmap se suben pero no llevan suma
+          test -f latest.yml && test -f latest-linux.yml
+          grep -q 'NoniMail-Tools-Setup-' latest.yml && grep -q 'NoniMail-Tools-.*AppImage' latest-linux.yml
+          ls | grep -v -E '^latest.*\.yml$|\.blockmap$' | xargs sha256sum > SHA256SUMS.txt
           cat SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
           files: release/*
           generate_release_notes: true
+          draft: false
+          prerelease: false
+          make_latest: true
           fail_on_unmatched_files: true

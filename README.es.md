@@ -22,6 +22,8 @@ Español e inglés según el idioma de su sistema. Tema «Dulce» con modo claro
 
 Cada versión trae también `SHA256SUMS.txt`.
 
+El instalador y el AppImage se actualizan solos (Ajustes → Sistema → Actualizaciones); el portable y el `.deb` solo muestran un aviso con «Descargar».
+
 ## Instalación
 
 **Windows (PowerShell):**
