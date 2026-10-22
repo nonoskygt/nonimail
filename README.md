@@ -2,8 +2,9 @@
 
 **English** · [Español](README.es.md)
 
-Desktop app (Windows and Linux) with two tools for your mailbox. No account, no sign-up.
+Desktop app (Windows and Linux) with two tools for your mailbox. No account and no sign-up for personal mailboxes; everything fits in one window, with no page scrolling.
 
+- **Accounts**: set up your mailboxes. **Sync** and **Clean** unlock once the first tested account is saved.
 - **Clean**: clean your inbox by sender. Everything promotional goes to Trash. Nothing is ever deleted.
 - **Sync**: copy one IMAP mailbox into another without duplicates, keeping folders, flags and dates.
   The source is never touched.
@@ -52,7 +53,7 @@ The setup opens the first time and again any time from **Settings → System →
    - Then it downloads the model with Ollama's `/api/pull`, with a progress bar.
    - **Skip (no AI)** uses heuristics only.
 3. **Telemetry**: one switch, on by default. See [Privacy](#privacy-and-telemetry).
-4. **First account**: pick a provider (Gmail, Yahoo, iCloud, AOL, Zoho, GMX, Yandex, Fastmail or manual), enter email and password, and test the connection.
+4. **First account**: pick a provider (Gmail with **Sign in with Google**, Yahoo, iCloud, AOL, Zoho, GMX, Yandex, Fastmail or manual), enter email and password, and test the connection. It ends on the **Accounts** tab.
 
 ## Clean
 
@@ -90,22 +91,17 @@ Pick **Source** and **Destination** among your accounts (optionally filter folde
 | Clean | USD 1 |
 | Sync | USD 2 |
 
-The **Licenses** tab shows each account's state and a **Buy** link. Paste the key (`NMT1.…`) in **Add key**.
+The **Licenses** tab shows each account's state and a **Buy** link. Personal accounts never ask you to sign in. With an own-domain account, **Sign in** with your service email and password (a new email gets a 6-digit code to type) and the app fetches your licenses by itself; **Sign out** is on the same tab. Without signing in you can still add and simulate, and paste the key (`NMT1.…`) in **Add key**.
 Keys are signed (Ed25519) and checked offline with the public key bundled in the app. Licenses bought on the web service work too.
 
 ## Connect with Google
 
-You use **your own** Google client, so no shared app has to be audited and your credentials go nowhere else. One time, about 10 minutes:
+In **Accounts**, with the Gmail provider, click **Sign in with Google**: the browser opens, accept the mail permission and the account is saved and tested, with no other fields. Only `https://mail.google.com/` plus `openid email` is requested; the refresh token is stored encrypted.
 
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com/projectcreate).
-2. Enable the **Gmail API**.
-3. **OAuth consent screen**: type **External**; add the scope `https://mail.google.com/`.
-4. Publish the app (status "In production"); in "Testing" Google cuts access every 7 days. It needs no verification: it is only yours.
-5. **Credentials → OAuth client ID**, type **Desktop app**. Copy the **Client ID** and **Client Secret** into **Settings → Accounts → Google**.
-6. Click **Connect with Google** and accept. Google warns the app is not verified: it is yours, continue under **Advanced**.
-
-Simpler: Gmail with an [app password](https://myaccount.google.com/apppasswords) (needs 2-step verification).
+If this build ships without a Google client, the button says so in one line and the Gmail [app password](https://myaccount.google.com/apppasswords) stays available (needs 2-step verification).
 Outlook/Hotmail with a password is not supported: Microsoft no longer accepts passwords over IMAP.
+
+If you prefer your own Google client, put it in **Settings → System → Your own Google client** (type **Desktop app**).
 
 ## Privacy and telemetry
 
@@ -119,7 +115,7 @@ If you leave telemetry on (the default), the app sends **only this** to `https:/
 **Never sent:** passwords, tokens, full license keys, subjects, bodies or the senders of your emails. The server adds the date and a GeoIP location from the request; the app does not send its IP.
 Events wait in a queue on disk and go out in batches every 5 minutes, after each operation and on exit.
 
-**Turn it off:** the switch in the setup, **Settings → Privacy**, or the environment variable `NMT_TELEMETRY=0`. When off, the app sends nothing, not even the install ping, and the queue is emptied.
+**Turn it off:** the switch in the setup, **Settings → System**, or the environment variable `NMT_TELEMETRY=0`. When off, the app sends nothing, not even the install ping, and the queue is emptied.
 
 ## Settings
 
@@ -130,7 +126,7 @@ All of this lives in `config/defaults.json` and can be overridden by your own `c
 | `NMT_SERVICE_URL` | Service base URL (default `https://mt.nonosky.com`) |
 | `NMT_OLLAMA_URL`, `NMT_MODEL` | Ollama address and model |
 | `NMT_OLLAMA_INSTALLER_WINDOWS`, `NMT_OLLAMA_INSTALLER_LINUX` | Installer URLs |
-| `NMT_GOOGLE_CLIENT_ID` | Google client id |
+| `NMT_GOOGLE_CLIENT_ID`, `NMT_GOOGLE_CLIENT_SECRET` | Google client (Desktop app) behind "Sign in with Google" |
 | `NMT_LANGUAGE` | `es` or `en` |
 | `NMT_TELEMETRY` | `0` / `1` |
 | `NMT_PORT`, `NMT_HOST` | Port and host of the headless server |
@@ -161,6 +157,8 @@ npm run dist:linux      # AppImage + deb in dist/
 npm run dist:win        # NSIS installer + portable in dist/ (best on Windows)
 npm run icons           # regenerate the icons in build/
 ```
+
+**With your own Google client:** create an OAuth client ID of type **Desktop app** in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (Gmail API enabled) and put it in `google.clientId` and `google.clientSecret` in `config/defaults.json`, or in `NMT_GOOGLE_CLIENT_ID` and `NMT_GOOGLE_CLIENT_SECRET`. In a desktop app they are not confidential and PKCE protects the flow. Published releases get them at build time from the GitHub Actions secrets `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`; without them the button says so and the app password stays available.
 
 A `v*` tag builds the installers on GitHub Actions and publishes them with `SHA256SUMS.txt` and stable-name copies
 (`NoniMail-Tools-Setup.exe`, `NoniMail-Tools-Portable.exe`, `NoniMail-Tools.AppImage`, `nonimail-tools_amd64.deb`).

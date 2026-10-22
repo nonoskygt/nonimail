@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+Interfaz rehecha: cada pantalla cabe en una ventana (1280x800, y también 1024x700) sin desplazar la página.
+
+- **Pestañas nuevas**: **Cuentas** primero, luego **Sincronizar**, **Limpiar**, **Licencias** y **Ajustes**. Sincronizar y Limpiar quedan deshabilitadas (con aviso a lectores de pantalla y descripción emergente) hasta que haya una cuenta guardada y probada.
+- **Ajustes** en subpestañas (IA, Limpieza, Reglas, Apariencia, Sistema) que caben sin desplazar. Solo las listas largas (remitentes, licencias, cuentas) se desplazan dentro de su panel.
+- **Iniciar sesión con Google** con un clic: PKCE y redirección local, permiso solo de correo (`https://mail.google.com/` más `openid email`), cuenta guardada y probada sola. Se quitan el Client ID y el Client Secret de la interfaz normal; el cliente viene de `config/defaults.json` (`google.clientId`, `google.clientSecret`), de `NMT_GOOGLE_CLIENT_ID`/`NMT_GOOGLE_CLIENT_SECRET` o de **Ajustes → Sistema**. La compilación de la versión los inyecta desde los secretos `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`; sin cliente el botón avisa y queda la contraseña de aplicación.
+- **Sesión con el servicio solo para cuentas de dominio propio**: las personales no piden nada. Entrar compacto (correo, contraseña, código de 6 dígitos si el correo es nuevo, «¿Olvidó su contraseña?»); al entrar se traen las licencias de `/api/licencias` y cada clave pasa por la verificación sin conexión. Token cifrado como los demás secretos y **Cerrar sesión** en Licencias. La puerta real sigue siendo la clave firmada.
+- El configurador también cabe sin desplazar y termina en la pestaña Cuentas.
+- Pruebas nuevas: pestañas, sesión solo para dominios propios, traída de licencias (200, 202 con código y contraseña mala), flujo de Google y secretos fuera de registros y telemetría.
+
 ## 1.0.0
 
 Primera versión de NoniMail Tools de escritorio (Windows y Linux), sobre la base de NoniMail Cleaner 2.0.

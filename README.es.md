@@ -2,8 +2,9 @@
 
 [English](README.md) · **Español**
 
-Aplicación de escritorio (Windows y Linux) con dos herramientas para su correo. Sin cuenta y sin registro.
+Aplicación de escritorio (Windows y Linux) con dos herramientas para su correo. Sin cuenta y sin registro para cuentas personales; todo cabe en una ventana, sin desplazar la página.
 
+- **Cuentas**: configure sus buzones. **Sincronizar** y **Limpiar** se activan al guardar la primera cuenta probada.
 - **Limpiar**: limpia su bandeja de entrada por remitente. Todo lo promocional va a la Papelera. Nunca se borra nada.
 - **Sincronizar**: copia un buzón IMAP en otro sin duplicados, conservando carpetas, banderas y fechas.
   El origen nunca se toca.
@@ -52,7 +53,7 @@ Se abre la primera vez y puede repetirlo cuando quiera en **Ajustes → Sistema 
    - Después descarga el modelo con `/api/pull` de Ollama, con barra de progreso.
    - **Omitir (sin IA)** usa solo heurísticas.
 3. **Telemetría**: un interruptor, encendido por defecto. Vea [Privacidad](#privacidad-y-telemetría).
-4. **Primera cuenta**: elija el proveedor (Gmail, Yahoo, iCloud, AOL, Zoho, GMX, Yandex, Fastmail u otro manual), escriba correo y contraseña y pruebe la conexión.
+4. **Primera cuenta**: elija el proveedor (Gmail con **Iniciar sesión con Google**, Yahoo, iCloud, AOL, Zoho, GMX, Yandex, Fastmail u otro manual), escriba correo y contraseña y pruebe la conexión. Al terminar queda en la pestaña **Cuentas**.
 
 ## Limpiar
 
@@ -90,22 +91,17 @@ Elija **Origen** y **Destino** entre sus cuentas (opcionalmente filtre carpetas)
 | Limpiar | USD 1 |
 | Sincronizar | USD 2 |
 
-La pestaña **Licencias** muestra el estado de cada cuenta y un enlace **Comprar**. Pegue la clave (`NMT1.…`) en **Agregar clave**.
+La pestaña **Licencias** muestra el estado de cada cuenta y un enlace **Comprar**. Las cuentas personales no piden iniciar sesión. Con una cuenta de dominio propio, **Entrar** con su correo y contraseña del servicio (si el correo es nuevo, escriba el código de 6 dígitos que le llega) y la app trae sus licencias sola; **Cerrar sesión** está en la misma pestaña. Sin sesión puede agregar y simular, y también pegar la clave (`NMT1.…`) en **Agregar clave**.
 Las claves van firmadas (Ed25519) y se validan sin conexión con la clave pública incluida en la app. Las licencias compradas en el servicio web también valen.
 
 ## Conectar con Google
 
-Cada persona usa **su propio** cliente de Google. Así no hay una app compartida que auditar y sus credenciales no pasan por nadie más. Es una sola vez, unos 10 minutos:
+En **Cuentas**, con proveedor Gmail, toque **Iniciar sesión con Google**: se abre el navegador, acepte el permiso de correo y la cuenta queda guardada y probada, sin más campos. Solo se pide `https://mail.google.com/` más `openid email`; el token de renovación se guarda cifrado.
 
-1. Cree un proyecto en [Google Cloud Console](https://console.cloud.google.com/projectcreate).
-2. Habilite la **Gmail API**.
-3. **Pantalla de consentimiento de OAuth**: tipo **Externo**; agregue el permiso `https://mail.google.com/`.
-4. Publique la app (estado «En producción»); en «Prueba» Google corta el acceso cada 7 días. No necesita verificación: es solo suya.
-5. **Credenciales → ID de cliente de OAuth**, tipo **App de escritorio**. Copie el **Client ID** y el **Client Secret** en **Ajustes → Cuentas → Google**.
-6. Toque **Conectar con Google** y acepte. Google avisará que la app no está verificada: es la suya, continúe por **Configuración avanzada**.
-
-Más simple: Gmail con una [contraseña de aplicación](https://myaccount.google.com/apppasswords) (requiere verificación en 2 pasos).
+Si esta versión no trae el cliente de Google, el botón lo avisa en una línea y queda la [contraseña de aplicación](https://myaccount.google.com/apppasswords) de Gmail (requiere verificación en 2 pasos).
 Outlook/Hotmail con contraseña no está soportado: Microsoft ya no acepta contraseñas por IMAP.
+
+Quien quiera su propio cliente de Google puede ponerlo en **Ajustes → Sistema → Cliente de Google propio** (tipo **App de escritorio**).
 
 ## Privacidad y telemetría
 
@@ -119,7 +115,7 @@ Si deja la telemetría encendida (el valor por defecto), la app envía **solo es
 **Nunca se envían:** contraseñas, tokens, claves de licencia completas, asuntos, cuerpos ni remitentes de sus correos. El servidor agrega la fecha y una ubicación aproximada por GeoIP de la petición; la app no manda su IP.
 Los eventos esperan en una cola en disco y salen en lotes cada 5 minutos, al terminar una operación y al cerrar la app.
 
-**Para apagarla:** el interruptor del configurador, **Ajustes → Privacidad**, o la variable de entorno `NMT_TELEMETRY=0`. Apagada, la app no envía nada, ni siquiera el aviso de instalación, y se vacía la cola.
+**Para apagarla:** el interruptor del configurador, **Ajustes → Sistema**, o la variable de entorno `NMT_TELEMETRY=0`. Apagada, la app no envía nada, ni siquiera el aviso de instalación, y se vacía la cola.
 
 ## Configuración
 
@@ -130,7 +126,7 @@ Todo vive en `config/defaults.json` y se puede cambiar con su propio `config.jso
 | `NMT_SERVICE_URL` | Dirección base del servicio (por defecto `https://mt.nonosky.com`) |
 | `NMT_OLLAMA_URL`, `NMT_MODEL` | Dirección de Ollama y modelo |
 | `NMT_OLLAMA_INSTALLER_WINDOWS`, `NMT_OLLAMA_INSTALLER_LINUX` | Direcciones de los instaladores |
-| `NMT_GOOGLE_CLIENT_ID` | Client ID de Google |
+| `NMT_GOOGLE_CLIENT_ID`, `NMT_GOOGLE_CLIENT_SECRET` | Cliente de Google (App de escritorio) de «Iniciar sesión con Google» |
 | `NMT_LANGUAGE` | `es` o `en` |
 | `NMT_TELEMETRY` | `0` / `1` |
 | `NMT_PORT`, `NMT_HOST` | Puerto y dirección del servidor sin ventana |
@@ -161,6 +157,8 @@ npm run dist:linux      # AppImage + deb en dist/
 npm run dist:win        # instalador NSIS + portable en dist/ (mejor en Windows)
 npm run icons           # regenera los iconos de build/
 ```
+
+**Con su propio cliente de Google:** cree en [Google Cloud Console](https://console.cloud.google.com/apis/credentials) un ID de cliente de OAuth tipo **App de escritorio** (con la Gmail API habilitada) y póngalo en `google.clientId` y `google.clientSecret` de `config/defaults.json`, o en `NMT_GOOGLE_CLIENT_ID` y `NMT_GOOGLE_CLIENT_SECRET`. En una app de escritorio no son confidenciales y PKCE protege el flujo. Las versiones publicadas los reciben al compilar desde los secretos `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` de GitHub Actions; sin ellos el botón avisa y queda la contraseña de aplicación.
 
 Una etiqueta `v*` compila los instaladores en GitHub Actions y los publica con `SHA256SUMS.txt` y copias con nombre estable
 (`NoniMail-Tools-Setup.exe`, `NoniMail-Tools-Portable.exe`, `NoniMail-Tools.AppImage`, `nonimail-tools_amd64.deb`).
