@@ -36,6 +36,21 @@ jobs:
         run: |
           echo '{ "origen_descarga": "github" }' > config/build-info.json
           cat config/build-info.json
+      # Cliente OAuth «Desktop app» de Nonosky para «Iniciar sesión con Google». En apps de escritorio estos
+      # valores no son confidenciales (Google lo dice así) y PKCE protege el flujo; se inyectan al compilar
+      # desde los secretos del repositorio y quedan en el defaults.json empaquetado, nunca en el código.
+      - name: Cliente de Google de la versión
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "Sin GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET: esta versión sale sin «Iniciar sesión con Google»"
+          else
+            node -e "const fs=require('fs');const f='config/defaults.json';const d=JSON.parse(fs.readFileSync(f,'utf8'));d.google.clientId=process.env.GOOGLE_CLIENT_ID;d.google.clientSecret=process.env.GOOGLE_CLIENT_SECRET;fs.writeFileSync(f,JSON.stringify(d,null,2)+'\n');"
+            echo "Cliente de Google inyectado en config/defaults.json (valores no mostrados)"
+          fi
       - name: Compilar (Windows)
         if: runner.os == 'Windows'
         run: npx electron-builder --win nsis portable --publish never

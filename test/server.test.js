@@ -13,7 +13,7 @@ const S = require('./helpers/servers');
 const { startService } = require('./helpers/service');
 const { makeKeys } = require('./helpers/keys');
 
-let dir, app, port, imap, imapB, smtpSrv, google, ollama, service, keys;
+let dir, app, port, imap, imapB, imapG, smtpSrv, google, ollama, service, keys;
 const today = new Date().toISOString().slice(0, 10);
 
 function req(method, p, body, headers = {}) {
@@ -44,6 +44,10 @@ before(async () => {
     S.msg({ from: 'Ana <ana@amiga.com>', subject: 'hola', day: today }),
   ] });
   imapB = await S.startImap({ inbox: [] });
+  imapG = await S.startImap({ inbox: [] }); // hace de imap.gmail.com para «Iniciar sesión con Google»
+  imapG.server.users['testuser@gmail.com'] = { password: 'x', xoauth2: { accessToken: 'testtoken' } };
+  const cfgFile = path.join(dir, 'overrides.json');
+  fs.writeFileSync(cfgFile, JSON.stringify({ presets: { gmail: { label: 'Gmail', imap: { host: '127.0.0.1', port: imapG.port, secure: false }, smtp: { host: '', port: 465, secure: true } } } }));
   smtpSrv = await S.startSmtp();
   google = await S.startFakeGoogle({ email: 'testuser@gmail.com' });
   ollama = await new Promise(r => { const s = http.createServer((q, s2) => { let b = ''; q.on('data', c => b += c); q.on('end', () => {
@@ -56,14 +60,14 @@ before(async () => {
     dataDir: dir, port: 0, locale: 'es-GT',
     env: {
       NMT_SERVICE_URL: service.url, NMT_OLLAMA_URL: ollama.url, NMT_MODEL: 'm:1b',
-      NMT_GOOGLE_TOKEN_URL: google.tokenUrl, NMT_GOOGLE_REVOKE_URL: google.revokeUrl, NMT_LICENSE_PUBLIC_KEY: keys.pubFile,
+      NMT_CONFIG_FILE: cfgFile, NMT_GOOGLE_TOKEN_URL: google.tokenUrl, NMT_GOOGLE_REVOKE_URL: google.revokeUrl, NMT_LICENSE_PUBLIC_KEY: keys.pubFile,
     },
   });
   port = app.port;
 });
 
 after(async () => {
-  await app.close(); await imap.close(); await imapB.close(); await smtpSrv.close(); await google.close(); ollama.srv.close(); await service.close();
+  await app.close(); await imap.close(); await imapB.close(); await imapG.close(); await smtpSrv.close(); await google.close(); ollama.srv.close(); await service.close();
   keys.cleanup(); fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -115,7 +119,7 @@ test('configurador: idioma, apariencia, IA y telemetría; al terminar manda la i
   assert.equal(service.installs().length, 1);
   const ins = service.installs()[0].body;
   assert.equal(ins.app, 'desktop'); assert.equal(ins.ia_local, true); assert.equal(ins.modelo, 'm:1b');
-  assert.match(service.installs()[0].headers['user-agent'], /^NoniMailTools\/1\.0\.0 \(/);
+  assert.match(service.installs()[0].headers['user-agent'], new RegExp(`^NoniMailTools/${require('../package.json').version.replace(/\./g, '\\.')} \\(`));
   const saved = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
   assert.deepEqual(saved.appearance, { mode: 'oscuro', accent: 'violeta' });
   assert.equal(saved.service, undefined, 'lo que viene del entorno no se escribe');
