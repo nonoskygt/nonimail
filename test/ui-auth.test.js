@@ -62,8 +62,8 @@ after(async () => { await app.close(); await svc.close(); await imap.close(); ke
 
 const imapAccount = (email) => ({ account: { type: 'imap', email, username: 'testuser', provider: 'custom', imap: { host: '127.0.0.1', port: imap.port, secure: false }, smtp: { host: '', port: 465, secure: true } }, secrets: { password: 'testpass' } });
 
-test('pestañas: sin cuenta lista, Sincronizar y Limpiar quedan deshabilitadas; Cuentas, Licencias y Ajustes no', () => {
-  assert.deepEqual(pestanasActivas([]), { cuentas: true, sincronizar: false, limpiar: false, licencias: true, ajustes: true });
+test('pestañas: sin cuenta lista, Sincronizar y Limpiar quedan deshabilitadas; Cuentas y Ajustes no', () => {
+  assert.deepEqual(pestanasActivas([]), { cuentas: true, sincronizar: false, limpiar: false, ajustes: true });
   assert.equal(pestanasActivas([{ ready: false }]).limpiar, false, 'una cuenta incompleta no cuenta');
   const ok = pestanasActivas([{ ready: false }, { ready: true }]);
   assert.equal(ok.sincronizar, true); assert.equal(ok.limpiar, true);
@@ -101,6 +101,22 @@ test('la sesión con el servicio solo la piden las cuentas de dominio propio', a
   await req('POST', '/api/accounts/delete', { id: priv.body.account.id });
   assert.equal((await req('GET', '/api/config')).body.auth.required, false);
   await req('POST', '/api/accounts/delete', { id: pers.body.account.id });
+});
+
+test('no hay pestaña Licencias y «Iniciar sesión» solo existe con una cuenta comercial', async () => {
+  const html = (await req('GET', '/')).text;
+  assert.doesNotMatch(html, /data-tab="licencias"|tab-licencias|ui\.tab\.licenses/);
+  assert.ok(!('licencias' in (await req('GET', '/api/config')).body.tabs));
+  // la interfaz arma el botón solo para cuentas con dominio propio (a.personal === false) y sin sesión
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8'), /a\.personal \? null : \(S\.config\.auth && S\.config\.auth\.signedIn/);
+  const pers = await req('POST', '/api/accounts/save', imapAccount('yo@gmail.com'));
+  let cfg = (await req('GET', '/api/config')).body;
+  assert.equal(cfg.accounts.some(a => !a.personal), false, 'solo personal: no hay a quién pedirle sesión');
+  const priv = await req('POST', '/api/accounts/save', imapAccount('ana@empresa.com'));
+  cfg = (await req('GET', '/api/config')).body;
+  assert.equal(cfg.accounts.some(a => !a.personal), true); assert.equal(cfg.auth.signedIn, false);
+  assert.equal(new URL(cfg.gate.comprar || (await req('POST', '/api/licenses/gate', { cuenta: 'ana@empresa.com', tipo: 'limpiar' })).body.comprar).searchParams.get('canal'), 'app');
+  await req('POST', '/api/accounts/delete', { id: priv.body.account.id }); await req('POST', '/api/accounts/delete', { id: pers.body.account.id });
 });
 
 test('sin sesión una cuenta propia se agrega y se simula, pero sus licencias no se traen', async () => {

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.1
+
+Licencias discretas, terminales en vivo y bajas bajo control.
+
+- **Sin pestaña Licencias.** La verificación sin conexión y la descarga automática de licencias tras iniciar sesión siguen igual. Lo único visible es «Iniciar sesión» junto a cada cuenta de dominio propio (Cuentas), que abre el formulario en línea (correo, contraseña, código) y trae las licencias solo. Una cuenta comercial en simulación muestra una línea con «Comprar licencia» (abre `licencias.html?cuenta=…&tipo=…&canal=app` en el navegador). «Agregar clave de licencia» pasó a Ajustes → Sistema. Se quitaron la tarjeta de precios y la tabla de licencias.
+- **Terminales de vuelta.** Limpiar muestra «CPU · lectura + heurística» (medidor de CPU y lo que lee y decide la heurística) y «GPU · LLM (modelo)» (medidor de GPU/VRAM y lo que se le pregunta al modelo, qué responde y el puntaje). Sincronizar muestra «Red · sincronización»: carpeta en curso, mensajes comparados y copiados, bytes, errores y velocidad. Pantalla oscura de terminal en tema claro y oscuro; ocupan el alto restante y se desplazan por dentro. El motor emite ahora «Leídos N correos» y la respuesta cruda del modelo.
+- **Barra de progreso con fases** sobre la lista de remitentes: Conectando, Escaneando N / M correos, Agrupando por remitente, Clasificando N / M remitentes, Eliminando, Dándose de baja y Listo (se desvanece), con botón **Cancelar**.
+- **Eliminar en lugar de Mover** (sigue yendo a la Papelera y se puede recuperar). **Proteger** pasó a **Nunca eliminar** (guarda una regla; la fila muestra un candado y «Siempre se conserva», y el botón pasa a «Quitar regla»). Ajustes → Reglas lista los remitentes con regla y deja quitarlos.
+- **«Darse de baja» ya no actúa al instante**: marca al remitente («Se dará de baja al ejecutar») y la baja se hace junto con **Eliminar**, solo a los marcados; en simulación se informa «se daría de baja» y no se envía nada. El interruptor de arriba ahora es «Marcar baja en todos los que se eliminen». Cada resultado sale en la terminal.
+- **Google sin permiso de Gmail**: la página de retorno ofrece «Volver a intentar», que reinicia el flujo directo; antes de abrir Google se avisa «En Google marque la casilla de acceso a Gmail».
+
 ## 1.2.0
 
 Actualización automática.

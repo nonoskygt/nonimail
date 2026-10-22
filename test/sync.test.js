@@ -137,3 +137,22 @@ test('un servidor que no responde da un error claro y no revienta', async () => 
   assert.match(r.error, /origen/);
   assert.equal(r.ok, false);
 });
+
+test('terminal de Sincronizar: el runner emite por SSE líneas, progreso con bytes y el fin', async () => {
+  const { SyncRunner } = require('../lib/sync/runner');
+  const { defaults } = require('../lib/defaults');
+  const events = [];
+  const cfg = JSON.parse(JSON.stringify(defaults()));
+  cfg.sync.progressEvery = 1;
+  const r = new SyncRunner({ cfg: () => cfg, mailbox: async () => null, licenses: { gate: () => ({ permitido: true, personal: true }) }, sse: (e) => events.push(e) });
+  const dstBox = await startBox({ INBOX: { messages: [] }, '': { separator: '/', folders: {} } });
+  r.o.mailbox = async (id) => ({ email: `${id}@x.test`, mb: id === 'o' ? src.mb : dstBox.mb });
+  await r.start({ origen: 'o', destino: 'd', dryRun: false, folders: ['INBOX'] });
+  while (r.busy()) await new Promise(res => setTimeout(res, 20));
+  const sync = events.filter(e => e.t === 'sync');
+  assert.equal(sync[0].tipo, 'inicio');
+  assert.ok(sync.some(e => e.tipo === 'linea' && /INBOX/.test(e.text)), 'carpeta y mensajes comparados');
+  const prog = sync.filter(e => e.tipo === 'progreso');
+  assert.ok(prog.length > 0 && prog.every(e => typeof e.progress.bytes === 'number') && prog.pop().progress.bytes > 0, 'bytes copiados');
+  assert.equal(sync.pop().tipo, 'fin');
+});

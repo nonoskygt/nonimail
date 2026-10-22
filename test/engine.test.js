@@ -192,3 +192,32 @@ test('un trabajo nuevo con la misma clave descarta el pausado; dos a la vez no s
     await t.done();
   } finally { await t.cleanup(); }
 });
+
+test('terminales: el escaneo emite lectura, respuesta del modelo y fases; la baja marcada solo corre al eliminar', async () => {
+  const t = await setup({ windowDays: 365 });
+  try {
+    t.eng.start('scan', { daysBack: 365 });
+    await t.done();
+    assert.ok(t.lines.some(l => /^\[heur\] .*\b\d+.*\(\d+\/\d+\)/.test(l)), 'la heurística cuenta lo que lee');
+    assert.ok(t.lines.some(l => /^\[llm\] (responde|answer): 95/.test(l)), 'lo que responde el modelo');
+    assert.ok(t.lines.some(l => /^\[llm\] .*95/.test(l) && !/(responde|answer)/.test(l)), 'y el puntaje');
+    const fases = t.events.filter(e => e.t === 'phase').map(e => e.phase.name);
+    for (const f of ['connect', 'scan', 'group', 'classify', 'done']) assert.ok(fases.includes(f), `fase ${f}`);
+    assert.deepEqual(t.smtpSrv.messages, [], 'escanear no da de baja');
+
+    // marcar no actúa: simulación = solo informa; real = se da de baja junto con el borrado
+    const marcado = { daysBack: 365, emails: ['ofertas@tienda.com'], unsub: ['ofertas@tienda.com'] };
+    t.lines.length = 0; t.events.length = 0;
+    t.eng.start('execute', { ...marcado, dryRun: true });
+    await t.done();
+    assert.ok(t.lines.some(l => /^\[heur\] \[SIM\].*tienda/i.test(l) && /(daría de baja|would unsubscribe)/.test(l)));
+    assert.equal(t.smtpSrv.messages.length, 0, 'en simulación no se envía nada');
+    t.lines.length = 0; t.events.length = 0;
+    t.eng.start('execute', { ...marcado, dryRun: false });
+    await t.done();
+    assert.equal(t.smtpSrv.messages.length, 1, 'la baja se envía al ejecutar');
+    assert.ok(t.lines.some(l => /^\[heur\] /.test(l) && /(baja OK|unsubscribe OK|unsubscribed)/i.test(l)));
+    const f2 = t.events.filter(e => e.t === 'phase').map(e => e.phase.name);
+    assert.ok(f2.includes('delete') && f2.includes('unsub') && f2.pop() === 'done');
+  } finally { await t.cleanup(); }
+});

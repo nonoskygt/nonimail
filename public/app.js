@@ -14,6 +14,7 @@
       if (v == null || v === false) continue;
       if (k === 'class') el.className = v;
       else if (k === 'text') el.textContent = v;
+      else if (k === 'html') el.innerHTML = v; // solo iconos constantes del propio código
       else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
       else if (v === true) el.setAttribute(k, '');
       else el.setAttribute(k, v);
@@ -98,7 +99,7 @@
   }
 
   // ---------------------------------------------------------------- estado
-  const S = { config: null, settings: null, lic: null, setup: null, senders: new Map(), over: new Map(), job: { running: false }, sync: null, scanDone: false, tab: 'cuentas', sec: 'ia', presets: null, draftEmail: '', draftPrivate: false, googleWait: false };
+  const S = { config: null, settings: null, lic: null, setup: null, senders: new Map(), over: new Map(), job: { running: false }, sync: null, scanDone: false, unsubMark: new Map(), authOpen: false, phaseDismissed: false, tab: 'cuentas', sec: 'ia', presets: null, draftEmail: '', draftPrivate: false, googleWait: false };
   const acctById = (id) => (S.config.accounts || []).find(a => a.id === id);
   const activeAcct = () => acctById(S.config.activeAccount) || (S.config.accounts || [])[0] || null;
   const busy = () => (S.job && S.job.running) || (S.sync && S.sync.running);
@@ -121,7 +122,6 @@
     for (const b of qsa('.tab-btn')) { const on = b.dataset.tab === name; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; }
     for (const x of qsa('main > .tab')) x.classList.toggle('on', x.id === `tab-${name}`);
     if (name === 'cuentas') renderAccountsTab();
-    if (name === 'licencias') { loadLicenses(); renderAuthBoxes(); }
     if (name === 'ajustes') showSec(sec || S.sec);
     if (name === 'sincronizar') renderSync();
     if (name === 'limpiar') renderClean();
@@ -134,7 +134,7 @@
   }
   document.addEventListener('click', (e) => {
     const g = e.target.closest('[data-goto]');
-    if (g) { const [tab, sec] = g.dataset.goto.split(':'); showTab(tab, sec); }
+    if (g) { const [tab, sec] = g.dataset.goto.split(':'); if (g.dataset.auth) { S.authOpen = true; } showTab(tab, sec); if (g.dataset.auth) renderAuthBoxes(); }
   });
   for (const b of qsa('.tab-btn')) b.addEventListener('click', () => showTab(b.dataset.tab));
   for (const b of qsa('#set-nav button')) b.addEventListener('click', () => showSec(b.dataset.sec));
@@ -199,14 +199,14 @@
   });
 
   // ---------------------------------------------------------------- licencias: avisos
-  function gatePill(gate, tipo) {
+  function gatePill(gate) {
     if (!gate) return h('span');
     if (gate.personal) return h('span', { class: 'pill ok', text: t('ui.gate.free') });
     if (gate.permitido) return h('span', { class: 'pill ok', text: t('ui.gate.licensed', { date: fmtDate(gate.vence) }) });
-    const price = (S.config.prices || {})[tipo];
-    return h('span', { class: 'pill warn' }, t('ui.gate.dryOnly'), ' · ',
-      h('a', { href: gate.comprar, target: '_blank', rel: 'noopener', text: t('ui.gate.buy', { price: `${S.config.prices.currency} ${price}` }) }),
-      S.config.auth && !S.config.auth.signedIn ? h('button', { type: 'button', class: 'pill-link', 'data-goto': 'licencias', text: t('ui.auth.enter') }) : null);
+    // cuenta comercial sin licencia: una línea con el enlace de compra; la sesión se inicia desde Cuentas
+    return h('span', { class: 'pill warn' }, t('ui.gate.noLicense'), ' ',
+      h('a', { href: gate.comprar, target: '_blank', rel: 'noopener', text: t('ui.gate.buyLink') }),
+      S.config.auth && !S.config.auth.signedIn ? h('button', { type: 'button', class: 'pill-link', 'data-goto': 'cuentas', 'data-auth': '1', text: t('ui.auth.signIn') }) : null);
   }
 
   // ================================================================ LIMPIAR
@@ -226,9 +226,9 @@
     const running = !!(S.job && S.job.running);
     $('cl-scan').disabled = running || !acct.ready; $('cl-run').disabled = running || !acct.ready || !S.scanDone && !S.senders.size;
     $('cl-auto').disabled = running || !acct.ready;
-    $('cl-stop').hidden = !running;
     for (const id of ['cl-range', 'cl-dry', 'cl-unsub', 'cl-dureza']) $(id).disabled = running;
-    clear($('cl-gate')).append(gatePill(S.config.gate, 'limpiar'));
+    clear($('cl-gate')).append(gatePill(S.config.gate));
+    renderTermTitles();
     renderProgress();
     renderPending();
     renderSenders();
@@ -239,13 +239,36 @@
     $('st-seen').textContent = fmtNum(tt.seen); $('st-del').textContent = fmtNum(tt.deleted);
     $('st-kept').textContent = fmtNum(tt.kept); $('st-prot').textContent = fmtNum(tt.protected);
     $('st-senders').textContent = fmtNum(S.senders.size);
-    const show = !!j.running;
-    $('cl-prog').hidden = !show;
-    if (show) {
-      const frac = j.windowCount ? ((j.windowIdx - 1) + (j.windowTotal ? j.windowDone / j.windowTotal : 0)) / j.windowCount : 0;
-      $('cl-bar').style.width = `${Math.max(2, Math.min(100, Math.round(frac * 100)))}%`;
-      $('cl-prog-t').textContent = `${t('ui.clean.batch', { i: j.windowIdx, n: j.windowCount })}${j.windowLabel ? ` · ${j.windowLabel}` : ''}${j.etaSec != null ? ` · ${fmtEta(j.etaSec)}` : ''}${j.dryRun ? ` · ${t('ui.dry')}` : ''}`;
+    renderPhase();
+  }
+  // Barra con fases sobre la lista: conectando · escaneando · agrupando · clasificando · eliminando · dándose de baja · listo
+  let phaseTimers = [];
+  function renderPhase() {
+    const j = S.job || {}, ph = j.phase, box = $('cl-phase');
+    const finished = !j.running && ph && ph.name === 'done' && j.status === 'done';
+    if (j.running) { S.phaseDismissed = false; phaseTimers.forEach(clearTimeout); phaseTimers = []; box.classList.remove('fade'); }
+    if (!(j.running && ph) && !(finished && !S.phaseDismissed)) { box.hidden = true; return; }
+    if (finished && !phaseTimers.length) {
+      phaseTimers = [setTimeout(() => box.classList.add('fade'), 1800), setTimeout(() => { S.phaseDismissed = true; box.hidden = true; phaseTimers = []; }, 2500)];
     }
+    box.hidden = false;
+    const win = j.windowCount ? ((j.windowIdx - 1) + (j.windowTotal ? j.windowDone / j.windowTotal : 0)) / j.windowCount : 0;
+    const own = ph.total ? ph.done / ph.total : 0;
+    let label, frac, extra = '';
+    switch (ph.name) {
+      case 'connect': label = t('ui.phase.connect'); frac = 0.04; break;
+      case 'scan': label = j.windowTotal ? t('ui.phase.scan', { done: fmtNum(j.windowDone), total: fmtNum(j.windowTotal) }) : t('ui.clean.scanning'); frac = win; extra = j.windowCount ? t('ui.clean.batch', { i: j.windowIdx, n: j.windowCount }) : ''; break;
+      case 'group': label = t('ui.phase.group'); frac = win; break;
+      case 'classify': label = t('ui.phase.classify', { done: fmtNum(ph.done), total: fmtNum(ph.total) }); frac = own; break;
+      case 'delete': label = t('ui.phase.delete', { done: fmtNum(ph.done), total: fmtNum(ph.total) }); frac = win; extra = j.windowCount ? t('ui.clean.batch', { i: j.windowIdx, n: j.windowCount }) : ''; break;
+      case 'unsub': label = t('ui.phase.unsub', { done: fmtNum(ph.done), total: fmtNum(ph.total) }); frac = own; break;
+      default: label = t('ui.phase.done'); frac = 1;
+    }
+    const pct = Math.max(0, Math.min(100, Math.round(frac * 100)));
+    $('cl-phase-t').textContent = label;
+    $('cl-phase-s').textContent = [extra, ph.name === 'connect' ? '' : `${pct}%`, j.etaSec != null && j.running ? fmtEta(j.etaSec) : '', j.dryRun ? t('ui.dry') : ''].filter(Boolean).join(' · ');
+    $('cl-bar').style.width = `${Math.max(2, pct)}%`;
+    $('cl-stop').hidden = !j.running;
   }
   function renderPending() {
     const box = clear($('cl-pending')), list = (S.config.pending || []).filter(p => !S.job.running || p.key !== S.job.key);
@@ -260,6 +283,13 @@
         h('span', { class: 'msg', text: `${p.label} · ${p.account} · ${t('ui.clean.batch', { i: p.windowIdx, n: p.windowCount })}${p.error ? ` · ${p.error}` : ''}` }), resume, drop));
     }
   }
+  const ICONS = {
+    lock: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    mailx: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+  };
+  const icon = (name) => h('span', { class: 'ico', html: ICONS[name] });
+  // marca de baja: la que puso la persona; si no, el valor por defecto del interruptor global (solo para los que se eliminan)
+  const unsubMarked = (s) => s.canUnsub && !s.unsubDone && (S.unsubMark.has(s.email) ? S.unsubMark.get(s.email) : $('cl-unsub').checked && effDecision(s) === 'delete');
   function renderSenders() {
     const body = clear($('cl-rows')), q = $('cl-filter').value.trim().toLowerCase();
     const all = [...S.senders.values()].sort((a, b) => b.count - a.count);
@@ -269,29 +299,25 @@
     const sel = all.filter(s => effDecision(s) === 'delete');
     $('cl-sel').textContent = t('ui.clean.selected', { n: sel.length, m: fmtNum(sel.reduce((a, s) => a + s.count, 0)) });
     for (const s of list.slice(0, 600)) {
-      const dec = effDecision(s);
+      const dec = effDecision(s), never = s.rule === 'protect', mark = unsubMarked(s);
       const cls = s.score == null ? '' : s.score >= 60 ? 'hi' : s.score <= 40 ? 'lo' : 'mid';
-      const tgl = (val, label, kind) => h('button', { type: 'button', 'aria-pressed': String(dec === val), text: label, onclick: () => { S.over.set(s.email, val); renderSenders(); } });
-      const acts = h('div', { class: 'row', style: 'gap:6px;flex-wrap:nowrap;justify-content:flex-end' });
-      if (s.canUnsub && !s.unsubDone) acts.append(h('button', { class: 'btn sm', text: t('ui.clean.unsubOne'), onclick: (ev) => unsubOne(s, ev.target) }));
+      const tgl = (val, label) => h('button', { type: 'button', 'aria-pressed': String(dec === val), disabled: never, text: label, onclick: () => { S.over.set(s.email, val); renderSenders(); } });
+      const acts = h('div', { class: 'row acts' });
       if (s.unsubDone) acts.append(h('span', { class: 'pill ok', text: t('ui.clean.unsubDone') }));
-      acts.append(h('button', { class: 'btn sm', title: t('ui.clean.protectTip'), text: s.rule === 'protect' ? t('ui.clean.unprotect') : t('ui.clean.protect'), onclick: async () => {
-        try { const r = await api('POST', '/api/sender-rule', { email: s.email, rule: s.rule === 'protect' ? 'none' : 'protect' }); s.rule = r.rule; s.protected = r.rule === 'protect' ? true : s.protected; S.over.delete(s.email); renderSenders(); } catch (e) { fail(e); }
-      } }));
+      else if (s.canUnsub) acts.append(h('button', { type: 'button', class: 'btn sm tgl', 'aria-pressed': String(mark), title: t('ui.clean.unsubMarkTip'), onclick: () => { S.unsubMark.set(s.email, !mark); renderSenders(); } }, icon('mailx'), t('ui.clean.unsubOne')));
+      acts.append(h('button', { type: 'button', class: 'btn sm tgl', 'aria-pressed': String(never), title: t('ui.clean.protectTip'), onclick: async () => {
+        try { const r = await api('POST', '/api/sender-rule', { email: s.email, rule: never ? 'none' : 'protect' }); s.rule = r.rule; s.protected = r.rule === 'protect' ? true : s.protected; S.over.delete(s.email); renderSenders(); } catch (e) { fail(e); }
+      } }, icon('lock'), never ? t('ui.clean.unprotect') : t('ui.clean.protect')));
+      const flags = [];
+      if (never) flags.push(h('div', { class: 's-flag' }, icon('lock'), t('ui.clean.alwaysKept')));
+      if (mark) flags.push(h('div', { class: 's-flag warn' }, icon('mailx'), t('ui.clean.willUnsub')));
       body.append(h('tr', {},
-        h('td', {}, h('div', { class: 's-name', text: s.name || s.email }), h('div', { class: 's-mail', text: s.email })),
-        h('td', { class: 'hide-narrow' }, h('div', { class: 's-sub', text: (s.samples || []).slice(0, 2).join(' · ') })),
+        h('td', { title: (s.samples || []).slice(0, 3).join(' · ') }, h('div', { class: 's-name', text: s.name || s.email }), h('div', { class: 's-mail', text: s.email }), flags),
         h('td', { class: 'num', text: fmtNum(s.count) }),
         h('td', { class: 'num' }, h('span', { class: `score ${cls}`, text: s.score == null ? '…' : s.score, title: s.reason || '' })),
         h('td', {}, h('div', { class: `seg sm ${dec === 'delete' ? 'del' : 'keep'}` }, tgl('keep', t('ui.clean.keep')), tgl('delete', t('ui.clean.move')))),
         h('td', {}, acts)));
     }
-  }
-  async function unsubOne(s, btn) {
-    btn.disabled = true;
-    try { const r = await api('POST', '/api/unsubscribe', { email: s.email }); if (r.ok) { s.unsubDone = true; toast(t('ui.clean.unsubOk', { email: s.email }), 'ok'); } }
-    catch (e) { fail(e); if (e.status === 402) renderAll(); }
-    renderSenders();
   }
   const renderSendersSoon = debounce(renderSenders, 150);
   function setCleanView(v) {
@@ -304,40 +330,38 @@
   async function startClean(kind) {
     const acct = activeAcct();
     if (!acct) return;
-    const days = parseInt($('cl-range').value, 10), dry = $('cl-dry').checked, unsub = $('cl-unsub').checked;
+    const days = parseInt($('cl-range').value, 10), dry = $('cl-dry').checked, unsub = $('cl-unsub').checked; // en «Limpiar todo» el interruptor sí baja a los que borra
     const range = $('cl-range').selectedOptions[0].textContent.toLowerCase();
     try {
       let r;
       if (kind === 'scan') {
-        S.senders.clear(); S.over.clear(); S.scanDone = false; clear($('cl-log')); renderSenders();
+        S.senders.clear(); S.over.clear(); S.unsubMark.clear(); S.scanDone = false; clear($('cl-log')); resetFeeds(); renderSenders();
         r = await api('POST', '/api/scan', { daysBack: days });
       } else if (kind === 'execute') {
         const emails = [...S.senders.values()].filter(s => effDecision(s) === 'delete').map(s => s.email);
         if (!emails.length) return toast(t('ui.clean.nothing'), 'bad');
         const n = emails.reduce((a, e) => a + S.senders.get(e).count, 0);
-        const ok = await ask(t('ui.clean.run'), [t('ui.clean.confirmRun', { n: emails.length, m: fmtNum(n), range }), dry ? t('ui.dry') : t('ui.clean.toTrash')], t('ui.clean.run'));
+        const bajas = [...S.senders.values()].filter(unsubMarked).map(x => x.email);
+        const lines = [t('ui.clean.confirmRun', { n: emails.length, m: fmtNum(n), range }), dry ? t('ui.dry') : t('ui.clean.toTrash')];
+        if (bajas.length) lines.push(t('ui.clean.confirmUnsub', { n: bajas.length }) + (dry ? ` · ${t('ui.clean.confirmUnsubDry')}` : ''));
+        const ok = await ask(t('ui.clean.run'), lines, t('ui.clean.run'));
         if (!ok) return;
-        clear($('cl-log'));
-        r = await api('POST', '/api/execute', { daysBack: days, emails, dryRun: dry });
-        if (!dry && !r.forcedDryRun && unsub) pendingUnsub = emails.filter(e => S.senders.get(e).canUnsub && !S.senders.get(e).unsubDone);
+        clear($('cl-log')); resetFeeds();
+        r = await api('POST', '/api/execute', { daysBack: days, emails, dryRun: dry, unsub: bajas });
       } else {
         const ok = await ask(t('ui.clean.auto'), [t('ui.clean.confirmAuto', { range, strict: dureza() }), dry ? t('ui.dry') : t('ui.clean.toTrash')], t('ui.clean.auto'));
         if (!ok) return;
-        clear($('cl-log'));
+        clear($('cl-log')); resetFeeds();
         r = await api('POST', '/api/autorun', { daysBack: days, dureza: dureza(), dryRun: dry, autoUnsub: unsub });
       }
       if (r.forcedDryRun) toast(r.gate.motivo, 'bad');
       S.job = r; renderAll();
     } catch (e) { fail(e); if (e.status === 402) refreshConfig(); }
   }
-  let pendingUnsub = [];
-  async function drainUnsub() {
-    const list = pendingUnsub; pendingUnsub = [];
-    for (const email of list) { const s = S.senders.get(email); if (s) await unsubOne(s, h('button')); }
-  }
   $('cl-scan').onclick = () => startClean('scan');
   $('cl-run').onclick = () => startClean('execute');
   $('cl-auto').onclick = () => startClean('auto');
+  $('cl-unsub').addEventListener('change', renderSenders);
   $('cl-stop').onclick = () => api('POST', '/api/stop', {}).catch(fail);
   $('cl-filter').addEventListener('input', renderSendersSoon);
   $('cl-dureza').addEventListener('input', (e) => { cl.dureza = parseInt(e.target.value, 10); $('cl-dureza-v').textContent = cl.dureza; renderSenders(); });
@@ -350,8 +374,44 @@
     if (stick) el.scrollTop = el.scrollHeight;
   }
 
+  // ---- terminales: CPU (lectura + heurística), GPU (modelo) y red (Sincronizar). El fondo oscuro es el de una terminal real
+  const TERM_MAX = 400;
+  function termLine(feed, text, kind, ts) {
+    const stick = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 30;
+    feed.append(h('div', { class: 'ln' }, h('span', { class: 'ts', text: ts || '' }), h('span', { class: `k-${kind || 'info'}`, text })));
+    while (feed.childNodes.length > TERM_MAX) feed.firstChild.remove();
+    if (stick) feed.scrollTop = feed.scrollHeight;
+  }
+  function resetFeeds() { clear($('feed-cpu')); clear($('feed-gpu')); }
+  function renderTermTitles() {
+    $('gpu-title').textContent = t('ui.term.gpu', { model: (S.config && S.config.aiEnabled && S.config.model) || t('ui.term.noModel') });
+    $('feed-cpu').dataset.idle = t('ui.term.idle'); $('feed-gpu').dataset.idle = t('ui.term.idle'); $('sy-log').dataset.idle = t('ui.term.syncIdle');
+  }
+  function setMeter(barId, pctId, pct) {
+    const v = Math.max(0, Math.min(100, Math.round(pct) || 0)), bar = $(barId);
+    bar.style.width = `${v}%`; bar.className = v > 80 ? 'hi' : v > 45 ? 'mid' : 'lo';
+    $(pctId).textContent = `${v}%`;
+  }
+  function onMetrics(m) {
+    if (typeof m.cpu === 'number') setMeter('cpu-bar', 'cpu-pct', m.cpu);
+    if (m.gpu) { setMeter('gpu-bar', 'gpu-pct', m.gpu.util); $('vram').textContent = `${(m.gpu.vramUsed / 1024).toFixed(1)}/${(m.gpu.vramTotal / 1024).toFixed(1)} GB`; }
+    else { $('gpu-pct').textContent = t('ui.term.na'); $('gpu-bar').style.width = '0'; $('vram').textContent = ''; }
+  }
+
   // ================================================================ SINCRONIZAR
-  const sy = { lines: 0 };
+  const sy = { lines: 0, last: null, peak: 0, tick: null, lastText: '' };
+  function netRate(bytes) {
+    const now = Date.now();
+    if (sy.last && bytes >= sy.last.bytes && now > sy.last.ts) {
+      const rate = (bytes - sy.last.bytes) / ((now - sy.last.ts) / 1000);
+      sy.peak = Math.max(sy.peak, rate, 1);
+      $('net-bar').style.width = `${Math.round(100 * rate / sy.peak)}%`; $('net-bar').className = 'lo';
+      $('net-rate').textContent = `${fmtBytes(rate)}/s`;
+    }
+    sy.last = { bytes, ts: now };
+    clearTimeout(sy.tick); sy.tick = setTimeout(() => netIdle(), 5000);
+  }
+  function netIdle() { clearTimeout(sy.tick); $('net-bar').style.width = '0'; $('net-rate').textContent = '—'; }
   function renderSync() {
     const list = S.config.accounts || [];
     const ok = list.length >= 2;
@@ -403,7 +463,7 @@
     const com = rows.filter(r => !r.personal);
     if (!com.length) return el.append(h('span', { class: 'pill ok', text: t('ui.gate.free') }));
     const lic = com.map(r => r.gates.sincronizar).find(g => g.permitido);
-    el.append(gatePill(lic || com[0].gates.sincronizar, 'sincronizar'));
+    el.append(gatePill(lic || com[0].gates.sincronizar));
   }
   $('sy-src').addEventListener('change', renderSyncGate);
   $('sy-dst').addEventListener('change', renderSyncGate);
@@ -423,27 +483,11 @@
   };
   $('sy-stop').onclick = () => api('POST', '/api/sync/stop', {}).catch(fail);
 
-  // ================================================================ LICENCIAS
+  // ================================================================ LICENCIAS (sin pestaña: verificación sin conexión y descarga tras iniciar sesión)
   async function loadLicenses() {
-    try { S.lic = await api('GET', '/api/licenses'); renderLicenses(); if (S.tab === 'sincronizar') renderSyncGate(); } catch (e) { fail(e); }
+    try { S.lic = await api('GET', '/api/licenses'); if (S.tab === 'sincronizar') renderSyncGate(); } catch (e) { fail(e); }
   }
-  function renderLicenses() {
-    const L = S.lic; if (!L) return;
-    const pr = L.prices;
-    $('lic-p1').textContent = `${t('ui.tab.clean')} · ${pr.currency} ${pr.limpiar} / ${pr.days} ${t('ui.days')}`;
-    $('lic-p2').textContent = `${t('ui.tab.sync')} · ${pr.currency} ${pr.sincronizar} / ${pr.days} ${t('ui.days')}`;
-    const rows = clear($('lic-rows'));
-    const cell = (g, tipo) => h('td', {}, g.personal ? h('span', { class: 'pill ok', text: t('ui.gate.free') }) : g.permitido ? h('span', { class: 'pill ok', text: t('ui.gate.licensed', { date: fmtDate(g.vence) }) }) :
-      h('a', { class: 'btn sm primary', href: g.comprar, target: '_blank', rel: 'noopener', text: t('ui.gate.buy', { price: `${pr.currency} ${pr[tipo]}` }) }));
-    for (const a of L.accounts) rows.append(h('tr', {}, h('td', {}, h('div', { class: 's-name', text: a.email }), h('div', { class: 's-mail', text: a.personal ? t('ui.lic.personal') : t('ui.lic.commercial') })), cell(a.gates.limpiar, 'limpiar'), cell(a.gates.sincronizar, 'sincronizar')));
-    if (!L.accounts.length) rows.append(h('tr', {}, h('td', { colspan: 3, class: 'empty', text: t('ui.noAccount') })));
-    const list = clear($('lic-list'));
-    $('lic-empty').hidden = L.list.length > 0;
-    for (const k of L.list) list.append(h('tr', {},
-      h('td', { text: k.cuenta }), h('td', { text: t(`ui.lic.t.${k.tipo}`) }), h('td', { class: 'hide-narrow', text: k.canal }),
-      h('td', {}, h('span', { class: `pill ${k.vigente ? 'ok' : 'bad'}`, text: `${k.vigente ? '' : `${t('ui.lic.expired')} · `}${fmtDate(k.vence)}` })),
-      h('td', {}, h('button', { class: 'btn sm', text: t('ui.delete'), onclick: async () => { try { await api('POST', '/api/licenses/delete', { id: k.id }); await refreshConfig(); loadLicenses(); } catch (e) { fail(e); } } }))));
-  }
+  // «Agregar clave» (pegar una clave NMT1) vive en Ajustes → Sistema, como opción avanzada
   $('lic-add').onclick = async () => {
     const key = $('lic-key').value.trim(), msg = clear($('lic-msg'));
     if (!key) return;
@@ -471,9 +515,10 @@
     B.go = (mode) => { B.mode = mode; B.render(true); const f = qs('input:not([type=hidden])', root); if (f && !f.value) f.focus(); };
     B.render = (force) => {
       const a = authState();
-      const needed = a.signedIn || a.required || S.draftPrivate;
-      if (onlyWhenNeeded) root.hidden = !needed;
-      const key = a.signedIn ? `in:${a.email}` : `out:${B.mode}`;
+      // la sesión se pide solo si la persona pulsó «Iniciar sesión» en una cuenta comercial
+      const hasCommercial = (S.config.accounts || []).some(x => !x.personal);
+      root.hidden = a.signedIn || !(S.authOpen && hasCommercial);
+      const key = `out:${B.mode}`;
       if (!force && key === B.key) return;
       B.key = key;
       clear(root);
@@ -487,19 +532,12 @@
       const input = (type, label, value, o = {}) => h('label', { class: 'fld' }, h('span', { text: label }), h('input', { type, value: value || '', autocomplete: o.ac || 'off', spellcheck: 'false', maxlength: o.max, inputmode: o.mode, required: true }));
       const val = (lbl) => qs('input', lbl).value.trim();
       const done = async (r) => {
-        await refreshConfig(); await loadLicenses();
+        S.authOpen = false;
+        await refreshConfig(); await loadLicenses(); // las licencias llegan solas tras iniciar sesión
         const l = r && r.licencias;
         if (l && !l.error) toast(t('ui.auth.synced', { n: l.imported }), 'ok'); else if (l && l.error) toast(l.error, 'bad');
       };
 
-      if (a.signedIn) {
-        const sync = h('button', { class: 'btn', type: 'button', text: t('ui.auth.syncNow') });
-        sync.onclick = run(sync, async () => { const r = await api('POST', '/api/licenses/sync', {}); await refreshConfig(); await loadLicenses(); toast(t('ui.auth.synced', { n: r.imported }), 'ok'); });
-        const out = h('button', { class: 'btn', type: 'button', text: t('ui.auth.logout') });
-        out.onclick = run(out, async () => { await api('POST', '/api/auth/logout', {}); B.mode = 'login'; await refreshConfig(); });
-        root.append(head(h('span', { class: 'pill ok', text: t('ui.auth.signedAs', { email: a.email }) })), h('div', { class: 'row' }, sync, out), msg);
-        return;
-      }
       const pill = h('span', { class: 'pill warn', text: t('ui.auth.signedOutPill') });
       if (B.mode === 'login') {
         const em = input('email', t('ui.auth.email'), B.email || sessionEmail(), { ac: 'username' });
@@ -513,7 +551,7 @@
           if (r.codigo) { B.go('code'); say('ok', t('ui.auth.codeSent', { email: B.email })); return; }
           B.pw = ''; await done(r);
         });
-        root.append(head(pill), h('div', { class: 'hint', text: t('ui.auth.needed') }), form, h('div', { class: 'row' }, forgot), msg);
+        root.append(head(pill), h('div', { class: 'hint', text: t('ui.auth.needed') }), form, h('div', { class: 'row' }, forgot, h('button', { class: 'btn link', type: 'button', text: t('ui.cancel'), onclick: () => { S.authOpen = false; renderAuthBoxes(); } })), msg);
       } else if (B.mode === 'code') {
         const code = input('text', t('ui.auth.code'), '', { ac: 'one-time-code', max: 6, mode: 'numeric' });
         const go = h('button', { class: 'btn primary', type: 'submit', text: t('ui.auth.confirm') });
@@ -539,7 +577,6 @@
   }
   const renderAuthBoxes = () => { for (const B of authBoxes) B.render(); };
   mountAuth($('auth-cuentas'), { onlyWhenNeeded: true });
-  mountAuth($('auth-licencias'), { onlyWhenNeeded: false });
 
   // ================================================================ AJUSTES
   async function loadSettings() { S.settings = await api('GET', '/api/settings'); return S.settings; }
@@ -599,6 +636,9 @@
       box.append(h('div', { class: 'acct-item' },
         h('div', { class: 'who' }, a.email, h('div', { class: 's-mail', text: `${accountTypeLabel(a)} · ${a.personal ? t('ui.lic.personal') : t('ui.lic.commercial')}` })),
         h('span', { class: `pill ${a.ready ? 'ok' : 'warn'}`, text: a.ready ? t('ui.acct.ready') : t('ui.acct.incomplete') }),
+        a.personal ? null : (S.config.auth && S.config.auth.signedIn
+          ? h('button', { class: 'btn sm link', type: 'button', title: S.config.auth.email, text: t('ui.auth.logout'), onclick: async () => { try { await api('POST', '/api/auth/logout', {}); await refreshConfig(); } catch (e) { fail(e); } } })
+          : h('button', { class: 'btn sm', type: 'button', text: t('ui.auth.signIn'), onclick: () => { S.authOpen = true; renderAuthBoxes(); const f = qs('#auth-cuentas input'); if (f && !f.value) f.focus(); } })),
         active ? h('span', { class: 'pill', text: t('ui.acct.active') }) : h('button', { class: 'btn sm', text: t('ui.acct.use'), onclick: async () => { try { S.config = await api('POST', '/api/accounts/active', { id: a.id }); S.senders.clear(); S.over.clear(); renderAll(); } catch (e) { fail(e); } } }),
         h('button', { class: 'btn sm', text: t('ui.edit'), onclick: () => { acctForm.api = AcctForm($('acct-form'), { edit: a }); $('acct-form-title').textContent = t('ui.acct.edit'); } }),
         h('button', { class: 'btn sm', text: t('ui.delete'), onclick: async () => {
@@ -632,7 +672,7 @@
     f.gmsg = h('div', { class: 'msgs' });
     f.gbtn = h('button', { type: 'button', class: 'gbtn' }, GLOGO(), h('span', { text: t('ui.google.signin') }));
     f.gor = h('div', { class: 'or', text: t('ui.acct.or') });
-    f.gbox = h('div', { class: 'gbox' }, f.gbtn, f.gmsg, f.gor);
+    f.gbox = h('div', { class: 'gbox' }, f.gbtn, h('div', { class: 'hint', text: t('ui.google.tickGmail') }), f.gmsg, f.gor);
     f.passLbl = h('span');
     const setPassLabel = () => {
       clear(f.passLbl).append(f.preset.value === 'gmail' ? t('ui.acct.appPassword') : t('ui.acct.password'));
@@ -783,7 +823,22 @@
     c.myAddresses = $('c-myAddresses').value.split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
     saveSettings({ cleaning: c }).then(() => { initCleanControls(); }).catch(() => {});
   };
+  // remitentes con regla guardada («Nunca eliminar» desde Limpiar): se listan aquí y se pueden quitar
+  async function loadSenderRules() {
+    try {
+      const { list } = await api('GET', '/api/sender-rules'), box = clear($('r-senders-list'));
+      $('r-senders-n').textContent = fmtNum(list.length);
+      if (!list.length) box.append(h('div', { class: 'hint', text: t('ui.rules.sendersNone') }));
+      for (const r of list) box.append(h('div', { class: 'acct-item' },
+        h('div', { class: 'who', text: r.email }),
+        h('span', { class: `pill ${r.rule === 'protect' ? 'ok' : 'warn'}`, text: r.rule === 'protect' ? t('ui.rules.never') : t('ui.rules.always') }),
+        h('button', { class: 'btn sm', type: 'button', text: t('ui.rules.remove'), onclick: async () => {
+          try { await api('POST', '/api/sender-rule', { email: r.email, rule: 'none' }); const s = S.senders.get(r.email); if (s) { s.rule = null; renderSenders(); } loadSenderRules(); } catch (e) { fail(e); }
+        } })));
+    } catch (e) { fail(e); }
+  }
   async function loadRules() {
+    loadSenderRules();
     try {
       const r = await api('GET', '/api/rules');
       $('r-keep').value = r.keepOverride; $('r-subject').value = r.subject; $('r-from').value = r.from; $('r-body').value = r.body; $('r-prompt').value = r.llmPrompt;
@@ -995,6 +1050,12 @@
   function onEvent(m) {
     if (m.t === 'line') {
       addLog($('cl-log'), m.text, m.kind, m.ts);
+      if (m.lane === 'heur') termLine($('feed-cpu'), m.text, m.kind, m.ts);
+      else if (m.lane === 'llm') termLine($('feed-gpu'), m.text, m.kind, m.ts);
+    } else if (m.t === 'metrics') {
+      onMetrics(m);
+    } else if (m.t === 'phase') {
+      S.job = Object.assign(S.job || {}, { phase: m.phase }); renderPhase();
     } else if (m.t === 'scanstart') {
       S.senders = new Map(m.senders.map(s => [s.email, s])); renderClean();
     } else if (m.t === 'senders') {
@@ -1005,7 +1066,7 @@
     } else if (m.t === 'progress') {
       const wasRunning = S.job && S.job.running;
       S.job = m.job; renderHeader(); renderClean();
-      if (wasRunning && !m.job.running) { refreshConfig(); if (m.job.kind === 'execute') drainUnsub(); }
+      if (wasRunning && !m.job.running) refreshConfig();
     } else if (m.t === 'config') {
       S.config = m.config; renderAll();
     } else if (m.t === 'setup') {
@@ -1059,11 +1120,18 @@
     acctForm.api = AcctForm($('acct-form'), {}); $('acct-form-title').textContent = t('ui.acct.new');
     refreshConfig().then(() => { if (S.tab === 'cuentas') renderAccountsTab(); }).catch(fail);
   }
+  const syKind = (txt) => /error|fall[óo]|fail|perd|rechaz|no se pudo/i.test(txt) ? 'delete' : /^\s*\[?SIM|simul|dry/i.test(txt) ? 'dry' : /ok\b|verific|listo|termin/i.test(txt) ? 'keep' : 'info';
   function onSync(m) {
-    if (m.tipo === 'linea') addLog($('sy-log'), m.text, 'info', m.ts);
-    else if (m.tipo === 'inicio') { S.sync = Object.assign(S.sync || {}, { running: true, dryRun: m.dryRun, result: null, progress: null }); renderSync(); renderHeader(); }
-    else if (m.tipo === 'progreso') { S.sync = Object.assign(S.sync || {}, { progress: m.progress }); renderSync(); }
-    else if (m.tipo === 'fin') { api('GET', '/api/sync').then((v) => { S.sync = v; renderSync(); renderHeader(); loadLicenses(); }).catch(fail); }
+    if (m.tipo === 'linea') termLine($('sy-log'), m.text, syKind(m.text), m.ts);
+    else if (m.tipo === 'inicio') { clear($('sy-log')); sy.last = null; sy.peak = 0; sy.lastText = ''; S.sync = Object.assign(S.sync || {}, { running: true, dryRun: m.dryRun, result: null, progress: null }); renderSync(); renderHeader(); }
+    else if (m.tipo === 'progreso') {
+      const p = m.progress || {};
+      S.sync = Object.assign(S.sync || {}, { progress: p }); renderSync();
+      const line = [p.folder, p.folderTotal ? `${fmtNum(p.copied || 0)}/${fmtNum(p.folderTotal)}` : '', p.bytes != null ? fmtBytes(p.bytes) : ''].filter(Boolean).join(' · ');
+      if (line && line !== sy.lastText) { sy.lastText = line; termLine($('sy-log'), line, 'info', new Date().toTimeString().slice(0, 8)); }
+      if (p.bytes != null) netRate(p.bytes);
+    }
+    else if (m.tipo === 'fin') { netIdle(); api('GET', '/api/sync').then((v) => { S.sync = v; renderSync(); renderHeader(); loadLicenses(); }).catch(fail); }
   }
   function connectStream() {
     const es = new EventSource('/api/stream');
@@ -1089,12 +1157,11 @@
     applyAppearance(S.config.appearance);
     renderTabs(); renderHeader(); renderClean();
     if (S.tab === 'sincronizar') renderSync();
-    if (S.tab === 'licencias') renderLicenses();
     if (S.tab === 'cuentas') renderAccountsList();
     renderAuthBoxes();
   }
   const rerenderStatic = () => {
-    renderTabs(); renderHeader(); renderClean(); renderSync(); renderLicenses();
+    renderTabs(); renderHeader(); renderClean(); renderSync();
     if (S.tab === 'cuentas') { acctForm.api = null; renderAccountsTab(); }
     for (const B of authBoxes) B.render(true);
   };

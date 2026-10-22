@@ -20,7 +20,6 @@
     <button class="tab-btn" role="tab" data-tab="cuentas" data-i18n="ui.tab.accounts"></button>
     <button class="tab-btn" role="tab" data-tab="sincronizar" data-i18n="ui.tab.sync"></button>
     <button class="tab-btn" role="tab" data-tab="limpiar" data-i18n="ui.tab.clean"></button>
-    <button class="tab-btn" role="tab" data-tab="licencias" data-i18n="ui.tab.licenses"></button>
     <button class="tab-btn" role="tab" data-tab="ajustes" data-i18n="ui.tab.settings"></button>
   </nav>
   <label class="top-acct"><span class="hide-narrow" data-i18n="ui.account"></span><select id="acctSel" aria-label="Cuenta"></select></label>
@@ -80,10 +79,11 @@
           <div id="sy-result" class="grow"></div>
         </div>
       </div>
-      <div class="card fill">
-        <div class="card-h"><h2 data-i18n="ui.log"></h2></div>
-        <pre class="log fillbox" id="sy-log"></pre>
-      </div>
+      <section class="term net" aria-label="Terminal">
+        <header class="term-h"><span class="term-t" data-i18n="ui.term.net"></span>
+          <span class="meter" title="MB/s"><span class="bar"><i id="net-bar"></i></span><b id="net-rate">—</b></span></header>
+        <div class="feed" id="sy-log" role="log" aria-live="off"></div>
+      </section>
     </div>
   </section>
 
@@ -108,7 +108,6 @@
           <button class="btn" id="cl-scan" data-i18n="ui.clean.scan"></button>
           <button class="btn primary" id="cl-run" data-i18n="ui.clean.run"></button>
           <button class="btn" id="cl-auto" data-i18n="ui.clean.auto"></button>
-          <button class="btn danger" id="cl-stop" hidden data-i18n="ui.stop"></button>
           <span class="spacer"></span>
           <div class="stats">
             <div class="stat"><b id="st-seen">0</b><span data-i18n="ui.clean.seen"></span></div>
@@ -118,62 +117,44 @@
             <div class="stat prot"><b id="st-prot">0</b><span data-i18n="ui.clean.protected"></span></div>
           </div>
         </div>
-        <div class="prog" id="cl-prog" hidden><div class="bar"><i id="cl-bar"></i></div><small id="cl-prog-t"></small></div>
       </div>
       <div id="cl-pending"></div>
-      <div class="card fill">
-        <div class="card-h">
-          <div class="seg sm" id="cl-view" role="group">
-            <button type="button" data-view="senders" aria-pressed="true" data-i18n="ui.clean.sendersTitle"></button>
-            <button type="button" data-view="log" aria-pressed="false" data-i18n="ui.log"></button>
+      <div class="cl-grid">
+        <div class="card fill">
+          <div class="card-h">
+            <div class="seg sm" id="cl-view" role="group">
+              <button type="button" data-view="senders" aria-pressed="true" data-i18n="ui.clean.sendersTitle"></button>
+              <button type="button" data-view="log" aria-pressed="false" data-i18n="ui.log"></button>
+            </div>
+            <span class="spacer"></span>
+            <input type="text" id="cl-filter" class="filter" data-i18n-ph="ui.filter" aria-label="Filtro">
+            <span class="pill" id="cl-sel"></span>
           </div>
-          <span class="spacer"></span>
-          <input type="text" id="cl-filter" class="filter" data-i18n-ph="ui.filter" aria-label="Filtro">
-          <span class="pill" id="cl-sel"></span>
+          <div class="phase" id="cl-phase" hidden role="status" aria-live="polite">
+            <div class="phase-t"><span id="cl-phase-t"></span><small id="cl-phase-s"></small></div>
+            <div class="bar"><i id="cl-bar"></i></div>
+            <button class="btn sm danger" id="cl-stop" data-i18n="ui.cancel"></button>
+          </div>
+          <div id="cl-pane-senders" class="fillbox">
+            <div class="tbl-wrap"><table>
+              <thead><tr><th data-i18n="ui.clean.sender"></th><th class="num" data-i18n="ui.clean.count"></th><th class="num" data-i18n="ui.clean.noise"></th><th data-i18n="ui.clean.decision"></th><th></th></tr></thead>
+              <tbody id="cl-rows"></tbody>
+            </table>
+            <div class="empty" id="cl-empty" data-i18n="ui.clean.empty"></div></div>
+          </div>
+          <pre class="log fillbox" id="cl-log" hidden></pre>
         </div>
-        <div id="cl-pane-senders" class="fillbox">
-          <div class="tbl-wrap"><table>
-            <thead><tr><th data-i18n="ui.clean.sender"></th><th class="hide-narrow" data-i18n="ui.clean.subject"></th><th class="num" data-i18n="ui.clean.count"></th><th class="num" data-i18n="ui.clean.noise"></th><th data-i18n="ui.clean.decision"></th><th></th></tr></thead>
-            <tbody id="cl-rows"></tbody>
-          </table>
-          <div class="empty" id="cl-empty" data-i18n="ui.clean.empty"></div></div>
-        </div>
-        <pre class="log fillbox" id="cl-log" hidden></pre>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= LICENCIAS ================= -->
-  <section class="tab" id="tab-licencias" role="tabpanel">
-    <div class="split lic-split">
-      <div class="stack">
-        <div class="card" id="auth-licencias"></div>
-        <div class="card">
-          <div class="card-h"><h2 data-i18n="ui.lic.add"></h2></div>
-          <div class="row"><input type="text" id="lic-key" class="grow" placeholder="NMT1.…" autocomplete="off" spellcheck="false" aria-label="NMT1">
-          <button class="btn primary" id="lic-add" data-i18n="ui.lic.addBtn"></button></div>
-          <div id="lic-msg" class="mt"></div>
-        </div>
-        <div class="card">
-          <div class="card-h"><h2 data-i18n="ui.lic.prices"></h2></div>
-          <div class="row"><span class="pill" id="lic-p1"></span><span class="pill" id="lic-p2"></span></div>
-        </div>
-      </div>
-      <div class="stack">
-        <div class="card fill">
-          <div class="card-h"><h2 data-i18n="ui.lic.accounts"></h2></div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th data-i18n="ui.account"></th><th data-i18n="ui.tab.clean"></th><th data-i18n="ui.tab.sync"></th></tr></thead>
-            <tbody id="lic-rows"></tbody>
-          </table></div>
-        </div>
-        <div class="card fill">
-          <div class="card-h"><h2 data-i18n="ui.lic.mine"></h2></div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th data-i18n="ui.account"></th><th data-i18n="ui.lic.type"></th><th class="hide-narrow" data-i18n="ui.lic.channel"></th><th data-i18n="ui.lic.expires"></th><th></th></tr></thead>
-            <tbody id="lic-list"></tbody>
-          </table>
-          <div class="empty" id="lic-empty" data-i18n="ui.lic.none"></div></div>
+        <div class="terms">
+          <section class="term cpu" aria-label="CPU">
+            <header class="term-h"><span class="term-t" data-i18n="ui.term.cpu"></span>
+              <span class="meter" data-i18n-title="ui.term.cpuTitle"><span class="bar"><i id="cpu-bar"></i></span><b id="cpu-pct">—</b></span></header>
+            <div class="feed" id="feed-cpu" role="log" aria-live="off"></div>
+          </section>
+          <section class="term gpu" aria-label="GPU">
+            <header class="term-h"><span class="term-t" id="gpu-title"></span>
+              <span class="meter" data-i18n-title="ui.term.gpuTitle"><span class="bar"><i id="gpu-bar"></i></span><b id="gpu-pct">—</b><span class="vram" id="vram"></span></span></header>
+            <div class="feed" id="feed-gpu" role="log" aria-live="off"></div>
+          </section>
         </div>
       </div>
     </div>
@@ -234,6 +215,10 @@
             <label class="fld"><span data-i18n="ui.rules.body"></span><textarea id="r-body"></textarea></label>
             <label class="fld prompt"><span>Prompt</span><textarea id="r-prompt"></textarea></label>
           </div>
+          <details class="gclient sender-rules" id="r-senders">
+            <summary><span data-i18n="ui.rules.senders"></span> <span class="pill sm" id="r-senders-n">0</span></summary>
+            <div id="r-senders-list"></div>
+          </details>
           <div class="row"><button class="btn primary" id="r-save" data-i18n="ui.save"></button><button class="btn" id="r-reset" data-i18n="ui.rules.reset"></button></div>
         </div>
 
@@ -256,6 +241,11 @@
               </div>
               <div class="row"><button class="btn primary" id="adv-save" data-i18n="ui.save"></button></div>
               <div id="adv-msg"></div>
+              <details class="gclient">
+                <summary data-i18n="ui.lic.add"></summary>
+                <div class="row"><input type="text" id="lic-key" class="grow mono" placeholder="NMT1.…" autocomplete="off" spellcheck="false" aria-label="NMT1"><button class="btn" id="lic-add" data-i18n="ui.lic.addBtn"></button></div>
+                <div id="lic-msg" class="mt"></div>
+              </details>
               <details class="gclient">
                 <summary data-i18n="ui.google.client"></summary>
                 <div class="cols2">
