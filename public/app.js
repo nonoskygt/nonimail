@@ -87,25 +87,49 @@
   }
   const copyText = async (txt) => { try { await navigator.clipboard.writeText(txt); toast(t('ui.copied'), 'ok'); } catch (_) { toast(txt); } };
 
+  // Logo «G» de Google (marca oficial, cuatro colores)
+  function GLOGO() {
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 48 48'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('class', 'glogo');
+    for (const [c, d] of [['#EA4335', 'M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'], ['#4285F4', 'M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'], ['#FBBC05', 'M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'], ['#34A853', 'M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z']]) {
+      const p = document.createElementNS(ns, 'path'); p.setAttribute('fill', c); p.setAttribute('d', d); svg.append(p);
+    }
+    return svg;
+  }
+
   // ---------------------------------------------------------------- estado
-  const S = { config: null, settings: null, lic: null, setup: null, senders: new Map(), over: new Map(), job: { running: false }, sync: null, scanDone: false, tab: 'limpiar', sec: 'cuentas' };
+  const S = { config: null, settings: null, lic: null, setup: null, senders: new Map(), over: new Map(), job: { running: false }, sync: null, scanDone: false, tab: 'cuentas', sec: 'ia', presets: null, draftEmail: '', draftPrivate: false, googleWait: false };
   const acctById = (id) => (S.config.accounts || []).find(a => a.id === id);
   const activeAcct = () => acctById(S.config.activeAccount) || (S.config.accounts || [])[0] || null;
   const busy = () => (S.job && S.job.running) || (S.sync && S.sync.running);
 
   // ---------------------------------------------------------------- pestañas
+  // Sincronizar y Limpiar esperan a una cuenta guardada y probada (config.tabs lo decide el servidor)
+  const tabEnabled = (name) => !(S.config && S.config.tabs && S.config.tabs[name] === false);
+  function renderTabs() {
+    for (const b of qsa('.tab-btn')) {
+      const off = !tabEnabled(b.dataset.tab);
+      b.setAttribute('aria-disabled', String(off));
+      b.classList.toggle('is-off', off);
+      if (off) { b.title = t('ui.tab.needAccount'); b.dataset.tip = t('ui.tab.needAccount'); } else { b.removeAttribute('title'); delete b.dataset.tip; }
+    }
+    if (!tabEnabled(S.tab)) showTab('cuentas');
+  }
   function showTab(name, sec) {
+    if (!tabEnabled(name)) return;
     S.tab = name;
-    for (const b of qsa('.tab-btn')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
-    for (const s of qsa('main > .tab')) s.classList.toggle('on', s.id === `tab-${name}`);
-    if (name === 'licencias') loadLicenses();
+    for (const b of qsa('.tab-btn')) { const on = b.dataset.tab === name; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; }
+    for (const x of qsa('main > .tab')) x.classList.toggle('on', x.id === `tab-${name}`);
+    if (name === 'cuentas') renderAccountsTab();
+    if (name === 'licencias') { loadLicenses(); renderAuthBoxes(); }
     if (name === 'ajustes') showSec(sec || S.sec);
     if (name === 'sincronizar') renderSync();
+    if (name === 'limpiar') renderClean();
   }
   function showSec(name) {
     S.sec = name;
-    for (const b of qsa('#set-nav button')) b.setAttribute('aria-selected', String(b.dataset.sec === name));
-    for (const s of qsa('.set-sec')) s.classList.toggle('on', s.id === `sec-${name}`);
+    for (const b of qsa('#set-nav button')) { b.setAttribute('aria-selected', String(b.dataset.sec === name)); b.tabIndex = b.dataset.sec === name ? 0 : -1; }
+    for (const x of qsa('.set-sec')) x.classList.toggle('on', x.id === `sec-${name}`);
     loadSettings().then(renderSettings).catch(fail);
   }
   document.addEventListener('click', (e) => {
@@ -114,6 +138,18 @@
   });
   for (const b of qsa('.tab-btn')) b.addEventListener('click', () => showTab(b.dataset.tab));
   for (const b of qsa('#set-nav button')) b.addEventListener('click', () => showSec(b.dataset.sec));
+  // flechas entre pestañas (patrón de pestañas del WAI-ARIA)
+  function arrowNav(list, pick) {
+    return (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const items = list().filter(b => b.getAttribute('aria-disabled') !== 'true');
+      const i = items.indexOf(document.activeElement); if (i < 0) return;
+      const n = items[(i + (e.key === 'ArrowRight' ? 1 : items.length - 1)) % items.length];
+      n.focus(); pick(n); e.preventDefault();
+    };
+  }
+  $('main-tabs').addEventListener('keydown', arrowNav(() => qsa('.tab-btn'), (b) => showTab(b.dataset.tab)));
+  $('set-nav').addEventListener('keydown', arrowNav(() => qsa('#set-nav button'), (b) => showSec(b.dataset.sec)));
 
   // ---------------------------------------------------------------- tema
   function applyAppearance(ap) { if (window.NMTTheme) window.NMTTheme.set(ap.mode, ap.accent); }
@@ -168,7 +204,8 @@
     if (gate.permitido) return h('span', { class: 'pill ok', text: t('ui.gate.licensed', { date: fmtDate(gate.vence) }) });
     const price = (S.config.prices || {})[tipo];
     return h('span', { class: 'pill warn' }, t('ui.gate.dryOnly'), ' · ',
-      h('a', { href: gate.comprar, target: '_blank', rel: 'noopener', text: t('ui.gate.buy', { price: `${S.config.prices.currency} ${price}` }) }));
+      h('a', { href: gate.comprar, target: '_blank', rel: 'noopener', text: t('ui.gate.buy', { price: `${S.config.prices.currency} ${price}` }) }),
+      S.config.auth && !S.config.auth.signedIn ? h('button', { type: 'button', class: 'pill-link', 'data-goto': 'licencias', text: t('ui.auth.enter') }) : null);
   }
 
   // ================================================================ LIMPIAR
@@ -184,7 +221,6 @@
   }
   function renderClean() {
     const acct = activeAcct();
-    $('cl-noacct').hidden = !!acct; $('cl-main').style.display = acct ? 'grid' : 'none';
     if (!acct) return;
     const running = !!(S.job && S.job.running);
     $('cl-scan').disabled = running || !acct.ready; $('cl-run').disabled = running || !acct.ready || !S.scanDone && !S.senders.size;
@@ -257,6 +293,12 @@
     renderSenders();
   }
   const renderSendersSoon = debounce(renderSenders, 150);
+  function setCleanView(v) {
+    for (const b of qsa('#cl-view button')) b.setAttribute('aria-pressed', String(b.dataset.view === v));
+    $('cl-pane-senders').hidden = v !== 'senders'; $('cl-log').hidden = v !== 'log';
+    $('cl-filter').hidden = v !== 'senders'; $('cl-sel').hidden = v !== 'senders';
+  }
+  for (const b of qsa('#cl-view button')) b.addEventListener('click', () => setCleanView(b.dataset.view));
 
   async function startClean(kind) {
     const acct = activeAcct();
@@ -312,7 +354,7 @@
   function renderSync() {
     const list = S.config.accounts || [];
     const ok = list.length >= 2;
-    $('sy-need').hidden = ok; $('sy-main').style.display = ok ? 'grid' : 'none';
+    $('sy-need').hidden = ok; $('sy-main').style.display = ok ? '' : 'none';
     if (!ok) return;
     const fill = (sel, keep, skip) => {
       const prev = keep || sel.value; clear(sel);
@@ -415,6 +457,89 @@
   };
   $('lic-key').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('lic-add').click(); });
 
+  // ---- sesión con el servicio: SOLO para cuentas de dominio propio; compacta y en su sitio
+  const authBoxes = [];
+  const authState = () => (S.config && S.config.auth) || { signedIn: false, email: '', required: false };
+  const sessionEmail = () => {
+    const priv = (S.config.accounts || []).find(a => !a.personal);
+    return (priv && priv.email) || S.draftEmail || authState().email || '';
+  };
+  function mountAuth(root, { onlyWhenNeeded }) {
+    const B = { root, mode: 'login', email: '', pw: '', key: '', onlyWhenNeeded };
+    authBoxes.push(B);
+    B.go = (mode) => { B.mode = mode; B.render(true); const f = qs('input:not([type=hidden])', root); if (f && !f.value) f.focus(); };
+    B.render = (force) => {
+      const a = authState();
+      const needed = a.signedIn || a.required || S.draftPrivate;
+      if (onlyWhenNeeded) root.hidden = !needed;
+      const key = a.signedIn ? `in:${a.email}` : `out:${B.mode}`;
+      if (!force && key === B.key) return;
+      B.key = key;
+      clear(root);
+      const msg = h('div', { class: 'authmsg', 'aria-live': 'polite' });
+      const say = (kind, text) => clear(msg).append(h('div', { class: `msgline ${kind}`, text }));
+      const run = (btn, fn) => async (e) => {
+        e.preventDefault(); btn.disabled = true; clear(msg);
+        try { await fn(); } catch (er) { say('bad', er.message); } finally { btn.disabled = false; }
+      };
+      const head = (pill) => h('div', { class: 'card-h' }, h('h2', { text: t('ui.auth.title') }), h('span', { class: 'spacer' }), pill);
+      const input = (type, label, value, o = {}) => h('label', { class: 'fld' }, h('span', { text: label }), h('input', { type, value: value || '', autocomplete: o.ac || 'off', spellcheck: 'false', maxlength: o.max, inputmode: o.mode, required: true }));
+      const val = (lbl) => qs('input', lbl).value.trim();
+      const done = async (r) => {
+        await refreshConfig(); await loadLicenses();
+        const l = r && r.licencias;
+        if (l && !l.error) toast(t('ui.auth.synced', { n: l.imported }), 'ok'); else if (l && l.error) toast(l.error, 'bad');
+      };
+
+      if (a.signedIn) {
+        const sync = h('button', { class: 'btn', type: 'button', text: t('ui.auth.syncNow') });
+        sync.onclick = run(sync, async () => { const r = await api('POST', '/api/licenses/sync', {}); await refreshConfig(); await loadLicenses(); toast(t('ui.auth.synced', { n: r.imported }), 'ok'); });
+        const out = h('button', { class: 'btn', type: 'button', text: t('ui.auth.logout') });
+        out.onclick = run(out, async () => { await api('POST', '/api/auth/logout', {}); B.mode = 'login'; await refreshConfig(); });
+        root.append(head(h('span', { class: 'pill ok', text: t('ui.auth.signedAs', { email: a.email }) })), h('div', { class: 'row' }, sync, out), msg);
+        return;
+      }
+      const pill = h('span', { class: 'pill warn', text: t('ui.auth.signedOutPill') });
+      if (B.mode === 'login') {
+        const em = input('email', t('ui.auth.email'), B.email || sessionEmail(), { ac: 'username' });
+        const pw = input('password', t('ui.auth.password'), '', { ac: 'current-password' });
+        const go = h('button', { class: 'btn primary', type: 'submit', text: t('ui.auth.enter') });
+        const forgot = h('button', { class: 'btn link', type: 'button', text: t('ui.auth.forgot'), onclick: () => { B.email = val(em); B.go('forgot'); } });
+        const form = h('form', { class: 'authform', novalidate: true }, em, pw, go);
+        form.onsubmit = run(go, async () => {
+          B.email = val(em); B.pw = qs('input', pw).value;
+          const r = await api('POST', '/api/auth/login', { email: B.email, password: B.pw });
+          if (r.codigo) { B.go('code'); say('ok', t('ui.auth.codeSent', { email: B.email })); return; }
+          B.pw = ''; await done(r);
+        });
+        root.append(head(pill), h('div', { class: 'hint', text: t('ui.auth.needed') }), form, h('div', { class: 'row' }, forgot), msg);
+      } else if (B.mode === 'code') {
+        const code = input('text', t('ui.auth.code'), '', { ac: 'one-time-code', max: 6, mode: 'numeric' });
+        const go = h('button', { class: 'btn primary', type: 'submit', text: t('ui.auth.confirm') });
+        const form = h('form', { class: 'authform two', novalidate: true }, code, go);
+        form.onsubmit = run(go, async () => { const r = await api('POST', '/api/auth/confirm', { email: B.email, code: val(code), password: B.pw }); B.pw = ''; B.mode = 'login'; await done(r); });
+        root.append(head(pill), h('div', { class: 'hint', text: B.email }), form, h('div', { class: 'row' }, h('button', { class: 'btn link', type: 'button', text: t('ui.auth.back'), onclick: () => B.go('login') })), msg);
+      } else if (B.mode === 'forgot') {
+        const em = input('email', t('ui.auth.email'), B.email || sessionEmail(), { ac: 'username' });
+        const go = h('button', { class: 'btn primary', type: 'submit', text: t('ui.auth.sendCode') });
+        const form = h('form', { class: 'authform two', novalidate: true }, em, go);
+        form.onsubmit = run(go, async () => { B.email = val(em); await api('POST', '/api/auth/reset-request', { email: B.email }); B.go('reset'); say('ok', t('ui.auth.codeSent', { email: B.email })); });
+        root.append(head(pill), form, h('div', { class: 'row' }, h('button', { class: 'btn link', type: 'button', text: t('ui.auth.back'), onclick: () => B.go('login') })), msg);
+      } else {
+        const code = input('text', t('ui.auth.code'), '', { ac: 'one-time-code', max: 6, mode: 'numeric' });
+        const pw = input('password', t('ui.auth.newPassword'), '', { ac: 'new-password' });
+        const go = h('button', { class: 'btn primary', type: 'submit', text: t('ui.auth.change') });
+        const form = h('form', { class: 'authform', novalidate: true }, code, pw, go);
+        form.onsubmit = run(go, async () => { const r = await api('POST', '/api/auth/reset-confirm', { email: B.email, code: val(code), password: qs('input', pw).value }); B.mode = 'login'; await done(r); });
+        root.append(head(pill), h('div', { class: 'hint', text: B.email }), form, h('div', { class: 'row' }, h('button', { class: 'btn link', type: 'button', text: t('ui.auth.back'), onclick: () => B.go('login') })), msg);
+      }
+    };
+    return B;
+  }
+  const renderAuthBoxes = () => { for (const B of authBoxes) B.render(); };
+  mountAuth($('auth-cuentas'), { onlyWhenNeeded: true });
+  mountAuth($('auth-licencias'), { onlyWhenNeeded: false });
+
   // ================================================================ AJUSTES
   async function loadSettings() { S.settings = await api('GET', '/api/settings'); return S.settings; }
   async function saveSettings(patch, msgEl) {
@@ -429,13 +554,10 @@
   function renderSettings() {
     const st = S.settings; if (!st) return;
     const s = st.settings;
-    renderAccountsList();
-    if (S.sec === 'cuentas' && !acctForm.api) acctForm.api = AcctForm($('acct-form'), {});
-    // Google
+    // cliente de Google propio (Avanzado)
     if (document.activeElement !== $('g-client')) $('g-client').value = s.google.clientId || '';
     $('g-secret').placeholder = st.secrets.hasGoogleClientSecret ? '••••••••' : '';
     $('g-redirect').value = st.redirectUri;
-    $('g-guide').href = S.config.links.googleGuide[LANG] || S.config.links.googleGuide.es;
     // IA
     $('ai-on').checked = !!s.llm.enabled || !!S.config.aiEnabled;
     $('ai-url').value = s.ollamaUrl; $('ai-model').value = s.model;
@@ -460,6 +582,11 @@
     $('sys-issues').href = S.config.links.issues;
     if (S.sec === 'reglas') loadRules();
   }
+  function renderAccountsTab() {
+    renderAccountsList();
+    if (!acctForm.api) acctForm.api = AcctForm($('acct-form'), {});
+    renderAuthBoxes();
+  }
 
   // ---- cuentas
   function renderAccountsList() {
@@ -471,10 +598,10 @@
         h('div', { class: 'who' }, a.email, h('div', { class: 's-mail', text: `${accountTypeLabel(a)} · ${a.personal ? t('ui.lic.personal') : t('ui.lic.commercial')}` })),
         h('span', { class: `pill ${a.ready ? 'ok' : 'warn'}`, text: a.ready ? t('ui.acct.ready') : t('ui.acct.incomplete') }),
         active ? h('span', { class: 'pill', text: t('ui.acct.active') }) : h('button', { class: 'btn sm', text: t('ui.acct.use'), onclick: async () => { try { S.config = await api('POST', '/api/accounts/active', { id: a.id }); S.senders.clear(); S.over.clear(); renderAll(); } catch (e) { fail(e); } } }),
-        h('button', { class: 'btn sm', text: t('ui.edit'), onclick: () => { acctForm.api = AcctForm($('acct-form'), { edit: a }); $('acct-form-title').textContent = t('ui.acct.edit'); $('acct-form').scrollIntoView({ block: 'nearest' }); } }),
+        h('button', { class: 'btn sm', text: t('ui.edit'), onclick: () => { acctForm.api = AcctForm($('acct-form'), { edit: a }); $('acct-form-title').textContent = t('ui.acct.edit'); } }),
         h('button', { class: 'btn sm', text: t('ui.delete'), onclick: async () => {
           if (!await ask(t('ui.delete'), [a.email, t('ui.acct.deleteNote')], t('ui.delete'))) return;
-          try { await api('POST', '/api/accounts/delete', { id: a.id }); await refreshConfig(); renderSettings(); } catch (e) { fail(e); }
+          try { await api('POST', '/api/accounts/delete', { id: a.id }); await refreshConfig(); } catch (e) { fail(e); }
         } })));
     }
   }
@@ -483,7 +610,7 @@
 
   // Formulario de cuenta (configurador y Ajustes). o: { edit?, onSaved?, makeActive?, compact? }
   function AcctForm(root, o = {}) {
-    const presets = (S.setup && S.setup.presets) || (S.settings && S.settings.presets) || {};
+    const presets = S.presets || (S.setup && S.setup.presets) || (S.settings && S.settings.presets) || {};
     const edit = o.edit || null;
     const isOauth = edit && edit.type === 'gmail-oauth';
     clear(root);
@@ -498,7 +625,12 @@
     f.sh = h('input', { type: 'text', placeholder: 'smtp.dominio.com' }); f.sp = h('input', { type: 'number', min: 1, max: 65535 });
     f.ss = h('input', { type: 'checkbox' });
     f.inbox = h('input', { type: 'text' }); f.trash = h('input', { type: 'text', placeholder: t('ui.acct.trashAuto') });
-    f.msg = h('div', { style: 'display:grid;gap:8px' });
+    f.msg = h('div', { class: 'msgs' });
+    f.hint = h('span', { class: 'pill sm', hidden: true });
+    f.gmsg = h('div', { class: 'msgs' });
+    f.gbtn = h('button', { type: 'button', class: 'gbtn' }, GLOGO(), h('span', { text: t('ui.google.signin') }));
+    f.gor = h('div', { class: 'or', text: t('ui.acct.or') });
+    f.gbox = h('div', { class: 'gbox' }, f.gbtn, f.gmsg, f.gor);
     f.passLbl = h('span');
     const setPassLabel = () => {
       clear(f.passLbl).append(f.preset.value === 'gmail' ? t('ui.acct.appPassword') : t('ui.acct.password'));
@@ -509,7 +641,29 @@
       if (p.imap) { f.ih.value = p.imap.host; f.ip.value = p.imap.port; f.is.checked = !!p.imap.secure; }
       if (p.smtp) { f.sh.value = p.smtp.host; f.sp.value = p.smtp.port; f.ss.checked = !!p.smtp.secure; }
       if (!p.imap) { f.ih.value = ''; f.ip.value = 993; f.is.checked = true; f.sh.value = ''; f.sp.value = 465; f.ss.checked = true; }
-      setPassLabel();
+      setPassLabel(); showGoogle();
+    };
+    const showGoogle = () => { f.gbox.hidden = !(f.preset.value === 'gmail' && !edit); };
+    // personal (gratis, sin sesión) o dominio propio (pide sesión con el servicio)
+    const classify = debounce(async () => {
+      const em = f.email.value.trim();
+      if (!/.+@.+\..+/.test(em)) { f.hint.hidden = true; if (!edit) { S.draftEmail = ''; S.draftPrivate = false; renderAuthBoxes(); } return; }
+      try {
+        const r = await api('GET', `/api/accounts/classify?email=${encodeURIComponent(em)}`);
+        f.hint.hidden = !r.valid; f.hint.className = `pill sm ${r.personal ? 'ok' : 'warn'}`;
+        f.hint.textContent = r.personal ? t('ui.acct.personalFree') : t('ui.acct.needsSession');
+        S.draftEmail = r.valid && !r.personal ? em : ''; S.draftPrivate = r.valid && !r.personal; renderAuthBoxes();
+      } catch (_) { /* sin pista */ }
+    }, 250);
+    f.email.addEventListener('input', classify);
+    f.gbtn.onclick = async () => {
+      clear(f.gmsg); f.gbtn.disabled = true;
+      try {
+        const r = await api('POST', '/api/oauth/google/start', { email: f.email.value.trim() || undefined });
+        window.open(r.authUrl, '_blank', 'noopener'); S.googleWait = true;
+        f.gmsg.append(h('div', { class: 'msgline warn', text: t('ui.google.waiting') }));
+      } catch (e) { f.gmsg.append(h('div', { class: 'msgline warn', text: e.message })); f.pass.focus(); }
+      f.gbtn.disabled = false;
     };
     f.preset.addEventListener('change', fillPreset);
     if (edit) {
@@ -518,8 +672,8 @@
       f.ih.value = edit.imap.host; f.ip.value = edit.imap.port; f.is.checked = !!edit.imap.secure;
       f.sh.value = edit.smtp.host; f.sp.value = edit.smtp.port; f.ss.checked = !!edit.smtp.secure;
       f.inbox.value = edit.inboxFolder; f.trash.value = edit.trashFolder || '';
-      setPassLabel();
-    } else { f.preset.value = Object.keys(presets)[0] || 'gmail'; fillPreset(); f.inbox.value = 'INBOX'; }
+      setPassLabel(); showGoogle(); classify();
+    } else { f.preset.value = Object.keys(presets)[0] || 'gmail'; fillPreset(); f.inbox.value = 'INBOX'; S.draftEmail = ''; S.draftPrivate = false; }
 
     const payload = () => {
       const type = isOauth ? 'gmail-oauth' : f.preset.value === 'gmail' ? 'gmail-password' : 'imap';
@@ -558,39 +712,38 @@
         const r = await api('POST', '/api/accounts/save', payload());
         await refreshConfig();
         toast(t('ui.saved'), 'ok');
-        if (o.onSaved) o.onSaved(r); else { acctForm.api = AcctForm(root, {}); $('acct-form-title').textContent = t('ui.acct.new'); renderSettings(); }
+        if (o.onSaved) o.onSaved(r); else { acctForm.api = AcctForm(root, {}); $('acct-form-title').textContent = t('ui.acct.new'); renderAccountsList(); }
         return r;
       } catch (e) { show('bad', e.message); return null; }
     };
     f.save.onclick = () => doSave(false);
 
     const adv = h('details', {}, h('summary', { text: t('ui.acct.server') }),
-      h('div', { class: 'cols2', style: 'margin-top:10px' },
+      h('div', { class: 'cols3 tight' },
         field('IMAP', f.ih), field(t('field.imapPort'), f.ip), h('label', { class: 'chk' }, f.is, 'SSL/TLS'),
         field('SMTP', f.sh), field(t('field.smtpPort'), f.sp), h('label', { class: 'chk' }, f.ss, 'SSL/TLS'),
         field(t('ui.acct.user'), f.user), field(t('ui.acct.inbox'), f.inbox), field(t('ui.acct.trash'), f.trash)));
-    root.append(h('div', { style: 'display:grid;gap:12px' },
-      isOauth ? null : h('div', { class: 'cols2' }, field(t('ui.acct.provider'), f.preset), h('label', { class: 'fld grow' }, f.passLbl, f.pass)),
-      h('div', { class: 'cols2' }, field(t('ui.acct.email'), f.email)),
+    root.append(h('div', { class: 'acctform' },
+      h('div', { class: 'cols2' }, isOauth ? null : field(t('ui.acct.provider'), f.preset), h('label', { class: 'fld grow' }, h('span', {}, t('ui.acct.email'), ' ', f.hint), f.email)),
+      isOauth ? null : f.gbox,
+      isOauth ? null : h('div', { class: 'cols2' }, h('label', { class: 'fld grow' }, f.passLbl, f.pass)),
       isOauth ? h('div', { class: 'cols2' }, field(t('ui.acct.inbox'), f.inbox), field(t('ui.acct.trash'), f.trash)) : adv,
       h('div', { class: 'row', style: 'margin-top:0' }, f.test, f.save, edit ? h('button', { class: 'btn link', type: 'button', text: t('ui.cancel'), onclick: () => { acctForm.api = AcctForm(root, {}); $('acct-form-title').textContent = t('ui.acct.new'); } }) : null),
       f.msg));
     return { f, doSave, payload, isEmpty: () => !f.email.value.trim() && !f.pass.value };
   }
 
-  // ---- Google
+  // ---- cliente de Google propio (Ajustes → Avanzado) y copiar la URI de redirección
   $('g-copy').onclick = () => copyText($('g-redirect').value);
-  $('g-connect').onclick = async () => {
-    const msg = clear($('g-msg'));
+  const saveGoogleClient = debounce(async () => {
     try {
-      const clientId = $('g-client').value.trim();
-      if (clientId && clientId !== S.settings.settings.google.clientId) await saveSettings({ google: { clientId } });
-      const r = await api('POST', '/api/oauth/google/start', { clientId, clientSecret: $('g-secret').value.trim(), email: (activeAcct() || {}).email });
+      const clientId = $('g-client').value.trim(), secret = $('g-secret').value.trim();
+      await saveSettings({ google: { clientId }, __secrets: secret ? { googleClientSecret: secret } : undefined });
       $('g-secret').value = '';
-      window.open(r.authUrl, '_blank', 'noopener');
-      msg.append(h('div', { class: 'msgline warn', text: t('ui.google.waiting') }));
-    } catch (e) { msg.append(h('div', { class: 'msgline bad', text: e.message })); }
-  };
+    } catch (_) { /* saveSettings ya avisó */ }
+  }, 600);
+  $('g-client').addEventListener('input', saveGoogleClient);
+  $('g-secret').addEventListener('input', saveGoogleClient);
 
   // ---- IA
   $('ai-on').addEventListener('change', async (e) => { try { await api('POST', '/api/setup/prefs', { ai: e.target.checked }); await refreshConfig(); } catch (er) { fail(er); } });
@@ -769,10 +922,10 @@
           try {
             if (!this.form.isEmpty()) { const r = await this.form.doSave(false); if (!r) return; }
             S.config = await api('POST', '/api/setup/finish', {});
-            this.close(); renderAll(); showTab('limpiar');
+            this.close(); renderAll(); showTab('cuentas');
           } catch (e) { fail(e); }
         };
-        foot.append(back(), next(t('ui.wiz.finish'), finish), h('span', { class: 'spacer' }), h('button', { class: 'btn', text: t('ui.wiz.skipAccount'), onclick: async () => { try { S.config = await api('POST', '/api/setup/finish', {}); this.close(); renderAll(); showTab('ajustes', 'cuentas'); } catch (e) { fail(e); } } }));
+        foot.append(back(), next(t('ui.wiz.finish'), finish), h('span', { class: 'spacer' }), h('button', { class: 'btn', text: t('ui.wiz.skipAccount'), onclick: async () => { try { S.config = await api('POST', '/api/setup/finish', {}); this.close(); renderAll(); showTab('cuentas'); } catch (e) { fail(e); } } }));
         // el formulario de cuenta guarda dentro; al terminar el botón principal ya lo hace
         this.form.f.save.hidden = true;
       }
@@ -800,7 +953,17 @@
       onSetupEvent(m);
     } else if (m.t === 'sync') {
       onSync(m);
+    } else if (m.t === 'google') {
+      onGoogle(m);
     }
+  }
+  function onGoogle(m) {
+    S.googleWait = false;
+    if (!m.ok) { toast(m.error || t('oauth.fail'), 'bad'); return; }
+    toast(t('ui.google.done', { email: m.email }), m.test && !m.test.ok ? 'bad' : 'ok');
+    if (m.test && !m.test.ok) toast(m.test.error, 'bad');
+    acctForm.api = AcctForm($('acct-form'), {}); $('acct-form-title').textContent = t('ui.acct.new');
+    refreshConfig().then(() => { if (S.tab === 'cuentas') renderAccountsTab(); }).catch(fail);
   }
   function onSync(m) {
     if (m.tipo === 'linea') addLog($('sy-log'), m.text, 'info', m.ts);
@@ -830,12 +993,17 @@
   function renderAll() {
     if (!S.config) return;
     applyAppearance(S.config.appearance);
-    renderHeader(); renderClean();
+    renderTabs(); renderHeader(); renderClean();
     if (S.tab === 'sincronizar') renderSync();
     if (S.tab === 'licencias') renderLicenses();
-    if (S.tab === 'ajustes' && S.settings) renderAccountsList();
+    if (S.tab === 'cuentas') renderAccountsList();
+    renderAuthBoxes();
   }
-  const rerenderStatic = () => { renderHeader(); renderClean(); renderSync(); renderLicenses(); };
+  const rerenderStatic = () => {
+    renderTabs(); renderHeader(); renderClean(); renderSync(); renderLicenses();
+    if (S.tab === 'cuentas') { acctForm.api = null; renderAccountsTab(); }
+    for (const B of authBoxes) B.render(true);
+  };
 
   async function boot() {
     try {
@@ -845,9 +1013,12 @@
       S.sync = S.config.sync;
       try { S.lic = await api('GET', '/api/licenses'); } catch (_) { /* sin licencias */ }
       initCleanControls(); $('sy-dry').checked = true;
+      if (S.config.auth.signedIn) api('POST', '/api/licenses/sync', {}).then(() => refreshConfig()).catch(() => { /* sin red: valen las claves guardadas */ });
       // si había un escaneo hecho, el servidor lo conserva: se recupera
       try { const r = await api('GET', '/api/senders'); if (r.senders.length) { S.senders = new Map(r.senders.map(s => [s.email, s])); S.scanDone = true; } } catch (_) { /* nada */ }
-      renderAll(); showTab('limpiar'); renderSync();
+      try { S.presets = (await api('GET', '/api/accounts')).presets; } catch (_) { /* sin plantillas */ }
+      setCleanView('senders');
+      renderAll(); showTab(tabEnabled('limpiar') ? 'limpiar' : 'cuentas'); renderSync();
       connectStream();
       if (!S.config.setup.done) await Wizard.open();
     } catch (e) {
