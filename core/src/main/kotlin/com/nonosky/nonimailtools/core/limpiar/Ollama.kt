@@ -20,7 +20,7 @@ class Ollama(
     private val timeoutMs: Int,
     private val numCtx: Int = 4096,
     private val numPredict: Int = 16,
-) {
+) : IaScorer {
     val base: String = baseUrl.trim().trimEnd('/')
 
     data class Probe(val version: String, val models: List<String>)
@@ -35,7 +35,7 @@ class Ollama(
     }
 
     /** Quick (non-thinking) completion. Returns the raw response text (may be blank). */
-    fun generate(prompt: String): String {
+    override fun generate(prompt: String): String {
         val body = buildJsonObject {
             put("model", model)
             put("prompt", "$prompt\n/no_think")

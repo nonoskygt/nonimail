@@ -35,6 +35,35 @@
     "numPredict": 16,
     "prompt": "Usted es un asistente que limpia la bandeja de entrada de una persona. Evalúe cuánto RUIDO/PROMOCIONAL es un remitente para el usuario y devuelva SOLO un número entero de 0 a 100 (sin texto):\n- 100 = basura segura (marketing, ofertas, newsletters, publicidad, novedades de productos, notificaciones automáticas de redes sociales, 'tiene N mensajes', encuestas).\n- 0 = importante/valioso (persona real, factura, recibo, comprobante, estado de cuenta, banco, alerta de seguridad, código 2FA, pedido/envío que el propio usuario realizó, cita, trámite).\n- Valores medios (40-60) = genuinamente dudoso.\n\nConsidere la señal BULK (si trae opción de baja, es envío masivo -> sube el puntaje), salvo que el contenido sea claramente transaccional/importante.\n\nEjemplos (responda solo el número):\nFROM: deals@tienda.com | SUBJECT: 50% OFF | BULK: si -> 95\nFROM: notifications@redsocial.com | SUBJECT: tiene 3 invitaciones | BULK: si -> 90\nFROM: news@marca.com | SUBJECT: Novedades de la semana | BULK: si -> 85\nFROM: editor@ong.org | SUBJECT: newsletter de activismo | BULK: si -> 55\nFROM: no-reply@mirouter.com | SUBJECT: Config Created | BULK: no -> 45\nFROM: pedidos@tienda.com | SUBJECT: Su pedido fue enviado | BULK: si -> 20\nFROM: facturacion@proveedor.com | SUBJECT: Factura #2026 | BULK: no -> 5\nFROM: noreply@banco.com | SUBJECT: Su código es 482910 | BULK: no -> 3\nFROM: persona@gmail.com | SUBJECT: Le escribo desde... | BULK: no -> 2"
   },
+  "localAi": {
+    "ramMultiple": 2,
+    "ramExtraMb": 2048,
+    "diskExtraMb": 1024,
+    "models": [
+      {
+        "id": "basico",
+        "url": "https://huggingface.co/litert-community/Qwen3-0.6B/resolve/e6687177e00897731e7716267eebd4eba0dde7c2/Qwen3-0.6B.litertlm",
+        "bytes": 613722264,
+        "sha256": "c5f39b4191926786c3e6668b62af4d6eb15248dfc7a5348252a9b406f33f2108",
+        "archivo": "Qwen3-0.6B.litertlm",
+        "sinPensar": true
+      },
+      {
+        "id": "mediano",
+        "url": "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/a790a852d433991c0c0a41c1154cf9b3850300fa/gemma-4-E2B-it.litertlm",
+        "bytes": 2588147712,
+        "sha256": "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+        "archivo": "gemma-4-E2B-it.litertlm"
+      },
+      {
+        "id": "grande",
+        "url": "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/e6a3892a8c22cf87ff99583996149cf3cb32452b/gemma-4-E4B-it.litertlm",
+        "bytes": 3659530240,
+        "sha256": "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
+        "archivo": "gemma-4-E4B-it.litertlm"
+      }
+    ]
+  },
   "providers": [
     { "id": "gmail", "telemetry": "gmail", "host": "imap.gmail.com", "port": 993, "security": "ssl", "domains": ["gmail.com", "googlemail.com"], "appPassword": true },
     { "id": "outlook", "telemetry": "outlook", "host": "outlook.office365.com", "port": 993, "security": "ssl", "domains": ["outlook.com", "hotmail.com", "live.com", "msn.com"], "appPassword": true },

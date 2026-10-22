@@ -40,7 +40,7 @@ data class ScanOptions(
     val cleaning: CleaningDefaults,
     val sentNames: List<String>,
     /** Null = heuristics only. */
-    val ollama: Ollama? = null,
+    val ia: IaScorer? = null,
     val llmPrompt: String = "",
     val now: Date = Date(),
 )
@@ -220,7 +220,7 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                 }
 
                 // 4) Optional local AI for every sender that is not protected.
-                val ai = opt.ollama
+                val ai = opt.ia
                 if (ai != null && !cancelled) {
                     val todo = scored.indices.filter { !scored[it].isProtected }
                     emit(ScanProgress(ScanProgress.Phase.AI, 0, todo.size, groups.size))

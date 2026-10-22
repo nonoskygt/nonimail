@@ -15,6 +15,7 @@ data class Defaults(
     val cleaning: CleaningDefaults,
     val sync: SyncDefaults,
     val llm: LlmDefaults,
+    val localAi: com.nonosky.nonimailtools.core.ia.IaLocalDefaults,
     val providers: List<ProviderPreset>,
     val folders: FolderNames,
 ) {
