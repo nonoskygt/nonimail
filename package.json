@@ -1,6 +1,6 @@
 {
   "name": "nonimail-tools",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "NoniMail Tools: limpie su bandeja de entrada por remitente y sincronice buzones IMAP sin duplicados. Clean your inbox by sender and sync IMAP mailboxes without duplicates.",
   "license": "MIT",
   "author": {
@@ -31,6 +31,7 @@
     "node": ">=18"
   },
   "dependencies": {
+    "electron-updater": "6.3.9",
     "imapflow": "2.0.6",
     "nodemailer": "10.0.10"
   },
@@ -59,6 +60,9 @@
       "LICENSE",
       "THIRD_PARTY_LICENSES.md",
       "!**/*.map"
+    ],
+    "publish": [
+      { "provider": "github", "owner": "nonoskygt", "repo": "nonimail-tools", "releaseType": "release" }
     ],
     "asar": true,
     "compression": "normal",
