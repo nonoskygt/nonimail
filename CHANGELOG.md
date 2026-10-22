@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1
+
+Arreglos de la IA local y de la ventana.
+
+- **Ollama ya instalado se detecta bien.** Causa del falso «Ollama no está instalado»: el configurador daba por no instalado todo Ollama cuya API no contestaba (por ejemplo, con la app de la bandeja cerrada) y nunca buscaba el programa. Ahora el orden es: API en la dirección configurada, en `OLLAMA_HOST` y en `127.0.0.1`/`localhost`; después el ejecutable (rutas de `ollama.exePaths` en `config/defaults.json`, `%LOCALAPPDATA%\Programs\Ollama`, Archivos de programa y el PATH); si está pero no corre, se inicia solo y se espera a la API. El botón **Instalar** solo sale si no hay nada.
+- **Tres modelos: Básico, Mediano y Grande**, definidos en `ollama.tiers` (etiqueta, tamaño y RAM/VRAM) y recomendados según la RAM y la GPU del equipo (`nvidia-smi`, PowerShell o `/sys/class/drm`). Tarjetas seleccionables con «Recomendado para su equipo» y «Instalado»; se quita el campo de texto del modelo del configurador (queda como opción avanzada en Ajustes → IA).
+- **Una sola barra de progreso** para verificar, instalar Ollama, descargar el modelo (`37% (1.2 / 3.3 GB)`) y configurarlo (verificación y una generación de 1 token). Errores en una línea con **Reintentar**.
+- **Cancelar** durante la instalación, la descarga o la configuración: aborta la descarga, mata el instalador, corta `/api/pull`, borra los temporales y deja el paso listo para **Reintentar** u **Omitir (sin IA)**.
+- **Bandeja del sistema**: el botón de cerrar pregunta «¿Qué desea hacer?» (**Mantener minimizada** o **Cerrar por completo**, con «Recordar mi elección»). El trabajo en curso sigue con la ventana oculta. La opción se cambia en Ajustes → Sistema (`closeAction`). Sin bandeja disponible, se minimiza normal. Un segundo arranque restaura la ventana.
+
 ## 1.1.0
 
 Interfaz rehecha: cada pantalla cabe en una ventana (1280x800, y también 1024x700) sin desplazar la página.
