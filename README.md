@@ -119,6 +119,13 @@ Events wait in a queue on disk and go out in batches every 5 minutes, after each
 
 **Turn it off:** the switch in the setup, **Settings → System**, or the environment variable `NMT_TELEMETRY=0`. When off, the app sends nothing, not even the install ping, and the queue is emptied.
 
+### Collective filter
+
+The filter is on by default. When you **execute** a clean (never on a scan or a simulation), the app sends to `https://mt.nonosky.com` one decision per **bulk** sender (it has `List-Unsubscribe` or a noreply/marketing-style address) on a custom domain: **only the domain** (for example `shop.com`), the signals the filter saw (unsubscribe, noreply, names of the matched rules, AI score and mail count), your decision (`eliminar`, `conservar`, `nunca` or `baja`) and whether you overrode the filter. Personal mail domains (Gmail, Hotmail, etc.) are not sent. **Never** subjects, contents, full addresses or your account.
+Once a day the app downloads the signed domain reputation and always uses it, even if you do not share.
+
+**Stop sharing:** turn off **Settings → System → Help improve the filter** (or `NMT_FILTRO=0`). The queue is emptied and nothing else leaves; the downloaded reputation keeps being used.
+
 ## Settings
 
 All of this lives in `config/defaults.json` and can be overridden by your own `config.json` and by environment variables:

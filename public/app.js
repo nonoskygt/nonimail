@@ -613,6 +613,7 @@
     accentControl($('ap-accent'), S.config.appearance.accent, (a) => saveAppearance({ accent: a }).then(renderSettings).catch(fail));
     // privacidad / avanzado
     $('tel-on').checked = !!s.telemetry.enabled;
+    $('fil-on').checked = !!s.filtro.compartir;
     $('adv-service').value = s.service.url; $('adv-port').value = s.port;
     // sistema
     const info = clear($('sys-info'));
@@ -854,6 +855,7 @@
   $('adv-save').onclick = () => saveSettings({ service: { url: $('adv-service').value.trim() }, port: parseInt($('adv-port').value, 10) }, $('adv-msg')).then((r) => {
     if (r && r.restartNeeded) clear($('adv-msg')).append(h('div', { class: 'msgline warn', text: t('ui.adv.restart') }));
   }).catch(() => {});
+  $('fil-on').addEventListener('change', (e) => saveSettings({ filtro: { compartir: e.target.checked } }).catch(() => {}));
   $('tel-on').addEventListener('change', (e) => saveSettings({ telemetry: { enabled: e.target.checked } }).catch(() => {}));
   $('sys-close').onchange = (e) => api('POST', '/api/prefs/close', { closeAction: e.target.value }).then(() => toast(t('ui.saved'), 'ok')).catch(fail);
   $('upd-auto').addEventListener('change', (e) => api('POST', '/api/prefs/updates', { auto: e.target.checked }).then((r) => { upd = r.update; renderUpdate(); toast(t('ui.saved'), 'ok'); }).catch(fail));

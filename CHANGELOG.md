@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+Filtro colectivo de NoniMail Tools.
+
+- **Reputación de remitentes.** Una vez al día (y al abrir, si la copia tiene más de 24 h) la app descarga `/api/filtro/v1/reputacion`, verifica su firma Ed25519 con la clave pública que ya trae y la guarda en caché. Si la firma no vale, se ignora y se registra. Es una capa del motor, después de las protecciones y reglas y antes de la IA: con 10 instalaciones o más y 90% o más que lo eliminan, puntaje 95; con 10% o menos, puntaje 5; en ambos casos se omite la IA y la terminal de heurística muestra la línea «reputación». Se usa siempre.
+- **Compartir decisiones.** Al ejecutar (no al escanear ni en simulación), la app envía el dominio de los remitentes masivos de dominio propio, las señales, la decisión y si usted corrigió al filtro, en lotes de hasta 500 y con la cola y los reintentos de la telemetría. Activo por defecto; se apaga en Ajustes → Sistema → «Ayudar a mejorar el filtro». Detalle en la sección de privacidad del README.
+
 ## 1.2.1
 
 Licencias discretas, terminales en vivo y bajas bajo control.

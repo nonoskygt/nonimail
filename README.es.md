@@ -119,6 +119,13 @@ Los eventos esperan en una cola en disco y salen en lotes cada 5 minutos, al ter
 
 **Para apagarla:** el interruptor del configurador, **Ajustes → Sistema**, o la variable de entorno `NMT_TELEMETRY=0`. Apagada, la app no envía nada, ni siquiera el aviso de instalación, y se vacía la cola.
 
+### Filtro colectivo
+
+El filtro viene activo. Al **ejecutar** una limpieza (nunca al escanear ni en simulación), la app envía a `https://mt.nonosky.com` una decisión por cada remitente **masivo** (trae `List-Unsubscribe` o una dirección tipo noreply o marketing) de dominio propio: **solo el dominio** (por ejemplo `tienda.com`), las señales que vio el filtro (baja, noreply, nombres de las reglas que coincidieron, puntaje de la IA y cantidad de correos), su decisión (`eliminar`, `conservar`, `nunca` o `baja`) y si usted contradijo al filtro. Los dominios de correo personal (Gmail, Hotmail, etc.) no se envían. **Nunca** asuntos, contenido, direcciones completas ni su cuenta.
+La app descarga una vez al día la reputación firmada de los dominios y la usa siempre, aunque usted no comparta.
+
+**Para dejar de compartir:** apague **Ajustes → Sistema → Ayudar a mejorar el filtro** (o `NMT_FILTRO=0`). Se vacía la cola y no sale nada más; la reputación descargada se sigue usando.
+
 ## Configuración
 
 Todo vive en `config/defaults.json` y se puede cambiar con su propio `config.json` y con variables de entorno:
