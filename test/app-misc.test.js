@@ -216,6 +216,8 @@ test('Ollama: baja el modelo con /api/pull y reporta el progreso hasta "success"
   let seen = null;
   const srv = http.createServer((req, res) => {
     let b = ''; req.on('data', c => b += c); req.on('end', () => {
+      if (req.url === '/api/tags') { res.setHeader('Content-Type', 'application/json'); return res.end(JSON.stringify({ models: [{ name: 'm:1b' }] })); }
+      if (req.url === '/api/generate') { res.setHeader('Content-Type', 'application/json'); return res.end('{}'); } // la prueba de 1 token
       seen = { url: req.url, body: JSON.parse(b) };
       res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
       res.write(JSON.stringify({ status: 'pulling manifest' }) + '\n');

@@ -1,5 +1,6 @@
 {
   "language": "",
+  "closeAction": "ask",
   "appearance": {
     "mode": "auto",
     "accent": "carmesi",
@@ -38,7 +39,7 @@
     "googleCloudConsole": "https://console.cloud.google.com/apis/credentials"
   },
   "ollamaUrl": "http://127.0.0.1:11434",
-  "model": "qwen3.5:9b",
+  "model": "qwen3.5:4b",
   "ollama": {
     "installer": {
       "windows": "https://ollama.com/download/OllamaSetup.exe",
@@ -52,6 +53,22 @@
       "linux": "https://ollama.com/install.sh",
       "linuxManual": "curl -fsSL {url} | sh"
     },
+    "exePaths": {
+      "win32": [
+        "%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe",
+        "%ProgramFiles%\\Ollama\\ollama.exe",
+        "%ProgramFiles(x86)%\\Ollama\\ollama.exe"
+      ],
+      "linux": ["/usr/local/bin/ollama", "/usr/bin/ollama"],
+      "darwin": ["/usr/local/bin/ollama", "/opt/homebrew/bin/ollama", "/Applications/Ollama.app/Contents/Resources/ollama"]
+    },
+    "tiers": [
+      { "id": "basic", "tag": "qwen3.5:2b", "sizeBytes": 2683396812, "ramGb": 10, "vramGb": 4 },
+      { "id": "medium", "tag": "qwen3.5:4b", "sizeBytes": 3324173934, "ramGb": 11, "vramGb": 5 },
+      { "id": "large", "tag": "qwen3.5:9b", "sizeBytes": 6550825550, "ramGb": 18, "vramGb": 8 }
+    ],
+    "hardwareTimeoutMs": 4000,
+    "warmupTimeoutMs": 300000,
     "probeTimeoutMs": 5000,
     "requestTimeoutMs": 120000,
     "thinkTimeoutMs": 300000,

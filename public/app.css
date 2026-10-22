@@ -166,6 +166,17 @@ details > summary { cursor: pointer; font-weight: 700; font-size: 13px; padding:
 .sw:focus-visible { outline-offset: 4px; }
 .cmd { display: flex; gap: 8px; align-items: center; background: var(--panel2); border: 1px solid var(--hair); border-radius: var(--radius); padding: 8px 10px; }
 .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
+.tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tier { display: grid; gap: 3px; align-content: start; text-align: left; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--text); cursor: pointer; font: inherit; min-width: 0; }
+.tier:hover:not(:disabled) { border-color: var(--accent-fill); }
+.tier.on { border-color: var(--accent-fill); box-shadow: 0 0 0 1px var(--accent-fill) inset; background: var(--panel2); }
+.tier:disabled { cursor: default; opacity: .75; }
+.tier b { font-size: 14px; } .tier .sz { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.tier .bdg { display: grid; gap: 3px; min-height: 18px; margin-top: 2px; }
+.tier em { font-style: normal; font-size: 11px; font-weight: 600; border-radius: 99px; padding: 1px 8px; justify-self: start; white-space: nowrap; }
+.tier em.rec { background: var(--accent-fill); color: #fff; } .tier em.ok { background: var(--green-tint); color: var(--green); }
+.hw { color: var(--muted); }
+.prog-row { display: flex; gap: 10px; align-items: center; }
 .msgline { font-size: 13px; padding: 7px 10px; border-radius: var(--radius); }
 .msgline.ok { background: var(--green-tint); color: var(--green); } .msgline.warn { background: var(--amber-tint); color: var(--amber); } .msgline.bad { background: var(--red-tint); color: var(--red); }
 

@@ -560,9 +560,10 @@
     $('g-redirect').value = st.redirectUri;
     // IA
     $('ai-on').checked = !!s.llm.enabled || !!S.config.aiEnabled;
+    $('sys-close').value = s.closeAction || 'ask';
     $('ai-url').value = s.ollamaUrl; $('ai-model').value = s.model;
     $('ai-think').checked = !!s.llm.think; $('ai-think-n').value = s.llm.thinkNumPredict;
-    if (S.sec === 'ia') mountOllamaPanel($('ai-panel'), { getModel: () => $('ai-model').value.trim() });
+    if (S.sec === 'ia') mountOllamaPanel($('ai-panel'), { getModel: () => $('ai-model').value.trim(), keepCustom: true, onSelect: (tag) => { $('ai-model').value = tag; } });
     // limpieza
     const c = s.cleaning;
     for (const k of ['daysBack', 'windowDays', 'dureza', 'band', 'fetchChunk', 'bodyMaxChars']) $(`c-${k}`).value = c[k];
@@ -798,62 +799,118 @@
     if (r && r.restartNeeded) clear($('adv-msg')).append(h('div', { class: 'msgline warn', text: t('ui.adv.restart') }));
   }).catch(() => {});
   $('tel-on').addEventListener('change', (e) => saveSettings({ telemetry: { enabled: e.target.checked } }).catch(() => {}));
+  $('sys-close').onchange = (e) => api('POST', '/api/prefs/close', { closeAction: e.target.value }).then(() => toast(t('ui.saved'), 'ok')).catch(fail);
   $('sys-logs').onclick = () => api('POST', '/api/system/open-logs', {}).catch(fail);
   $('sys-setup').onclick = () => Wizard.open();
 
   // ================================================================ OLLAMA (panel compartido)
   const ollamaPanels = new Set();
+  const gbText = (b) => (b / 1e9).toFixed(1);
+  // Una sola barra para todo: verificar, instalar Ollama, bajar el modelo, configurarlo.
+  function progressOf(ev) {
+    if (!ev) return null;
+    if (ev.task === 'install') {
+      if (ev.phase === 'download') return { pct: ev.pct, label: t('ui.ai.dlOllama', { pct: ev.pct ?? '…' }) };
+      if (ev.phase === 'run') return { pct: ev.pct, label: t('ui.ai.installingOllama') };
+      return { pct: null, label: t('ui.ai.starting') };
+    }
+    if (ev.task === 'start') return { pct: null, label: t('ui.ai.starting') };
+    if (ev.phase === 'configure') return { pct: 100, label: t('ui.ai.configuring') };
+    if (ev.pct != null && ev.total) return { pct: ev.pct, label: t('ui.ai.dlModel', { pct: ev.pct, done: gbText(ev.completed), total: gbText(ev.total) }) };
+    return { pct: ev.pct, label: t('ui.ai.dlModelWait') };
+  }
+  function hardwareText(hw) {
+    if (!hw) return '';
+    const ram = `${Math.round(hw.ramBytes / 1024 ** 3)} GB RAM`;
+    const g = hw.gpu;
+    return `${ram} · ${g ? `${g.vendor || g.name} ${Math.round(g.vramBytes / 1024 ** 3)} GB` : t('ui.ai.noGpu')}`;
+  }
+  // o: { getModel(), onSelect(tag), onChange(st) }
   function mountOllamaPanel(root, o) {
     for (const old of [...ollamaPanels]) if (old.root === root) ollamaPanels.delete(old);
-    const P = { root, o, st: null, install: null, pull: null, manual: null };
+    const P = { root, o, st: null, ev: null, checking: true, sel: null, autoStarted: false, manual: null };
     ollamaPanels.add(P);
-    P.refresh = async () => { try { P.st = await api('GET', '/api/setup/ollama'); } catch (e) { P.st = null; } P.render(); if (o.onChange) o.onChange(P.st); };
+    P.busy = () => !!(P.ev && !P.ev.done);
+    P.refresh = async () => {
+      try { P.st = await api('GET', '/api/setup/ollama'); } catch (e) { P.st = null; }
+      P.checking = false;
+      if (P.st && !P.sel) {
+        const cur = o.getModel ? o.getModel() : P.st.model;
+        const hit = P.st.tiers.find(x => x.tag === cur);
+        P.sel = hit ? hit.tag : (P.st.tiers.find(x => x.id === P.st.recommended.id) || P.st.tiers[0]).tag;
+        if (!hit && o.keepCustom && cur) P.sel = null;
+        if (P.sel && o.onSelect) o.onSelect(P.sel);
+      }
+      // instalado pero cerrado: se arranca solo, sin pedirle nada al usuario
+      if (P.st && P.st.installed && !P.st.running && !P.autoStarted && !P.busy()) {
+        P.autoStarted = true;
+        try { await api('POST', '/api/setup/ollama/start', {}); P.ev = { task: 'start', phase: 'start' }; } catch (e) { fail(e); }
+      }
+      P.render(); if (o.onChange) o.onChange(P.st);
+    };
     P.render = () => {
       clear(root);
       const st = P.st;
-      if (!st) return;
-      const up = st.running;
-      const ins = P.install, pul = P.pull;
-      const installing = ins && !ins.done;
-      const row1 = h('div', { class: 'row', style: 'margin-top:0' },
-        h('span', { class: `dot ${up ? 'on' : 'off'}` }),
-        h('b', { text: up ? t('ui.ai.detected', { v: st.version || '' }) : t('ui.ai.missing') }),
+      if (!st) { if (P.checking) root.append(P.progressBox({ pct: null, label: t('ui.ai.verifying') })); return; }
+      const ev = P.ev, busy = P.busy(), failed = ev && ev.done && ev.error;
+      const notFound = !st.installed && !st.running;
+      const head = h('div', { class: 'row', style: 'margin-top:0' },
+        h('span', { class: `dot ${st.running ? 'on' : notFound ? 'off' : ''}` }),
+        h('b', { text: st.running ? t('ui.ai.detected', { v: st.version || '' }) : notFound ? t('ui.ai.missing') : t('ui.ai.installedNotRunning') }),
         h('span', { class: 'spacer' }));
-      if (!up) row1.append(h('button', { class: 'btn primary', text: installing ? t('ui.ai.installing') : t('ui.ai.install'), disabled: installing, onclick: () => P.doInstall() }));
-      root.append(row1);
-      if (installing || (ins && ins.error)) {
-        const label = ins.error ? ins.error : ins.phase === 'download' ? t('ui.ai.downloading', { pct: ins.pct ?? '…' }) : ins.phase === 'run' ? t('ui.ai.running', { pct: ins.pct != null ? ` ${ins.pct}%` : '' }) : ins.phase === 'start' ? t('ui.ai.starting') : '';
-        if (ins.error) root.append(h('div', { class: 'msgline bad', text: label, style: 'margin-top:8px' }));
-        else root.append(h('div', { style: 'margin-top:8px;display:grid;gap:4px' }, h('div', { class: 'bar' }, h('i', { style: `width:${ins.pct ?? 8}%` })), h('small', { text: label })));
+      if (notFound && !(busy && ev.task === 'install')) head.append(h('button', { class: 'btn primary', text: t('ui.ai.install'), onclick: () => P.doInstall() }));
+      root.append(head);
+      if (st.running || P.sel) {
+        const grid = h('div', { class: 'tiers', role: 'radiogroup' });
+        for (const x of st.tiers) {
+          const on = P.sel === x.tag, rec = st.recommended.id === x.id;
+          const card = h('button', { type: 'button', class: `tier${on ? ' on' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', disabled: busy,
+            onclick: () => { P.sel = x.tag; if (o.onSelect) o.onSelect(x.tag); P.render(); if (o.onChange) o.onChange(P.st); } },
+            h('b', { text: { basic: t('ui.ai.tier.basic'), medium: t('ui.ai.tier.medium'), large: t('ui.ai.tier.large') }[x.id] || x.id }), h('span', { class: 'sz', text: `${x.tag} · ${gbText(x.sizeBytes)} GB` }),
+            h('span', { class: 'bdg' }, x.installed ? h('em', { class: 'ok', text: t('ui.ai.installed') }) : '', rec ? h('em', { class: 'rec', text: t('ui.ai.recommended') }) : ''));
+          grid.append(card);
+        }
+        root.append(grid, h('small', { class: 'hw', text: hardwareText(st.hardware) + (st.recommended.warn ? ` · ${t('ui.ai.lowWarn')}` : '') }));
       }
-      if (P.manual) root.append(h('div', { style: 'margin-top:8px;display:grid;gap:6px' }, h('small', { text: t('ui.ai.manual') }),
+      const sel = st.tiers.find(x => x.tag === P.sel);
+      if (busy) {
+        const pr = progressOf(ev);
+        root.append(P.progressBox(pr, h('button', { class: 'btn sm', text: t('ui.ai.cancel'), onclick: () => api('POST', '/api/setup/ollama/cancel', {}).catch(fail) })));
+      } else if (failed) {
+        root.append(h('div', { class: 'prog-row' }, h('div', { class: `msgline ${ev.cancelled ? 'warn' : 'bad'}`, style: 'flex:1', text: ev.cancelled ? t('ui.ai.cancelled') : ev.error }),
+          h('button', { class: 'btn sm', text: t('ui.ai.retry'), onclick: () => P.retry() })));
+      } else if (st.running && sel) {
+        if (sel.installed) root.append(h('div', { class: 'prog-row' }, h('div', { class: 'msgline ok', style: 'flex:1', text: ev && ev.phase === 'done' ? t('ui.ai.done') : t('ui.ai.modelReady', { m: sel.tag }) })));
+        else root.append(h('div', { class: 'prog-row' }, h('small', { style: 'flex:1', text: t('ui.ai.modelMissing', { m: sel.tag }) }), h('button', { class: 'btn primary sm', text: t('ui.ai.use1'), onclick: () => P.doPull(sel.tag) })));
+      }
+      if (P.manual) root.append(h('div', { style: 'display:grid;gap:6px' }, h('small', { text: t('ui.ai.manual') }),
         h('div', { class: 'cmd' }, h('code', { text: P.manual }), h('button', { class: 'btn sm', text: t('ui.copy'), onclick: () => copyText(P.manual) })),
         h('button', { class: 'btn sm', style: 'justify-self:start', text: t('ui.ai.recheck'), onclick: () => P.refresh() })));
-      if (up) {
-        const model = (o.getModel ? o.getModel() : st.model) || st.model;
-        const has = st.models.some(m => m === model || m === `${model}:latest`);
-        const pulling = pul && !pul.done;
-        const r2 = h('div', { class: 'row' }, h('span', { class: `dot ${has ? 'on' : 'off'}` }), h('b', { text: has ? t('ui.ai.modelReady', { m: model }) : t('ui.ai.modelMissing', { m: model }) }), h('span', { class: 'spacer' }));
-        if (!has) r2.append(h('button', { class: 'btn primary', text: pulling ? t('ui.ai.pulling') : t('ui.ai.pull'), disabled: pulling, onclick: () => P.doPull(model) }));
-        root.append(r2);
-        if (pulling) root.append(h('div', { style: 'margin-top:8px;display:grid;gap:4px' }, h('div', { class: 'bar' }, h('i', { style: `width:${pul.pct ?? 4}%` })), h('small', { text: `${pul.status || ''}${pul.pct != null ? ` · ${pul.pct}%` : ''}` })));
-        if (pul && pul.error) root.append(h('div', { class: 'msgline bad', text: pul.error, style: 'margin-top:8px' }));
-      }
+    };
+    P.progressBox = (pr, extra) => h('div', { class: 'prog-row' },
+      h('div', { style: 'flex:1;display:grid;gap:4px;min-width:0' }, h('div', { class: 'bar' }, h('i', { style: `width:${pr.pct ?? 8}%` })), h('small', { text: pr.label })), extra || '');
+    P.retry = () => {
+      const k = P.ev && P.ev.task; P.ev = null;
+      if (k === 'pull' && P.sel) return P.doPull(P.sel);
+      if (k === 'install') return P.doInstall();
+      P.autoStarted = false; return P.refresh();
     };
     P.doInstall = async () => {
       try {
         const r = await api('POST', '/api/setup/ollama/install', {});
-        if (r.manual) { P.manual = r.command || `${r.url}`; P.render(); } else { P.install = { phase: 'download', pct: 0 }; P.manual = null; P.render(); }
+        if (r.manual) { P.manual = r.command || `${r.url}`; } else { P.ev = { task: 'install', phase: 'download', pct: 0 }; P.manual = null; }
+        P.render(); if (o.onChange) o.onChange(P.st);
       } catch (e) { fail(e); }
     };
     P.doPull = async (model) => {
-      try { await api('POST', '/api/setup/ollama/pull', { model }); P.pull = { status: '', pct: 0 }; P.render(); } catch (e) { fail(e); }
+      try { await api('POST', '/api/setup/ollama/pull', { model }); P.ev = { task: 'pull', phase: 'pull', pct: 0 }; P.render(); if (o.onChange) o.onChange(P.st); } catch (e) { fail(e); }
     };
     P.event = (ev) => {
-      if (ev.task === 'install') { P.install = ev; if (ev.done) { P.refresh(); return; } }
-      if (ev.task === 'pull') { P.pull = ev; if (ev.done) { P.refresh(); return; } }
-      P.render(); if (o.onChange) o.onChange(P.st, ev);
+      P.ev = ev;
+      if (ev.done) { P.refresh(); return; }
+      P.render(); if (o.onChange) o.onChange(P.st);
     };
+    P.render();
     P.refresh();
     return P;
   }
@@ -891,23 +948,22 @@
         draw();
         foot.append(next(t('ui.next'), () => { this.step = 2; this.render(); }));
       } else if (this.step === 2) {
-        const modelIn = h('input', { type: 'text', value: S.setup.model || S.config.model, 'aria-label': t('ui.ai.model') });
         const panelBox = h('div');
-        body.append(panelBox, h('label', { class: 'fld' }, h('span', { text: t('ui.ai.model') }), modelIn));
+        body.append(panelBox);
         const nextBtn = next(t('ui.next'), async () => {
           try {
-            const st = this.panel && this.panel.st;
-            const on = !!(st && st.running && st.modelInstalled);
-            await api('POST', '/api/setup/prefs', { ai: on, model: modelIn.value.trim() });
+            const P = this.panel, st = P && P.st, sel = st && st.tiers.find(x => x.tag === P.sel);
+            const on = !!(st && st.running && sel && sel.installed);
+            await api('POST', '/api/setup/prefs', on ? { ai: true, model: sel.tag } : { ai: false });
             S.config.aiEnabled = on; this.step = 3; this.render();
           } catch (e) { fail(e); }
         });
-        const skip = h('button', { class: 'btn', text: t('ui.ai.skip'), onclick: async () => { try { await api('POST', '/api/setup/prefs', { ai: false }); S.config.aiEnabled = false; this.step = 3; this.render(); } catch (e) { fail(e); } } });
+        const skip = h('button', { class: 'btn', text: t('ui.ai.skip'), onclick: async () => { try { if (this.panel && this.panel.busy()) await api('POST', '/api/setup/ollama/cancel', {}).catch(() => {}); await api('POST', '/api/setup/prefs', { ai: false }); S.config.aiEnabled = false; this.step = 3; this.render(); } catch (e) { fail(e); } } });
         this.panel = mountOllamaPanel(panelBox, {
-          getModel: () => modelIn.value.trim(),
-          onChange: (st) => { const busyNow = this.panel && ((this.panel.install && !this.panel.install.done) || (this.panel.pull && !this.panel.pull.done)); nextBtn.disabled = !!busyNow; },
+          getModel: () => null, // en el configurador manda la recomendación para este equipo
+          onChange: (st) => { const P = this.panel; const sel = P && st && st.tiers.find(x => x.tag === P.sel); nextBtn.disabled = !!(P && P.busy()) || !(st && st.running && sel && sel.installed); },
         });
-        modelIn.addEventListener('change', () => { api('POST', '/api/setup/prefs', { model: modelIn.value.trim() }).then(() => this.panel.refresh()).catch(fail); });
+        nextBtn.disabled = true;
         foot.append(back(), nextBtn, h('span', { class: 'spacer' }), skip);
       } else if (this.step === 3) {
         const sw = h('input', { type: 'checkbox', id: 'wiz-tel' }); sw.checked = !!S.setup.telemetry;
