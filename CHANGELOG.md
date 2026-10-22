@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+- **La actualización ya no deja la app cerrada.** Al salir con una versión nueva descargada, la app la instala y se vuelve a abrir sola. Antes se instalaba en silencio y no se reabría, y parecía que se había borrado.
+
 ## 1.3.0
 
 Filtro colectivo de NoniMail Tools.

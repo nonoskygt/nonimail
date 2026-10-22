@@ -161,8 +161,8 @@ if (!lock) {
     e.preventDefault(); quitting = true;
     clearInterval(bgTimer);
     if (tray) { try { tray.destroy(); } catch (_) {} tray = null; }
-    // app.quit() (y no app.exit) para que se emita «quit»: ahí electron-updater instala la versión descargada
+    // Con una versión descargada se instala y se vuelve a abrir; si no, app.quit() normal
     const forced = setTimeout(() => app.exit(0), 8000);
-    server.close().catch(() => {}).finally(() => { clearTimeout(forced); app.quit(); });
+    server.close().catch(() => {}).finally(() => { clearTimeout(forced); if (!server.updater.installOnQuit()) app.quit(); });
   });
 }
