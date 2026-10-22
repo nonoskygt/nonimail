@@ -132,7 +132,7 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "dist/NoniMail-Tools-$VERSION.apk"
           cp app/build/outputs/apk/release/app-release.apk "dist/NoniMail-Tools.apk"
           cp app/build/outputs/bundle/release/app-release.aab "dist/NoniMail-Tools-$VERSION.aab"
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs dist/NoniMail-Tools.apk | grep -v '^WARNING'
+          "$ANDROID_HOME"/build-tools/37.0.0/apksigner verify --print-certs dist/NoniMail-Tools.apk | grep -v '^WARNING'
           (cd dist && sha256sum NoniMail-Tools-"$VERSION".apk NoniMail-Tools.apk NoniMail-Tools-"$VERSION".aab > SHA256SUMS.txt)
           cat dist/SHA256SUMS.txt
 
