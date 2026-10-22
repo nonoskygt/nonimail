@@ -180,7 +180,7 @@ test('si el modelo se corta pensando, deja de pensar en ese trabajo y conserva e
     assert.equal(by['dudoso@club.com'].score, 50, 'no adivina con los números del razonamiento cortado');
     assert.equal(by['dudoso@club.com'].reason, 'llm');
     assert.equal(t.ol.st.think, 1, 'un solo intento de pensar en todo el trabajo');
-    assert.ok(t.lines.some(l => /no termina de pensar/.test(l)));
+    assert.ok(!t.lines.some(l => /no termina de pensar/.test(l)), 'ya no se le muestra al usuario');
   } finally { await t.cleanup(); }
 });
 

@@ -109,7 +109,31 @@
     "thinkNumPredict": 2048,
     "thinkNumCtx": 8192,
     "doubtLow": 35,
-    "doubtHigh": 65
+    "doubtHigh": 65,
+    "validation": {
+      "criticalMax": 30,
+      "highMin": 70,
+      "highRequired": 3,
+      "maxAvgMs": 3000,
+      "thinkSample": {"name": "dudoso", "from": "Nube <billing@nube.example>", "subjects": ["Tu factura se genera el 1 de octubre | Nuevo: servidores con GPU con 20% de descuento"], "bulk": true, "body": "Hola, tu próxima factura se generará el 1 de octubre. Además, pruebe nuestros nuevos servidores con GPU con 20% de descuento el primer mes."},
+      "samples": [
+      {"name": "promo-ropa", "group": "high", "from": "Tienda Moda <ofertas@tiendamoda.com>", "subjects": ["¡50% OFF solo hoy en toda la tienda!"], "bulk": true, "body": "Compra ahora. Envío gratis. Darse de baja."},
+      {"name": "promo-viajes", "group": "high", "from": "Club Viajes <news@clubviajes.com>", "subjects": ["Cancún desde $199 · ofertas de temporada"], "bulk": true, "body": "Reserve ya. Plazas limitadas. Cancelar suscripción."},
+      {"name": "cupon", "group": "high", "from": "Cupones GT <promo@cupones.gt>", "subjects": ["Su cupón de Q50 vence mañana"], "bulk": true, "body": "Úselo antes del domingo."},
+      {"name": "app-promo", "group": "high", "from": "Spotify <no-reply@spotify.com>", "subjects": ["3 meses de Premium por $0"], "bulk": true, "body": "Oferta por tiempo limitado."},
+      {"name": "factura", "group": "critical", "from": "Facturación <facturacion@proveedor.com>", "subjects": ["Factura electrónica FEL #2026-1182"], "bulk": false, "body": "Adjuntamos su factura por Q1,250.00."},
+      {"name": "banco-estado", "group": "critical", "from": "Banco Industrial <alertas@bi.com.gt>", "subjects": ["Estado de cuenta de octubre"], "bulk": true, "body": "Su estado de cuenta está disponible."},
+      {"name": "2fa", "group": "critical", "from": "Google <no-reply@accounts.google.com>", "subjects": ["Su código de verificación es 482910"], "bulk": false, "body": "No comparta este código."},
+      {"name": "alerta-seg", "group": "critical", "from": "Microsoft <account-security-noreply@accountprotection.microsoft.com>", "subjects": ["Inicio de sesión inusual en su cuenta"], "bulk": false, "body": "Revise la actividad reciente."},
+      {"name": "pedido", "group": "critical", "from": "Amazon <shipment-tracking@amazon.com>", "subjects": ["Su pedido #114-55 fue enviado"], "bulk": true, "body": "Llegará el jueves. Rastree su paquete."},
+      {"name": "persona", "group": "critical", "from": "Carlos Pérez <carlos.perez@gmail.com>", "subjects": ["Re: reunión del jueves"], "bulk": false, "body": "Hola, confirmo la reunión a las 10. ¿Lleva usted la propuesta?"},
+      {"name": "persona2", "group": "critical", "from": "María López <mlopez@empresa.com.gt>", "subjects": ["Cotización que me pidió"], "bulk": false, "body": "Adjunto la cotización. Quedo atenta."},
+      {"name": "cita", "group": "critical", "from": "Clínica Dental <citas@clinicadental.gt>", "subjects": ["Recordatorio: su cita mañana 9:00"], "bulk": false, "body": "Confirme o reprograme respondiendo este correo."},
+      {"name": "tramite", "group": "critical", "from": "SAT Guatemala <notificaciones@sat.gob.gt>", "subjects": ["Notificación de su declaración"], "bulk": false, "body": "Su declaración fue recibida."},
+      {"name": "recibo", "group": "critical", "from": "PayPal <service@paypal.com>", "subjects": ["Recibo de su pago a Netflix"], "bulk": false, "body": "Pagó US$15.49."},
+      {"name": "familia", "group": "critical", "from": "Mamá <rosa.gonzalez@hotmail.com>", "subjects": ["Fotos del cumpleaños"], "bulk": false, "body": "Te mando las fotos, besos."}
+      ]
+    }
   },
   "cleaning": {
     "daysBack": 30,
