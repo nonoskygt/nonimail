@@ -51,13 +51,15 @@ test('detección: API arriba, ejecutable sin correr (se arranca solo) y nada ins
     // 3) ejecutable solo en el PATH (Linux)
     up = [];
     const fs = require('fs'), os = require('os'), path = require('path');
-    const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'fakebin-')); fs.writeFileSync(path.join(bin, 'ollama'), '#!/bin/sh\n', { mode: 0o755 });
-    d = await setup({ cfg: () => cfg, platform: 'linux', env: { PATH: bin }, exists: () => false }).detect();
-    assert.deepEqual([d.installed, d.running], [true, false]); assert.equal(d.exe, path.join(bin, 'ollama'));
+    // en Windows el ejecutable falso es un .cmd (con PATHEXT); en Linux, un script
+    const win = process.platform === 'win32', name = win ? 'ollama.cmd' : 'ollama';
+    const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'fakebin-')); fs.writeFileSync(path.join(bin, name), win ? '@echo off\r\n' : '#!/bin/sh\n', { mode: 0o755 });
+    d = await setup({ cfg: () => cfg, platform: process.platform, env: { PATH: bin, PATHEXT: '.EXE;.CMD' }, exists: () => false }).detect();
+    assert.deepEqual([d.installed, d.running], [true, false]); assert.equal(d.exe.toLowerCase(), path.join(bin, name).toLowerCase());
     fs.rmSync(bin, { recursive: true, force: true });
 
     // 4) nada por ningún lado: ahora sí, no instalado
-    d = await setup({ cfg: () => cfg, platform: 'linux', env: { PATH: '' }, exists: () => false }).detect();
+    d = await setup({ cfg: () => cfg, platform: process.platform, env: { PATH: '' }, exists: () => false }).detect();
     assert.deepEqual([d.installed, d.running], [false, false]);
   } finally { globalThis.fetch = realFetch; }
 });
