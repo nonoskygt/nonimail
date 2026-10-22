@@ -22,6 +22,8 @@ Dos herramientas de correo en una sola app Android de código abierto. Todo corr
 
 Requiere Android 8.0 (API 26) o superior.
 
+**Actualizaciones:** la app busca en GitHub Releases al iniciar y cada 12 horas, descarga y verifica el APK nuevo (SHA-256 y el mismo certificado de firma) y le pide un toque en «Instalar»; en Ajustes → Actualizaciones se apaga.
+
 ## Primer arranque
 
 Un configurador corto se ejecuta una vez y puede repetirse desde Ajustes:

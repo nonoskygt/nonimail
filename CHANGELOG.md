@@ -3,6 +3,26 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-22
+
+### Added
+- **Automatic updates.** The app checks `releases/latest` on GitHub (owner/repo from `gradle.properties`, exposed as
+  `BuildConfig`) at start, at most every 6 hours, plus a WorkManager job every 12 hours that needs network. The tag is
+  compared with `versionName` using semver.
+- When a newer version exists, the APK `NoniMail-Tools.apk` is downloaded in the background (WorkManager, resumable with
+  HTTP Range) and verified against `SHA256SUMS.txt` of the same release and against the signing certificate of the
+  installed app. A file that fails either check is deleted and logged.
+- **Install** with a PackageInstaller session (`REQUEST_INSTALL_PACKAGES`). A notification and an in-app banner say
+  «Version X ready · Install»; one tap opens the system confirmation. With the app in the background, Android 12+ may
+  update without confirmation (`USER_ACTION_NOT_REQUIRED`, update ownership); otherwise it falls back to the
+  confirmation. Without the «install unknown apps» permission, one line opens that screen.
+- Nothing is installed while a sync or clean is running; the update waits until it ends.
+- Settings: «Update automatically» switch (on by default), current version and «Check for updates» with a one-line result.
+- Failures go to the log and to telemetry as an `error` event with context `actualizacion`; the person is not bothered.
+
+### Changed
+- Version 1.2.0 (versionCode 10200).
+
 ## [1.1.0] - 2026-10-22
 
 ### Added

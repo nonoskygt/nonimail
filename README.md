@@ -22,6 +22,8 @@ Two mail tools in one open-source Android app. Everything runs on the phone, str
 
 Requires Android 8.0 (API 26) or newer.
 
+**Updates:** the app checks GitHub Releases at start and every 12 hours, downloads and verifies the new APK (SHA-256 and same signing certificate) and asks you to tap «Install»; Settings → Updates turns it off.
+
 ## First run
 
 A short configurator runs once and can be repeated from Settings:
