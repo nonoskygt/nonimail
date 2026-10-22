@@ -175,12 +175,13 @@
         <div class="set-sec" id="sec-ia">
           <div class="row"><label class="switch"><input type="checkbox" id="ai-on"><i></i><span data-i18n="ui.ai.use"></span></label></div>
           <div id="ai-panel"></div>
-          <div class="form-grid">
-            <label class="fld"><span>Ollama</span><input type="text" id="ai-url"></label>
-            <label class="fld"><span data-i18n="ui.ai.model"></span><input type="text" id="ai-model" list="ai-models"><datalist id="ai-models"></datalist></label>
-            <label class="fld"><span data-i18n="field.thinkNumPredict"></span><input type="number" id="ai-think-n" min="64" max="32768"></label>
-            <label class="switch think"><input type="checkbox" id="ai-think"><i></i><span data-i18n="ui.ai.think"></span></label>
-          </div>
+          <details class="gclient">
+            <summary data-i18n="ui.set.advanced"></summary>
+            <div class="form-grid">
+              <label class="fld"><span>Ollama</span><input type="text" id="ai-url"></label>
+              <label class="fld"><span data-i18n="ui.ai.model"></span><input type="text" id="ai-model" list="ai-models"><datalist id="ai-models"></datalist></label>
+            </div>
+          </details>
           <div class="row">
             <button class="btn" id="ai-check" data-i18n="ui.ai.check"></button>
             <button class="btn" id="ai-test" data-i18n="ui.ai.test"></button>
