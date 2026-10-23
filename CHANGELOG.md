@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.3
+
+- **Requisitos de hardware en cada modelo.** La tarjeta de cada modelo dice cuánta RAM o GPU necesita (Básico: 10 GB de RAM o GPU de 4 GB; Grande: 18 GB de RAM o GPU de 8 GB).
+
 ## 1.3.2
 
 - **Solo modelos probados.** La app ya no prueba modelos en su equipo. Ofrece únicamente los que pasaron nuestro banco de 24 correos etiquetados: Básico `qwen3.5:2b` (24/24, ~140 ms por correo) y Grande `qwen3.5:9b` (24/24, ~510 ms). Mediano sale de la lista hasta probarlo.

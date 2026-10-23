@@ -250,6 +250,7 @@
   "ui.ai.noGpu": "no dedicated GPU",
   "ui.ai.ready": "Ollama {v} ready",
   "ui.ai.recheck": "Detect again",
+  "ui.ai.req": "Needs {ram} GB RAM, or a {vram} GB GPU",
   "ui.ai.recommended": "Recommended for your PC",
   "ui.ai.retry": "Retry",
   "ui.ai.skip": "Skip (no AI)",

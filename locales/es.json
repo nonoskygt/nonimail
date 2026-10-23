@@ -250,6 +250,7 @@
   "ui.ai.noGpu": "sin GPU dedicada",
   "ui.ai.ready": "Ollama {v} listo",
   "ui.ai.recheck": "Volver a detectar",
+  "ui.ai.req": "Requiere {ram} GB de RAM, o GPU de {vram} GB",
   "ui.ai.recommended": "Recomendado para su equipo",
   "ui.ai.retry": "Reintentar",
   "ui.ai.skip": "Omitir (sin IA)",

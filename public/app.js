@@ -927,6 +927,7 @@
           const card = h('button', { type: 'button', class: `tier${on ? ' on' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', disabled: busy,
             onclick: () => { P.sel = x.tag; if (o.onSelect) o.onSelect(x.tag); P.render(); if (o.onChange) o.onChange(P.st); } },
             h('b', { text: { basic: t('ui.ai.tier.basic'), medium: t('ui.ai.tier.medium'), large: t('ui.ai.tier.large') }[x.id] || x.id }), h('span', { class: 'sz', text: `${x.tag} · ${gbText(x.sizeBytes)} GB` }),
+            h('span', { class: 'sz', text: t('ui.ai.req', { ram: x.ramGb, vram: x.vramGb }) }),
             h('span', { class: 'bdg' }, x.installed ? h('em', { class: 'ok', text: t('ui.ai.installed') }) : '', rec ? h('em', { class: 'rec', text: t('ui.ai.recommended') }) : ''));
           grid.append(card);
         }
