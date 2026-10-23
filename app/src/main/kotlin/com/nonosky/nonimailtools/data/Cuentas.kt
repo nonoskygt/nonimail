@@ -70,7 +70,7 @@ class RepoCuentas(private val ctx: Context, scope: CoroutineScope) {
      */
     fun imap(c: Cuenta): ImapAccount? {
         if (c.esOauth) {
-            val token = GoogleAuth.tokenSilencioso(ctx)
+            val token = GoogleAuth.tokenSilencioso(ctx, c.email)
             return ImapAccount(c.email, c.host, c.port, Security.of(c.security), c.user.ifBlank { c.email }, token, oauth = true)
         }
         val pw = Secretos.descifrar(c.clave) ?: return null

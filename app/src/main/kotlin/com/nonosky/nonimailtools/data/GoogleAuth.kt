@@ -32,8 +32,10 @@ object GoogleAuth {
     @Volatile var ultimoToken: String? = null
         private set
 
-    private fun peticion() = AuthorizationRequest.builder()
+    /** [email]: the Google account to authorize (needed when the phone has several); null lets Google ask. */
+    private fun peticion(email: String? = null) = AuthorizationRequest.builder()
         .setRequestedScopes(listOf(Scope(GoogleOauth.SCOPE)))
+        .apply { if (!email.isNullOrBlank()) setAccount(android.accounts.Account(email, "com.google")) }
         .build()
 
     /** Asks for access. The result may carry a PendingIntent ([AuthorizationResult.hasResolution]) the UI must launch. */
@@ -48,12 +50,12 @@ object GoogleAuth {
     fun recordar(r: AuthorizationResult): String? = r.accessToken?.also { ultimoToken = it }
 
     /**
-     * Fresh access token without any UI, for scans and syncs (also in the service / background).
+     * Fresh access token for [email]'s Google account without any UI, for scans and syncs (also in the service / background).
      * Blocking: never on the main thread. Throws [GoogleReautenticar] if a screen would be needed.
      */
-    fun tokenSilencioso(ctx: Context): String {
+    fun tokenSilencioso(ctx: Context, email: String): String {
         val r = try {
-            Tasks.await(Identity.getAuthorizationClient(ctx.applicationContext).authorize(peticion()), 60, TimeUnit.SECONDS)
+            Tasks.await(Identity.getAuthorizationClient(ctx.applicationContext).authorize(peticion(email)), 60, TimeUnit.SECONDS)
         } catch (e: ExecutionException) {
             val api = e.cause as? ApiException
             if (api?.statusCode == CommonStatusCodes.NETWORK_ERROR) throw IOException("No network for Google sign-in", e)
