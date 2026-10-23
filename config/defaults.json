@@ -39,7 +39,7 @@
     "googleCloudConsole": "https://console.cloud.google.com/apis/credentials"
   },
   "ollamaUrl": "http://127.0.0.1:11434",
-  "model": "qwen3.5:4b",
+  "model": "qwen3.5:2b",
   "ollama": {
     "installer": {
       "windows": "https://ollama.com/download/OllamaSetup.exe",
@@ -64,7 +64,6 @@
     },
     "tiers": [
       { "id": "basic", "tag": "qwen3.5:2b", "sizeBytes": 2683396812, "ramGb": 10, "vramGb": 4 },
-      { "id": "medium", "tag": "qwen3.5:4b", "sizeBytes": 3324173934, "ramGb": 11, "vramGb": 5 },
       { "id": "large", "tag": "qwen3.5:9b", "sizeBytes": 6550825550, "ramGb": 18, "vramGb": 8 }
     ],
     "hardwareTimeoutMs": 4000,
@@ -105,11 +104,12 @@
     "enabled": true,
     "numCtx": 4096,
     "parallel": 1,
-    "think": true,
+    "think": false,
     "thinkNumPredict": 2048,
     "thinkNumCtx": 8192,
     "doubtLow": 35,
-    "doubtHigh": 65
+    "doubtHigh": 65,
+    "categoryScores": { "PERSONAL": 3, "SEGURIDAD": 3, "TRANSACCION": 10, "OTRO": 50, "BOLETIN": 85, "SOCIAL": 85, "PROMOCION": 95 }
   },
   "cleaning": {
     "daysBack": 30,
@@ -312,5 +312,5 @@
     "from": "(noreply|no-reply|donotreply|marketing|newsletter|promociones|promotions|deals|hello@|news@|info@|updates@|notifications@|mailer|campaign)",
     "body": "(unsubscribe|darse de baja|cancelar suscripci|view in browser|ver en navegador|click here|haz click aqui|shop now|comprar ahora|act now|don.t miss|no te lo pierdas)"
   },
-  "llmPrompt": "Usted es un asistente que limpia la bandeja de entrada de una persona. Evalúe cuánto RUIDO/PROMOCIONAL es un remitente para el usuario y devuelva SOLO un número entero de 0 a 100 (sin texto):\n- 100 = basura segura (marketing, ofertas, newsletters, publicidad, novedades de productos, notificaciones automaticas de redes sociales, 'tienes N mensajes', encuestas).\n- 0 = importante/valioso (persona real, factura, recibo, comprobante, estado de cuenta, banco, alerta de seguridad, codigo 2FA, pedido/envio que el propio usuario realizo, cita, tramite).\n- Valores medios (40-60) = genuinamente dudoso.\n\nConsidere la señal BULK (si trae opcion de baja, es envio masivo -> sube el puntaje), salvo que el contenido sea claramente transaccional/importante.\n\nEjemplos (responda solo el número):\nFROM: deals@tienda.com | SUBJECT: 50% OFF | BULK: si -> 95\nFROM: notifications@redsocial.com | SUBJECT: tienes 3 invitaciones | BULK: si -> 90\nFROM: news@marca.com | SUBJECT: Novedades de la semana | BULK: si -> 85\nFROM: editor@ong.org | SUBJECT: newsletter de activismo | BULK: si -> 55\nFROM: no-reply@mirouter.com | SUBJECT: Config Created | BULK: no -> 45\nFROM: pedidos@tienda.com | SUBJECT: Tu pedido fue enviado | BULK: si -> 20\nFROM: facturacion@proveedor.com | SUBJECT: Factura #2026 | BULK: no -> 5\nFROM: noreply@banco.com | SUBJECT: Tu codigo es 482910 | BULK: no -> 3\nFROM: persona@gmail.com | SUBJECT: Te escribo desde... | BULK: no -> 2"
+  "llmPrompt": "Clasifique este correo en UNA categoría. Responda solo la palabra.\nPERSONAL: lo escribió una persona (amigo, familia, colega, cliente), incluye respuestas \"Re:\".\nTRANSACCION: factura, recibo, pago, estado de cuenta, pedido o envío del usuario, cita, trámite, renovación de un servicio.\nSEGURIDAD: código de verificación, inicio de sesión, alerta de cuenta, cambio de contraseña.\nPROMOCION: ofertas, descuentos, cupones, ventas, webinars, encuestas, publicidad.\nBOLETIN: newsletter, noticias, novedades, resúmenes.\nSOCIAL: notificaciones de redes sociales (invitaciones, likes, seguidores).\nOTRO: notificación automática que no encaja arriba.\nUna cuenta de empresa que manda un aviso del pedido, pago o cuenta del usuario es TRANSACCION o SEGURIDAD, no PROMOCION.\nSi invita a comprar, ofrece descuento, cupón, envío gratis o \"solo hoy\", es PROMOCION aunque mencione pedidos o envíos."
 }

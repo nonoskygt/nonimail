@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+- **Solo modelos probados.** La app ya no prueba modelos en su equipo. Ofrece únicamente los que pasaron nuestro banco de 24 correos etiquetados: Básico `qwen3.5:2b` (24/24, ~140 ms por correo) y Grande `qwen3.5:9b` (24/24, ~510 ms). Mediano sale de la lista hasta probarlo.
+- **La IA clasifica por categoría.** El modelo responde una palabra (PERSONAL, TRANSACCION, SEGURIDAD, PROMOCION, BOLETIN, SOCIAL u OTRO) y la app la convierte en puntaje (`llm.categoryScores`). Con el prompt viejo de puntaje, los dos modelos marcaban como basura alertas de seguridad, pedidos y correos personales.
+- **Sin modo de pensamiento por defecto** y sin el botón «Probar modelo». Se quita la puerta de validación de la 1.3.0.
+
 ## 1.3.1
 
 - **La actualización ya no deja la app cerrada.** Al salir con una versión nueva descargada, la app la instala y se vuelve a abrir sola. Antes se instalaba en silencio y no se reabría, y parecía que se había borrado.

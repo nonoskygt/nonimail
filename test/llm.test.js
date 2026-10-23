@@ -17,7 +17,7 @@ test('parseScore toma el veredicto, no la escala', () => {
 
 test('buildPrompt incluye remitente, asuntos y BULK, y no pide razonar en el texto', () => {
   const p = llm.buildPrompt('BASE', { from: 'a@b', subjects: ['x', 'y'], bulk: true, body: 'cuerpo' });
-  assert.match(p, /^BASE\n\nEmail:\nFROM: a@b\nSUBJECT: x \| y\nBULK: si\nBODY: cuerpo\n\nPuntaje \(0-100\):$/);
+  assert.match(p, /^BASE\n\nDe: a@b\nAsunto: x \| y\nMasivo: sí\nTexto: cuerpo\n\nCategoría:$/);
   assert.doesNotMatch(p, /[Rr]azona/, 'contradiría el "solo un número" del prompt base');
 });
 

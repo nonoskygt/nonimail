@@ -26,8 +26,8 @@ function fakeOllama() {
       const p = JSON.parse(b || '{}'); st.calls++;
       const pr = p.prompt || '';
       let score = '3';
-      if (/FROM: .*ofertas@/.test(pr)) score = '95';
-      if (/FROM: .*(dudoso@|otro-dudoso@)/.test(pr)) { score = p.think ? '85' : '50'; if (p.think) st.think++; }
+      if (/De: .*ofertas@/.test(pr)) score = '95';
+      if (/De: .*(dudoso@|otro-dudoso@)/.test(pr)) { score = p.think ? '85' : '50'; if (p.think) st.think++; }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       if (p.think && st.truncateThink) return res.end(JSON.stringify({ response: '', thinking: 'pienso y pienso… Puntaje (0-100) 30 70', done_reason: 'length' }));
       res.end(JSON.stringify({ response: score, done_reason: 'stop' }));
@@ -58,7 +58,7 @@ async function setup({ daysBack = 365, windowDays = 30, retry = [20, 20, 20], fe
   const imap = await S.startImap(mailbox());
   const smtpSrv = await S.startSmtp();
   const cfg = C.deepDefaults(defaults(), {
-    model: 'm', ollamaUrl: ol.url, llmPrompt: 'P',
+    model: 'm', ollamaUrl: ol.url, llmPrompt: 'P', llm: { think: true }, // el motor sigue soportando pensar en los dudosos (de fábrica va apagado)
     account: { type: 'imap', email: 'yo@test.local' },
     cleaning: { daysBack, windowDays, fetchChunk, dryRun: false },
     heuristics: { keepOverride: 'factura', subject: '', from: '', body: '' },
