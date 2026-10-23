@@ -35,7 +35,7 @@ sealed interface Acceso {
 }
 
 /**
- * Session with the NoniMail Tools web service (same account as mt.nonosky.com). Only private-domain
+ * Session with the NoniMail Tools web service (the same account as the website). Only private-domain
  * accounts need it: it brings down the licenses bought for them. The real gate stays the signed key,
  * verified offline by [RepoLicencias]; nothing is accepted just because the service says so.
  * Blocking calls: never on the main thread.
