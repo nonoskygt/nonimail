@@ -59,6 +59,9 @@ data class SenderScore(
     val score: Int,
     val reason: Reason,
     val heuristicScore: Int,
+    /** Raw List-Unsubscribe and List-Unsubscribe-Post of one message, for [Baja]. */
+    val unsubLink: String? = null,
+    val unsubPost: String? = null,
 ) {
     val isProtected: Boolean
         get() = reason == Reason.PROTEGIDO || reason == Reason.PROTEGIDO_USUARIO || reason == Reason.CONTACTO
@@ -123,6 +126,8 @@ class Limpieza(private val timeouts: ImapTimeouts) {
         var protectedSubject: String? = null
         var replied = false
         var sampleUid = 0L
+        var luLink: String? = null
+        var luPost: String? = null
     }
 
     fun scan(account: ImapAccount, opt: ScanOptions, reporter: Reporter<ScanProgress>): ScanResult {
@@ -206,6 +211,10 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                                 h?.getHeader("List-Unsubscribe", ","), h?.getHeader("List-Id", ","), h?.getHeader("Precedence", ","),
                             )
                             g.unsubscribe = g.unsubscribe || unsub
+                            if (unsub && g.luLink == null) {
+                                g.luLink = h?.getHeader("List-Unsubscribe", ",")
+                                g.luPost = h?.getHeader("List-Unsubscribe-Post", ",")
+                            }
                             g.bulk = g.bulk || bulk
                         }
                         log("[cpu] Leídos $reviewed / ${uids.size} correos · ${groups.size} remitentes")
@@ -219,7 +228,7 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                 for (g in groups.values) {
                     val subjects = g.samples + listOfNotNull(g.protectedSubject)
                     val (score, reason) = Heuristica.score(g.email, g.name, subjects, g.bulk, effectiveContacts, opt.protectedList, opt.rules, opt.levels)
-                    scored += SenderScore(g.email, g.name, g.count, g.bytes, g.samples.toList(), g.unsubscribe, g.bulk, score, reason, score)
+                    scored += SenderScore(g.email, g.name, g.count, g.bytes, g.samples.toList(), g.unsubscribe, g.bulk, score, reason, score, g.luLink, g.luPost)
                     log("[cpu] ${g.email} · ${g.count} correos → $score (${reason.name.lowercase()})")
                 }
 
@@ -353,7 +362,7 @@ class Limpieza(private val timeouts: ImapTimeouts) {
     }
 
     companion object {
-        val LIST_HEADERS = listOf("LIST-UNSUBSCRIBE", "LIST-ID", "PRECEDENCE")
+        val LIST_HEADERS = listOf("LIST-UNSUBSCRIBE", "LIST-UNSUBSCRIBE-POST", "LIST-ID", "PRECEDENCE")
         private val MSGID = Regex("<[^<>\\s]+>")
     }
 }

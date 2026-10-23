@@ -106,6 +106,10 @@ data class ProviderPreset(
     val appPassword: Boolean,
     /** True when the provider offers one-tap Google sign-in (OAuth, XOAUTH2). */
     val googleSignIn: Boolean = false,
+    /** Outgoing server, only for unsubscribe e-mails (mailto). Empty host = derived from the IMAP host. */
+    val smtpHost: String = "",
+    val smtpPort: Int = 465,
+    val smtpSecurity: String = "ssl",
 )
 
 @Serializable

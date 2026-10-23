@@ -1,5 +1,10 @@
 package com.nonosky.nonimailtools.ops
 
+import com.nonosky.nonimailtools.core.mail.ImapAccount
+import com.nonosky.nonimailtools.core.mail.Smtp
+import com.nonosky.nonimailtools.core.limpiar.SenderScore
+import com.nonosky.nonimailtools.core.limpiar.ResultadoBaja
+import com.nonosky.nonimailtools.core.limpiar.Baja
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
@@ -48,8 +53,10 @@ sealed interface EstadoEscaneo {
 
 sealed interface EstadoLimpieza {
     data object Reposo : EstadoLimpieza
-    data class Corriendo(val dryRun: Boolean, val p: CleanProgress) : EstadoLimpieza
-    data class Listo(val r: CleanResult, val cuenta: String) : EstadoLimpieza
+    /** [bajando]: the unsubscribe step after deleting; [p] then counts senders unsubscribed. */
+    data class Corriendo(val dryRun: Boolean, val p: CleanProgress, val bajando: Boolean = false) : EstadoLimpieza
+    /** [bajas]: per sender, how the unsubscribe went (empty when none was marked). */
+    data class Listo(val r: CleanResult, val cuenta: String, val bajas: Map<String, ResultadoBaja> = emptyMap()) : EstadoLimpieza
     data class Error(val f: Fallo) : EstadoLimpieza
 }
 
@@ -72,6 +79,8 @@ sealed interface Trabajo {
     data class Limpiar(
         val cuenta: Cuenta, val remitentes: List<String>, val dryRun: Boolean,
         val protegidos: List<String>, val keep: String,
+        /** Senders marked «Darse de baja»: unsubscribed after deleting, never before. */
+        val bajas: List<SenderScore> = emptyList(),
     ) : Trabajo { override val titulo get() = com.nonosky.nonimailtools.R.string.op_limpiando }
 
     data class Sincronizar(
@@ -126,6 +135,13 @@ class Operaciones(private val app: NmtApp) {
             linea.startsWith("[ia] ") -> escribir(Terminal.IA, linea.removePrefix("[ia] "))
         }
     }
+
+    /** RAM/CPU of the phone while a job runs (null when idle), and where the AI model runs. */
+    private val _uso = MutableStateFlow<Uso?>(null)
+    val uso: StateFlow<Uso?> = _uso.asStateFlow()
+    @Volatile var motorIa: String = ""
+        private set
+    private val medidor by lazy { Medidor(app) }
 
     private val _ocupada = MutableStateFlow(false)
     val ocupada: StateFlow<Boolean> = _ocupada.asStateFlow()
@@ -187,6 +203,9 @@ class Operaciones(private val app: NmtApp) {
         val defaults = Defaults.instance
         val t0 = System.currentTimeMillis()
         fun secs() = (System.currentTimeMillis() - t0) / 1000
+        val reloj = Thread {
+            try { while (true) { _uso.value = medidor.leer(); Thread.sleep(1000) } } catch (_: InterruptedException) {}
+        }.apply { isDaemon = true; start() }
         try {
             when (t) {
                 is Trabajo.Escanear -> escanear(t, defaults, avance, ::secs)
@@ -194,6 +213,7 @@ class Operaciones(private val app: NmtApp) {
                 is Trabajo.Sincronizar -> sincronizar(t, defaults, avance, ::secs)
             }
         } finally {
+            reloj.interrupt()
             _ocupada.value = false
         }
     }
@@ -215,6 +235,7 @@ class Operaciones(private val app: NmtApp) {
                 .onFailure { app.telemetry.error("ia", "On-device model failed to load: ${it.message}", it, cuenta.email) }
                 .getOrNull()
         }
+        motorIa = when { ia == null -> ""; ia is com.nonosky.nonimailtools.ia.PuntuadorLocal -> ia.motor; else -> "Ollama" }
         val opts = ScanOptions(
             t.modo, t.cantidad, t.protegidos, rulesOf(t.keep, d), d.scores, d.cleaning, d.folders.sent, ia, d.llm.prompt, d.llm.categoryScores,
         )
@@ -230,7 +251,7 @@ class Operaciones(private val app: NmtApp) {
             app.telemetry.log.i("limpiar", "Scan start (${t.modo.id}=${t.cantidad}, ai=${ia != null})")
             limpiarTerminal(Terminal.CPU, Terminal.IA)
             escribir(Terminal.CPU, "Conectando con ${cuenta.email} · últimos ${t.cantidad} días")
-            escribir(Terminal.IA, if (ia != null) "Modelo listo" else "IA apagada: decide solo la heurística")
+            escribir(Terminal.IA, if (ia != null) "Modelo listo en $motorIa" else "IA apagada: decide solo la heurística")
             val r = Limpieza(cuenta.timeouts).scan(acc, opts, rep)
             r.aiError?.let { app.telemetry.error("ia", it, null, cuenta.email) }
             _escaneo.value = EstadoEscaneo.Listo(cuenta, r)
@@ -269,7 +290,15 @@ class Operaciones(private val app: NmtApp) {
             app.telemetry.log.i("limpiar", "Execute start (dryRun=${t.dryRun}, senders=${t.remitentes.size})")
             escribir(Terminal.CPU, (if (t.dryRun) "Simulación: " else "Eliminando: ") + "${t.remitentes.size} remitentes")
             val r = Limpieza(cuenta.timeouts).execute(acc, t.remitentes, opts, rep)
-            _limpieza.value = EstadoLimpieza.Listo(r, cuenta.email)
+            val bajas = if (r.cancelled) emptyMap() else darDeBaja(t, acc, avance)
+            _limpieza.value = EstadoLimpieza.Listo(r, cuenta.email, bajas)
+            // What was really deleted leaves the list; a simulation leaves it as it was.
+            if (!t.dryRun) {
+                val fuera = r.perSender.keys
+                (_escaneo.value as? EstadoEscaneo.Listo)?.let { e ->
+                    if (e.cuenta.id == cuenta.id) _escaneo.value = e.copy(r = e.r.copy(senders = e.r.senders.filter { it.email !in fuera }))
+                }
+            }
             app.telemetry.registrar(
                 Telemetria.limpiar(cuenta.email, "ejecucion", t.dryRun, null, t.remitentes.size, if (t.dryRun) 0 else r.total, secs(), if (r.cancelled) "cancelado" else "ok", gate.permitido),
             )
@@ -278,6 +307,28 @@ class Operaciones(private val app: NmtApp) {
             app.telemetry.registrar(Telemetria.limpiar(cuenta.email, "ejecucion", t.dryRun, null, t.remitentes.size, null, secs(), "error", gate.permitido))
         }
         app.telemetry.enviarYa()
+    }
+
+    /** Unsubscribes the marked senders, one by one, after the deletion. In simulation nothing is sent. */
+    private fun darDeBaja(t: Trabajo.Limpiar, acc: ImapAccount, avance: (Avance) -> Unit): Map<String, ResultadoBaja> {
+        if (t.bajas.isEmpty()) return emptyMap()
+        val correo = Smtp.enviador(acc, Defaults.instance.provider(t.cuenta.proveedor), BuildConfig.HTTP_TIMEOUT_MS)
+        val out = LinkedHashMap<String, ResultadoBaja>()
+        for ((i, s) in t.bajas.withIndex()) {
+            if (cancelada) break
+            _limpieza.value = EstadoLimpieza.Corriendo(t.dryRun, CleanProgress(i, t.bajas.size, 0), bajando = true)
+            avance(Avance(t.titulo, "${s.email} · ${i + 1}/${t.bajas.size}", (i + 1f) / t.bajas.size))
+            val r = if (t.dryRun) ResultadoBaja(true, "simulación")
+            else Baja.ejecutar(s.unsubLink, s.unsubPost, correo, BuildConfig.HTTP_TIMEOUT_MS)
+            out[s.email] = r
+            escribir(Terminal.CPU, when {
+                t.dryRun -> "Se daría de baja: ${s.email}"
+                r.ok -> "Baja hecha (${r.metodo}): ${s.email}"
+                else -> "Baja fallida: ${s.email} · ${r.error}"
+            })
+            app.telemetry.log.i("limpiar", "Unsubscribe ${s.email}: ${if (r.ok) r.metodo else r.error}")
+        }
+        return out
     }
 
     private fun sincronizar(t: Trabajo.Sincronizar, d: Defaults, avance: (Avance) -> Unit, secs: () -> Long) {

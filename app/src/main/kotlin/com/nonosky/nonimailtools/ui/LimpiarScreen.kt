@@ -100,6 +100,10 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
     var simulacion by rememberSaveable { mutableStateOf(true) }
     var confirmar by rememberSaveable { mutableStateOf(false) }
     val elegidos: SnapshotStateList<String> = remember { mutableListOf<String>().toMutableStateList() }
+    // «Darse de baja» per sender: what the person set; otherwise the global switch, only for senders being deleted.
+    val bajaMarca = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
+    var bajaTodos by rememberSaveable { mutableStateOf(false) }
+    fun bajaMarcada(x: SenderScore) = x.unsubLink != null && (bajaMarca[x.email] ?: (bajaTodos && x.email in elegidos))
     var keepTexto by rememberSaveable(v.keepOverride) { mutableStateOf(v.keepOverride.ifBlank { defaults.heuristics.keepOverride }) }
     var protTexto by rememberSaveable(v.protegidos) { mutableStateOf(v.protegidos) }
 
@@ -110,6 +114,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
         if (resultado != null) {
             elegidos.clear()
             elegidos.addAll(Seleccion.automatica(resultado.senders, dureza, defaults.cleaning.band))
+            bajaMarca.keys.retainAll(resultado.senders.map { it.email }.toSet())
         }
     }
 
@@ -218,8 +223,9 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
             items(resultado.senders, key = { it.email }) { s ->
                 val regla = s.email in protegidos
                 FilaRemitente(
-                    s, corte, s.email in elegidos && !regla, regla,
+                    s, corte, s.email in elegidos && !regla, regla, bajaMarcada(s),
                     onCambio = { on -> if (on) { if (s.email !in elegidos) elegidos.add(s.email) } else elegidos.remove(s.email) },
+                    onBaja = { bajaMarca[s.email] = !bajaMarcada(s) },
                     onNunca = {
                         app.ajustes.protegidos((if (regla) protegidos - s.email else protegidos + s.email).joinToString("\n"))
                         elegidos.remove(s.email)
@@ -238,10 +244,11 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
             item {
                 Tarjeta {
                     FilaInterruptor(stringResource(R.string.simulacion), simulacion, { simulacion = it }, detalle = stringResource(R.string.simulacion_pista))
+                    FilaInterruptor(stringResource(R.string.baja_todos), bajaTodos, { bajaTodos = it })
                     val estado = limpieza
                     if (estado is EstadoLimpieza.Corriendo) {
                         BarraProgreso(estado.p.fraction)
-                        fraseFase(stringResource(R.string.fase_eliminando, estado.p.done, estado.p.total))
+                        fraseFase(stringResource(if (estado.bajando) R.string.fase_baja else R.string.fase_eliminando, estado.p.done, estado.p.total))
                         BotonSecundario(stringResource(R.string.cancelar), { app.operaciones.cancelar() }, Modifier.fillMaxWidth(), icono = Icons.Filled.Close)
                     } else {
                         val n = resumen?.correos ?: 0
@@ -250,7 +257,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
                         BotonPrimario(
                             if (simulacion) stringResource(R.string.simular) else stringResource(R.string.mover_papelera, n),
                             {
-                                if (simulacion) lanzar(ctx, app, cuenta, elegidos, true, protegidos, keepEfectivo) else confirmar = true
+                                if (simulacion) lanzar(ctx, app, cuenta, elegidos, true, protegidos, keepEfectivo, resultado.senders.filter(::bajaMarcada)) else confirmar = true
                             },
                             Modifier.fillMaxWidth(),
                             activo = !ocupada && (resumen?.remitentes ?: 0) > 0 && !bloqueada,
@@ -276,7 +283,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
             confirmButton = {
                 BotonPrimario(stringResource(R.string.mover_ahora), {
                     confirmar = false
-                    lanzar(ctx, app, cuenta, elegidos, false, protegidos, keepEfectivo)
+                    lanzar(ctx, app, cuenta, elegidos, false, protegidos, keepEfectivo, resultado?.senders.orEmpty().filter(::bajaMarcada))
                 })
             },
             dismissButton = { BotonTexto(stringResource(R.string.cancelar), { confirmar = false }) },
@@ -286,9 +293,9 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
 
 private fun lanzar(
     ctx: android.content.Context, app: NmtApp, cuenta: com.nonosky.nonimailtools.data.Cuenta, elegidos: List<String>,
-    dryRun: Boolean, protegidos: List<String>, keep: String,
+    dryRun: Boolean, protegidos: List<String>, keep: String, bajas: List<SenderScore>,
 ) {
-    app.operaciones.iniciar(ctx, Trabajo.Limpiar(cuenta, elegidos.toList(), dryRun, protegidos, keep))
+    app.operaciones.iniciar(ctx, Trabajo.Limpiar(cuenta, elegidos.toList(), dryRun, protegidos, keep, bajas))
 }
 
 @Composable
@@ -310,9 +317,13 @@ private fun Progreso(p: ScanProgress) {
 }
 
 @Composable
-private fun FilaRemitente(s: SenderScore, corte: Int, marcado: Boolean, regla: Boolean, onCambio: (Boolean) -> Unit, onNunca: () -> Unit) {
+private fun FilaRemitente(
+    s: SenderScore, corte: Int, marcado: Boolean, regla: Boolean, baja: Boolean,
+    onCambio: (Boolean) -> Unit, onBaja: () -> Unit, onNunca: () -> Unit,
+) {
     val d = dulce
-    val bloqueado = s.isProtected || regla
+    // Only the person's «Nunca eliminar» rule locks a row; a contact or a protected sender can still be ticked.
+    val bloqueado = regla
     Tarjeta(onClick = if (bloqueado) null else ({ onCambio(!marcado) })) {
         Fila(espacio = 8.dp) {
             if (bloqueado) {
@@ -341,8 +352,20 @@ private fun FilaRemitente(s: SenderScore, corte: Int, marcado: Boolean, regla: B
             PistaPuntaje(s.score, corte, bloqueado, Modifier.weight(1f))
             Text(s.score.toString(), style = MaterialTheme.typography.labelMedium.merge(Cifras), color = d.muted)
         }
+        if (s.unsubLink != null) {
+            Fila(Modifier.clickable(onClick = onBaja), espacio = 8.dp) {
+                Checkbox(
+                    baja, null,
+                    colors = CheckboxDefaults.colors(checkedColor = d.amber, checkmarkColor = androidx.compose.ui.graphics.Color.White, uncheckedColor = d.border2),
+                )
+                Text(
+                    stringResource(if (baja) R.string.baja_al_ejecutar else R.string.darse_de_baja),
+                    style = MaterialTheme.typography.bodyMedium, color = if (baja) d.amber else d.text,
+                )
+            }
+        }
         Fila(espacio = 6.dp) {
-            Sello(if (regla) stringResource(R.string.siempre_se_conserva) else reasonText(s.reason), if (bloqueado) Tono.OK else Tono.NEUTRO, icono = if (regla) Icons.Filled.Lock else null)
+            Sello(if (regla) stringResource(R.string.siempre_se_conserva) else reasonText(s.reason), if (s.isProtected || regla) Tono.OK else Tono.NEUTRO, icono = if (regla) Icons.Filled.Lock else null)
             Box(Modifier.weight(1f))
             if (regla || s.reason != Reason.PROTEGIDO_USUARIO) BotonTexto(stringResource(if (regla) R.string.quitar_regla else R.string.nunca_eliminar), onNunca)
         }
@@ -389,6 +412,10 @@ private fun ResultadoLimpieza(e: EstadoLimpieza.Listo) {
         if (r.protectedMessages > 0) Pista(stringResource(R.string.protegidos_respetados, r.protectedMessages))
         if (r.skippedSenders.isNotEmpty()) Pista(stringResource(R.string.omitidos_remitentes, r.skippedSenders.size))
         if (r.cancelled) Sello(stringResource(R.string.operacion_cancelada), Tono.AVISO)
+        if (e.bajas.isNotEmpty()) {
+            val ok = e.bajas.values.count { it.ok }
+            Sello(stringResource(if (r.dryRun) R.string.bajas_simuladas else R.string.bajas_hechas, ok, e.bajas.size), if (ok == e.bajas.size) Tono.OK else Tono.AVISO)
+        }
     }
 }
 

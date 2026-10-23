@@ -260,4 +260,11 @@
     <string name="siempre_se_conserva">Always kept</string>
     <string name="nunca_eliminar">Never delete</string>
     <string name="quitar_regla">Remove rule</string>
+    <string name="baja_todos">Mark unsubscribe on every sender being deleted</string>
+    <string name="fase_baja">Unsubscribing %1$d / %2$d</string>
+    <string name="baja_al_ejecutar">Will unsubscribe when run</string>
+    <string name="darse_de_baja">Unsubscribe</string>
+    <string name="bajas_simuladas">Would unsubscribe: %1$d of %2$d</string>
+    <string name="bajas_hechas">Unsubscribed: %1$d of %2$d</string>
+    <string name="medidor">RAM %1$s · CPU %2$d%% · %3$s</string>
 </resources>

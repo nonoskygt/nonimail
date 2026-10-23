@@ -260,4 +260,11 @@
     <string name="siempre_se_conserva">Siempre se conserva</string>
     <string name="nunca_eliminar">Nunca eliminar</string>
     <string name="quitar_regla">Quitar regla</string>
+    <string name="baja_todos">Marcar baja en todos los que se eliminen</string>
+    <string name="fase_baja">Dándose de baja %1$d / %2$d</string>
+    <string name="baja_al_ejecutar">Se dará de baja al ejecutar</string>
+    <string name="darse_de_baja">Darse de baja</string>
+    <string name="bajas_simuladas">Se daría de baja: %1$d de %2$d</string>
+    <string name="bajas_hechas">Bajas hechas: %1$d de %2$d</string>
+    <string name="medidor">RAM %1$s · CPU %2$d%% · %3$s</string>
 </resources>

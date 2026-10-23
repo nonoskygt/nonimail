@@ -15,15 +15,15 @@
     "person": 15
   },
   "cleaning": {
-    "scanMode": "mensajes",
+    "scanMode": "dias",
     "scanCount": 1000,
     "scanDays": 30,
     "hardness": 50,
     "band": 12,
     "maxSamples": 3,
     "sentScanMax": 2000,
-    "bodyMaxChars": 2500,
-    "fetchBatch": 200
+    "bodyMaxChars": 1200,
+    "fetchBatch": 500
   },
   "sync": {
     "fetchBatch": 500,
@@ -51,11 +51,11 @@
     ]
   },
   "providers": [
-    { "id": "gmail", "telemetry": "gmail", "host": "imap.gmail.com", "port": 993, "security": "ssl", "domains": ["gmail.com", "googlemail.com"], "appPassword": true, "googleSignIn": true },
-    { "id": "outlook", "telemetry": "outlook", "host": "outlook.office365.com", "port": 993, "security": "ssl", "domains": ["outlook.com", "hotmail.com", "live.com", "msn.com"], "appPassword": true },
-    { "id": "yahoo", "telemetry": "yahoo", "host": "imap.mail.yahoo.com", "port": 993, "security": "ssl", "domains": ["yahoo.com", "ymail.com", "rocketmail.com"], "appPassword": true },
-    { "id": "icloud", "telemetry": "icloud", "host": "imap.mail.me.com", "port": 993, "security": "ssl", "domains": ["icloud.com", "me.com", "mac.com"], "appPassword": true },
-    { "id": "imap", "telemetry": "imap", "host": "", "port": 993, "security": "ssl", "domains": [], "appPassword": false }
+    { "id": "gmail", "telemetry": "gmail", "host": "imap.gmail.com", "port": 993, "security": "ssl", "domains": ["gmail.com", "googlemail.com"], "appPassword": true, "googleSignIn": true, "smtpHost": "smtp.gmail.com", "smtpPort": 465, "smtpSecurity": "ssl" },
+    { "id": "outlook", "telemetry": "outlook", "host": "outlook.office365.com", "port": 993, "security": "ssl", "domains": ["outlook.com", "hotmail.com", "live.com", "msn.com"], "appPassword": true, "smtpHost": "smtp.office365.com", "smtpPort": 587, "smtpSecurity": "starttls" },
+    { "id": "yahoo", "telemetry": "yahoo", "host": "imap.mail.yahoo.com", "port": 993, "security": "ssl", "domains": ["yahoo.com", "ymail.com", "rocketmail.com"], "appPassword": true, "smtpHost": "smtp.mail.yahoo.com", "smtpPort": 465, "smtpSecurity": "ssl" },
+    { "id": "icloud", "telemetry": "icloud", "host": "imap.mail.me.com", "port": 993, "security": "ssl", "domains": ["icloud.com", "me.com", "mac.com"], "appPassword": true, "smtpHost": "smtp.mail.me.com", "smtpPort": 587, "smtpSecurity": "starttls" },
+    { "id": "imap", "telemetry": "imap", "host": "", "port": 993, "security": "ssl", "domains": [], "appPassword": false, "smtpHost": "", "smtpPort": 465, "smtpSecurity": "ssl" }
   ],
   "folders": {
     "trash": ["Trash", "INBOX.Trash", "Papelera", "INBOX.Papelera", "Deleted Items", "Deleted Messages", "Elementos eliminados", "[Gmail]/Trash", "[Gmail]/Papelera"],

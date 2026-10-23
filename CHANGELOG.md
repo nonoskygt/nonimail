@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] - 2026-10-23
+
+### Changed
+- **Más rápido.** El modelo corre en la GPU del teléfono cuando LiteRT puede usarla, y si no, en todos los núcleos de la CPU. La lectura del buzón trae 500 correos por tanda y la IA lee un texto más corto por remitente.
+- **Medidores.** Arriba de las terminales: RAM del teléfono y de la app, CPU de la app (100% = un núcleo) y dónde corre la IA (GPU o CPU).
+- **Casilla en todos los remitentes.** «Usted les escribe» y los protegidos se pueden marcar para eliminar; solo «Nunca eliminar» bloquea la fila.
+- **Darse de baja.** Cada remitente con enlace de baja tiene su casilla; también «Marcar baja en todos los que se eliminen». La baja se hace al ejecutar, después de eliminar: one-click, correo (mailto, por SMTP con la misma cuenta) o enlace. En simulación no se envía nada.
+- **Lo eliminado sale de la lista.** Tras eliminar de verdad, los remitentes borrados desaparecen de la lista.
+
 ## [1.5.0] - 2026-10-23
 
 ### Changed

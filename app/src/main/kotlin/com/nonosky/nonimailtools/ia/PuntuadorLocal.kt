@@ -18,17 +18,26 @@ object RutasIa {
 }
 
 /**
- * Scores with a model running on the phone (LiteRT-LM, CPU). Loading blocks for several
- * seconds, so build it on a background thread. Close it when done to free the RAM.
+ * Scores with a model running on the phone (LiteRT-LM). It uses the GPU when the phone has one
+ * that LiteRT can drive, and every CPU core otherwise. Loading blocks for several seconds, so
+ * build it on a background thread. Close it when done to free the RAM.
  */
 class PuntuadorLocal(ctx: Context, private val modelo: ModeloIa) : IaScorer {
-    private val engine: Engine = Engine(
-        EngineConfig(
-            modelPath = RutasIa.archivo(ctx, modelo).absolutePath,
-            backend = Backend.CPU(),
-            cacheDir = ctx.cacheDir.path,
-        ),
-    ).also { it.initialize() }
+    /** "GPU" or "CPU": what the model actually runs on, for the AI terminal. */
+    val motor: String
+    private val engine: Engine
+
+    init {
+        val ruta = RutasIa.archivo(ctx, modelo).absolutePath
+        fun crear(b: Backend) = Engine(EngineConfig(modelPath = ruta, backend = b, cacheDir = ctx.cacheDir.path)).also { it.initialize() }
+        val gpu = runCatching { crear(Backend.GPU()) }
+        if (gpu.isSuccess) {
+            engine = gpu.getOrThrow(); motor = "GPU"
+        } else {
+            engine = crear(Backend.CPU(threadCount = Runtime.getRuntime().availableProcessors()))
+            motor = "CPU"
+        }
+    }
 
     private val config = ConversationConfig(
         samplerConfig = SamplerConfig(topK = 10, topP = 0.95, temperature = 0.1),
