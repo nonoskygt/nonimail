@@ -203,7 +203,7 @@ class DescargaModeloWorker(ctx: Context, params: WorkerParameters) : CoroutineWo
         }
         coroutineContext.ensureActive()
         if (!ok) throw Fallo("motor")
-        NmtApp.instance.ajustes.iaListoId(m.id)
+        NmtApp.instance.ajustes.iaListoId(m.archivo)
     }
 
     companion object {

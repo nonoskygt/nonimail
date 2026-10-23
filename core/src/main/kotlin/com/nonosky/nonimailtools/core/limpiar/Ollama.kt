@@ -99,7 +99,7 @@ class Ollama(
         }
 
         fun buildPrompt(base: String, from: String, subjects: List<String>, bulk: Boolean, body: String): String =
-            "$base\n\nEmail:\nFROM: $from\nSUBJECT: ${subjects.joinToString(" | ")}\nBULK: ${if (bulk) "si" else "no"}\nBODY: $body\n\nPuntaje (0-100):"
+            "$base\n\nDe: $from\nAsunto: ${subjects.joinToString(" | ")}\nMasivo: ${if (bulk) "sí" else "no"}\nTexto: $body\n\nCategoría:"
 
         private val LABELED = Regex("(?:respuesta|puntaje|puntuaci[oó]n|score)\\s*[:=]?\\s*\\**\\s*(\\d{1,3})\\b", RegexOption.IGNORE_CASE)
         private val BOLD = Regex("\\*\\*\\s*(\\d{1,3})\\s*\\*\\*")
@@ -108,9 +108,17 @@ class Ollama(
         private val RANGE = Regex("\\b0\\s*(-|a|to)\\s*100\\b", RegexOption.IGNORE_CASE)
         private val NUMBER = Regex("\\b(\\d{1,3})\\b")
 
-        /** Same parsing as the desktop app: labeled number, bold number, else the last 0–100. */
-        fun parseScore(text: String?, fallback: Int?): Int? {
+        /** Category word → score (`llm.categoryScores`); null if no category is named. */
+        fun categoryScore(text: String?, map: Map<String, Int>): Int? {
+            if (text.isNullOrBlank() || map.isEmpty()) return null
+            val up = java.text.Normalizer.normalize(text.uppercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "")
+            return map.entries.firstOrNull { Regex("\\b${it.key}\\b").containsMatchIn(up) }?.value
+        }
+
+        /** Same parsing as the desktop app: category word, labeled number, bold number, else the last 0–100. */
+        fun parseScore(text: String?, fallback: Int?, map: Map<String, Int> = emptyMap()): Int? {
             if (text == null) return fallback
+            categoryScore(text, map)?.let { return it }
             LABELED.find(text)?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it in 0..100 }?.let { return it }
             BOLD.find(text)?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it in 0..100 }?.let { return it }
             val cleaned = text.replace(OUT_OF, " ").replace(SLASH_100, " ").replace(RANGE, " ")

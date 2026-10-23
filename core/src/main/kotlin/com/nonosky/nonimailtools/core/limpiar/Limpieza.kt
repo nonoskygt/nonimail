@@ -42,6 +42,7 @@ data class ScanOptions(
     /** Null = heuristics only. */
     val ia: IaScorer? = null,
     val llmPrompt: String = "",
+    val categoryScores: Map<String, Int> = emptyMap(),
     val now: Date = Date(),
 )
 
@@ -234,7 +235,7 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                         val bodyBulk = opt.rules.body?.containsMatchIn(body) == true
                         try {
                             val text = ai.generate(Ollama.buildPrompt(opt.llmPrompt, "${s.name} <${s.email}>", s.samples, s.bulk || bodyBulk, body))
-                            val llm = Ollama.parseScore(text, null)
+                            val llm = Ollama.parseScore(text, null, opt.categoryScores)
                             if (llm != null) {
                                 scored[i] = s.copy(score = llm, reason = Reason.IA, bulk = s.bulk || bodyBulk)
                                 aiScored++

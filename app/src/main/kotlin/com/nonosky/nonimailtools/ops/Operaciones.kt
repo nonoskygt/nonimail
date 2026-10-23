@@ -180,7 +180,7 @@ class Operaciones(private val app: NmtApp) {
                 .getOrNull()
         }
         val opts = ScanOptions(
-            t.modo, t.cantidad, t.protegidos, rulesOf(t.keep, d), d.scores, d.cleaning, d.folders.sent, ia, d.llm.prompt,
+            t.modo, t.cantidad, t.protegidos, rulesOf(t.keep, d), d.scores, d.cleaning, d.folders.sent, ia, d.llm.prompt, d.llm.categoryScores,
         )
         val rep = object : Reporter<ScanProgress> {
             override fun log(line: String) { app.telemetry.log.i("limpiar", line) }

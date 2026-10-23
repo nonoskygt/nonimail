@@ -142,13 +142,12 @@ class IaManager(private val app: NmtApp) {
         RutasIa.dir(app).listFiles { f -> f.name.endsWith(".part") }?.forEach { it.delete() }
     }
 
-    /** One model on the phone at a time: the others (up to 3.6 GB each) are freed. */
+    /** One model on the phone at a time: any other file (including retired models, up to 3.6 GB each) is freed. */
     private fun borrarOtros(m: ModeloIa) {
-        for (o in Defaults.instance.localAi.models) {
-            if (o.id == m.id) continue
-            RutasIa.archivo(app, o).delete(); RutasIa.parcial(app, o).delete()
-            if (app.ajustes.valores.value.iaListoId == o.id) app.ajustes.iaListoId("")
-        }
+        val queda = setOf(m.archivo, RutasIa.parcial(app, m).name)
+        RutasIa.dir(app).listFiles()?.forEach { f -> if (f.isFile && f.name !in queda) f.delete() }
+        val listo = app.ajustes.valores.value.iaListoId
+        if (listo.isNotEmpty() && listo != m.archivo) app.ajustes.iaListoId("")
     }
 
     private companion object {
