@@ -1,4 +1,4 @@
-name: Release
+name: Escritorio (versión)
 
 # Al subir una etiqueta v* se compilan los instaladores en Windows y Linux y se publican en GitHub Releases,
 # con sumas SHA256 y copias con nombre estable (las que enlazan los scripts de instalación y el sitio).
@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+defaults:
+  run:
+    working-directory: escritorio
+
 jobs:
   build:
     name: Compilar (${{ matrix.os }})
@@ -28,6 +32,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: escritorio/package-lock.json
       - name: La etiqueta debe coincidir con package.json
         shell: bash
         run: |
@@ -64,7 +69,7 @@ jobs:
         run: npx electron-builder --linux AppImage deb --publish never
       - name: Copias con nombre estable
         shell: bash
-        working-directory: dist
+        working-directory: escritorio/dist
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             cp NoniMail-Tools-Setup-*.exe NoniMail-Tools-Setup.exe
@@ -79,16 +84,19 @@ jobs:
           name: instaladores-${{ runner.os }}
           if-no-files-found: error
           path: |
-            dist/NoniMail-Tools-*.exe
-            dist/NoniMail-Tools*.AppImage
-            dist/nonimail-tools_*.deb
-            dist/*.blockmap
-            dist/latest*.yml
+            escritorio/dist/NoniMail-Tools-*.exe
+            escritorio/dist/NoniMail-Tools*.AppImage
+            escritorio/dist/nonimail-tools_*.deb
+            escritorio/dist/*.blockmap
+            escritorio/dist/latest*.yml
 
   publish:
     name: Publicar
     needs: build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -101,8 +109,8 @@ jobs:
           # los metadatos de actualización (latest*.yml) y los .blockmap se suben pero no llevan suma
           test -f latest.yml && test -f latest-linux.yml
           grep -q 'NoniMail-Tools-Setup-' latest.yml && grep -q 'NoniMail-Tools-.*AppImage' latest-linux.yml
-          ls | grep -v -E '^latest.*\.yml$|\.blockmap$' | xargs sha256sum > SHA256SUMS.txt
-          cat SHA256SUMS.txt
+          ls | grep -v -E '^latest.*\.yml$|\.blockmap$' | xargs sha256sum > SHA256SUMS-escritorio.txt
+          cat SHA256SUMS-escritorio.txt
       - uses: softprops/action-gh-release@v2
         with:
           files: release/*
@@ -111,3 +119,34 @@ jobs:
           prerelease: false
           make_latest: true
           fail_on_unmatched_files: true
+
+  # Mac: sin firma de Apple por ahora (se abre con clic derecho → Abrir). Va aparte para que un fallo
+  # de Mac no frene Windows y Linux.
+  mac:
+    name: Compilar (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: escritorio/package-lock.json
+      - run: npm ci
+      - run: echo '{ "origen_descarga": "github" }' > config/build-info.json
+      - name: Compilar
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --mac dmg zip --publish never
+      - name: Copia con nombre estable
+        working-directory: escritorio/dist
+        run: |
+          cp NoniMail-Tools-*-mac.dmg NoniMail-Tools.dmg
+          ls -la
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            escritorio/dist/*.dmg
+            escritorio/dist/*-mac.zip
+            escritorio/dist/latest-mac.yml
+          make_latest: true

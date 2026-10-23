@@ -8,13 +8,13 @@
     "email": "nonoskygt@users.noreply.github.com",
     "url": "https://github.com/nonoskygt"
   },
-  "homepage": "https://github.com/nonoskygt/nonimail-tools#readme",
+  "homepage": "https://github.com/nonoskygt/nonimail#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nonoskygt/nonimail-tools.git"
+    "url": "git+https://github.com/nonoskygt/nonimail.git"
   },
   "bugs": {
-    "url": "https://github.com/nonoskygt/nonimail-tools/issues"
+    "url": "https://github.com/nonoskygt/nonimail/issues"
   },
   "keywords": ["imap", "email", "inbox", "cleaner", "sync", "ollama", "electron"],
   "main": "electron/main.js",
@@ -62,7 +62,7 @@
       "!**/*.map"
     ],
     "publish": [
-      { "provider": "github", "owner": "nonoskygt", "repo": "nonimail-tools", "releaseType": "release" }
+      { "provider": "github", "owner": "nonoskygt", "repo": "nonimail", "releaseType": "release" }
     ],
     "asar": true,
     "compression": "normal",
@@ -88,6 +88,12 @@
     },
     "portable": {
       "artifactName": "NoniMail-Tools-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"],
+      "artifactName": "NoniMail-Tools-${version}-mac.${ext}"
     },
     "linux": {
       "icon": "build/icons",

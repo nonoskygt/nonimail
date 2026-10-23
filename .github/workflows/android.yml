@@ -2,16 +2,22 @@ name: Android
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
     tags: ['v*']
+    paths: ['android/**', '.github/workflows/android.yml']
   pull_request:
+    paths: ['android/**', '.github/workflows/android.yml']
 
 permissions:
   contents: read
 
+defaults:
+  run:
+    working-directory: android
+
 concurrency:
   group: android-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   build-test:
@@ -64,14 +70,14 @@ jobs:
         with:
           name: test-reports
           path: |
-            core/build/reports/tests
-            app/build/reports/tests
+            android/core/build/reports/tests
+            android/app/build/reports/tests
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v5
         with:
           name: NoniMail-Tools-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
 
   release:
     name: Signed release
@@ -133,15 +139,15 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "dist/NoniMail-Tools.apk"
           cp app/build/outputs/bundle/release/app-release.aab "dist/NoniMail-Tools-$VERSION.aab"
           "$ANDROID_HOME"/build-tools/37.0.0/apksigner verify --print-certs dist/NoniMail-Tools.apk | grep -v '^WARNING'
-          (cd dist && sha256sum NoniMail-Tools-"$VERSION".apk NoniMail-Tools.apk NoniMail-Tools-"$VERSION".aab > SHA256SUMS.txt)
-          cat dist/SHA256SUMS.txt
+          (cd dist && sha256sum NoniMail-Tools-"$VERSION".apk NoniMail-Tools.apk NoniMail-Tools-"$VERSION".aab > SHA256SUMS-android.txt)
+          cat dist/SHA256SUMS-android.txt
 
       - name: Publish the release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/NoniMail-Tools.apk
-            dist/NoniMail-Tools-*.apk
-            dist/NoniMail-Tools-*.aab
-            dist/SHA256SUMS.txt
+            android/dist/NoniMail-Tools.apk
+            android/dist/NoniMail-Tools-*.apk
+            android/dist/NoniMail-Tools-*.aab
+            android/dist/SHA256SUMS-android.txt
           generate_release_notes: true

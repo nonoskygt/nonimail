@@ -43,7 +43,7 @@ test('versiones: compara numéricamente y la prerelease es menor que la final', 
 });
 
 test('build.publish de package.json da la URL de releases/latest', () => {
-  assert.equal(releasesApiUrl(require('../package.json')), 'https://api.github.com/repos/nonoskygt/nonimail-tools/releases/latest');
+  assert.equal(releasesApiUrl(require('../package.json')), 'https://api.github.com/repos/nonoskygt/nonimail/releases/latest');
   assert.equal(releasesApiUrl({}), '');
 });
 

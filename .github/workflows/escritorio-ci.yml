@@ -1,12 +1,18 @@
-name: CI
+name: Escritorio (pruebas)
 
 on:
   push:
-    branches: [main, 'agente/**']
+    branches: [main, 'agente/**', 'claude/**']
+    paths: ['escritorio/**', '.github/workflows/escritorio-*.yml']
   pull_request:
+    paths: ['escritorio/**', '.github/workflows/escritorio-*.yml']
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    working-directory: escritorio
 
 jobs:
   test:
@@ -23,6 +29,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
+          cache-dependency-path: escritorio/package-lock.json
       # Las pruebas no necesitan Electron: se omite su descarga
       - run: npm ci
         env:

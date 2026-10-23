@@ -24,16 +24,16 @@
     "timeoutMs": 8000
   },
   "links": {
-    "repo": "https://github.com/nonoskygt/nonimail-tools",
-    "issues": "https://github.com/nonoskygt/nonimail-tools/issues",
-    "releases": "https://github.com/nonoskygt/nonimail-tools/releases/latest",
+    "repo": "https://github.com/nonoskygt/nonimail",
+    "issues": "https://github.com/nonoskygt/nonimail/issues",
+    "releases": "https://github.com/nonoskygt/nonimail/releases/latest",
     "docs": {
-      "es": "https://github.com/nonoskygt/nonimail-tools/blob/main/README.es.md",
-      "en": "https://github.com/nonoskygt/nonimail-tools/blob/main/README.md"
+      "es": "https://github.com/nonoskygt/nonimail/blob/main/escritorio/README.es.md",
+      "en": "https://github.com/nonoskygt/nonimail/blob/main/escritorio/README.md"
     },
     "googleGuide": {
-      "es": "https://github.com/nonoskygt/nonimail-tools/blob/main/README.es.md#conectar-con-google",
-      "en": "https://github.com/nonoskygt/nonimail-tools/blob/main/README.md#connect-with-google"
+      "es": "https://github.com/nonoskygt/nonimail/blob/main/escritorio/README.es.md#conectar-con-google",
+      "en": "https://github.com/nonoskygt/nonimail/blob/main/escritorio/README.md#connect-with-google"
     },
     "googleAppPasswords": "https://myaccount.google.com/apppasswords",
     "googleCloudConsole": "https://console.cloud.google.com/apis/credentials"
