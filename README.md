@@ -34,7 +34,7 @@ A short configurator runs once and can be repeated from Settings:
 4. Telemetry switch (see [Privacy](#privacy--telemetry)).
 5. Your first account: Gmail, Outlook/Hotmail, Yahoo, iCloud or custom IMAP, with a connection test.
 
-**Gmail needs an app password with IMAP enabled.** Turn on 2-step verification, create an app password and use it instead of your normal password. Outlook, Yahoo and iCloud also use app passwords.
+**Gmail: tap «Iniciar sesión con Google» (one-tap sign-in, no password stored; works in signed release builds only, and Google shows its «unverified app» screen).** The app-password route below remains as a fallback: it needs an app password with IMAP enabled. Turn on 2-step verification, create an app password and use it instead of your normal password. Outlook, Yahoo and iCloud also use app passwords.
 
 ## Clean
 

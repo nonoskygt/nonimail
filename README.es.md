@@ -34,7 +34,7 @@ Un configurador corto se ejecuta una vez y puede repetirse desde Ajustes:
 4. Interruptor de telemetría (vea [Privacidad](#privacidad--telemetría)).
 5. Su primera cuenta: Gmail, Outlook/Hotmail, Yahoo, iCloud o IMAP personalizado, con prueba de conexión.
 
-**Gmail requiere una contraseña de aplicación con IMAP activado.** Active la verificación en dos pasos, cree una contraseña de aplicación y úsela en lugar de su contraseña normal. Outlook, Yahoo e iCloud también usan contraseñas de aplicación.
+**Gmail: toque «Iniciar sesión con Google» (un solo toque, no se guarda ninguna contraseña; solo en las versiones firmadas, y Google mostrará su aviso de «app no verificada»).** La contraseña de aplicación sigue como alternativa: requiere IMAP activado. Active la verificación en dos pasos, cree una contraseña de aplicación y úsela en lugar de su contraseña normal. Outlook, Yahoo e iCloud también usan contraseñas de aplicación.
 
 ## Limpiar
 

@@ -35,7 +35,10 @@ enum class Security(val id: String) {
     }
 }
 
-/** What the engines need to log in. The password is never logged or serialized from here. */
+/**
+ * What the engines need to log in. The password is never logged or serialized from here.
+ * With [oauth] the "password" is a short-lived OAuth access token and the login uses XOAUTH2.
+ */
 data class ImapAccount(
     val email: String,
     val host: String,
@@ -43,6 +46,7 @@ data class ImapAccount(
     val security: Security = Security.SSL,
     val user: String = email,
     val password: String,
+    val oauth: Boolean = false,
 ) {
     override fun toString(): String = "ImapAccount(email=$email, host=$host, port=$port, security=$security)"
 }
@@ -137,6 +141,12 @@ class ImapConnection private constructor(val store: IMAPStore, val account: Imap
                 put("mail.$proto.fetchsize", (1024 * 1024).toString())
                 put("mail.$proto.partialfetch", "false")
                 put("mail.$proto.ssl.checkserveridentity", "true")
+                if (account.oauth) {
+                    // The access token goes in as the password; only XOAUTH2 is attempted.
+                    put("mail.$proto.auth.mechanisms", "XOAUTH2")
+                    put("mail.$proto.auth.login.disable", "true")
+                    put("mail.$proto.auth.plain.disable", "true")
+                }
                 if (account.security == Security.STARTTLS) {
                     put("mail.imap.starttls.enable", "true")
                     put("mail.imap.starttls.required", "true")

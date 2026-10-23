@@ -17,6 +17,8 @@ coroutines = "1.11.0"
 serialization = "1.12.0"
 androidMail = "1.6.8"
 bouncycastle = "1.86"
+# Google Identity Services: AuthorizationClient (one-tap Gmail sign-in, OAuth access token).
+playServicesAuth = "21.5.1"
 # On-device LLM runtime (Google Maven). Successor of MediaPipe LLM Inference (tasks-genai).
 litertlm = "0.18.1"
 
@@ -49,6 +51,7 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 android-mail = { module = "com.sun.mail:android-mail", version.ref = "androidMail" }
 android-activation = { module = "com.sun.mail:android-activation", version.ref = "androidMail" }
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 bouncycastle-prov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 junit = { module = "junit:junit", version.ref = "junit" }

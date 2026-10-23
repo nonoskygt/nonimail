@@ -1,5 +1,9 @@
 package com.nonosky.nonimailtools.ui
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,7 +38,11 @@ import com.nonosky.nonimailtools.core.mail.ImapException
 import com.nonosky.nonimailtools.core.mail.ImapTimeouts
 import com.nonosky.nonimailtools.core.mail.Security
 import com.nonosky.nonimailtools.core.telemetria.Telemetria
+import com.nonosky.nonimailtools.data.AUTH_CLAVE
+import com.nonosky.nonimailtools.data.AUTH_OAUTH
 import com.nonosky.nonimailtools.data.Cuenta
+import com.nonosky.nonimailtools.data.GoogleAuth
+import com.nonosky.nonimailtools.data.GoogleReautenticar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,6 +52,8 @@ sealed interface PruebaCuenta {
     data object Nada : PruebaCuenta
     data object Probando : PruebaCuenta
     data object Ok : PruebaCuenta
+    data object GoogleFallo : PruebaCuenta
+    data object GoogleReauth : PruebaCuenta
     data class Fallo(val razon: ImapException.Reason?, val detalle: String) : PruebaCuenta
 }
 
@@ -62,6 +72,8 @@ suspend fun probarCuenta(a: ImapAccount): PruebaCuenta = withContext(Dispatchers
 fun textoPrueba(p: PruebaCuenta): String? = when (p) {
     PruebaCuenta.Nada, PruebaCuenta.Probando -> null
     PruebaCuenta.Ok -> stringResource(R.string.conexion_ok)
+    PruebaCuenta.GoogleFallo -> stringResource(R.string.err_google)
+    PruebaCuenta.GoogleReauth -> stringResource(R.string.err_google_reauth)
     is PruebaCuenta.Fallo -> stringResource(
         when (p.razon) {
             ImapException.Reason.AUTH -> R.string.err_autenticacion
@@ -111,9 +123,15 @@ fun FormularioCuenta(
     var usuario by rememberSaveable { mutableStateOf(inicial?.user ?: "") }
     var prueba by remember { mutableStateOf<PruebaCuenta>(PruebaCuenta.Nada) }
 
+    var verClave by rememberSaveable { mutableStateOf(false) }
+
     val p = presets.firstOrNull { it.id == preset } ?: presets.last()
     val manual = p.host.isEmpty()
     val correoValido = Dominios.esCorreo(email)
+    val inicialOauth = inicial?.esOauth == true
+    // Google first; the app-password form stays folded below as a fallback.
+    val ofreceGoogle = p.googleSignIn
+    val mostrarClave = !ofreceGoogle || verClave || (inicial != null && !inicialOauth)
 
     fun elegir(id: String) {
         preset = id
@@ -122,20 +140,81 @@ fun FormularioCuenta(
         prueba = PruebaCuenta.Nada
     }
 
+    /** Test the login and store the account; shared by the password form and Google sign-in. */
+    suspend fun guardarCuenta(cuentaImap: ImapAccount, pw: String?, auth: String) {
+        val r = probarCuenta(cuentaImap)
+        prueba = r
+        if (r is PruebaCuenta.Ok) {
+            val c = app.cuentas.guardar(inicial?.id, cuentaImap.email, preset, cuentaImap.host, cuentaImap.port, cuentaImap.security.id, usuario, pw, auth)
+            app.telemetry.registrar(Telemetria.cuenta(c.email, nombreProveedorTelemetria(preset), Dominios.esPersonal(c.email)))
+            app.telemetry.log.i("cuenta", "Account saved: ${c.email} (${preset}, $auth)")
+            onGuardada(c)
+        } else if (r is PruebaCuenta.Fallo) {
+            app.telemetry.error("cuenta", "Connection test failed (${r.razon}): ${r.detalle}", null, cuentaImap.email)
+        }
+    }
+
+    /** Token in hand: read the address from Gmail and store the account as OAuth. */
+    suspend fun terminarGoogle(r: com.google.android.gms.auth.api.identity.AuthorizationResult) {
+        val token = GoogleAuth.recordar(r)
+        val correo = token?.let { t ->
+            withContext(Dispatchers.IO) { GoogleAuth.correoDelPerfil(t) ?: runCatching { r.toGoogleSignInAccount()?.email?.lowercase() }.getOrNull() }
+        }
+        if (token == null || correo == null || !Dominios.esCorreo(correo)) {
+            prueba = PruebaCuenta.GoogleFallo
+            app.telemetry.error("cuenta", "Google sign-in returned no usable token or address", null)
+            return
+        }
+        email = correo
+        val cuentaImap = ImapAccount(correo, p.host, p.port, Security.of(p.security), correo, token, oauth = true)
+        guardarCuenta(cuentaImap, null, AUTH_OAUTH)
+    }
+
+    val lanzadorGoogle = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { res ->
+        if (res.resultCode != Activity.RESULT_OK) { prueba = PruebaCuenta.GoogleFallo; return@rememberLauncherForActivityResult }
+        scope.launch {
+            try {
+                terminarGoogle(GoogleAuth.resultadoDeIntent(ctx, res.data))
+            } catch (e: Exception) {
+                prueba = PruebaCuenta.GoogleFallo
+                app.telemetry.error("cuenta", "Google sign-in failed: ${e.message ?: e.javaClass.simpleName}", e)
+            }
+        }
+    }
+
+    fun entrarConGoogle() {
+        prueba = PruebaCuenta.Probando
+        scope.launch {
+            try {
+                val r = GoogleAuth.autorizar(ctx)
+                val pi = r.pendingIntent
+                if (r.hasResolution() && pi != null) lanzadorGoogle.launch(IntentSenderRequest.Builder(pi).build())
+                else terminarGoogle(r)
+            } catch (e: Exception) {
+                prueba = PruebaCuenta.GoogleFallo
+                app.telemetry.error("cuenta", "Google sign-in failed: ${e.message ?: e.javaClass.simpleName}", e)
+            }
+        }
+    }
+
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.horizontalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (pr in presets) Pastilla(nombrePreset(pr.id), preset == pr.id, { elegir(pr.id) })
             }
         }
-        if (p.appPassword) {
+        if (ofreceGoogle) {
+            BotonPrimario(stringResource(R.string.iniciar_google), { entrarConGoogle() }, Modifier.fillMaxWidth(), activo = prueba !is PruebaCuenta.Probando)
+            if (!mostrarClave) BotonTexto(stringResource(R.string.usar_clave_app), { verClave = true }, Modifier.fillMaxWidth())
+        }
+        if (mostrarClave && p.appPassword) {
             Pista(stringResource(if (p.id == "gmail") R.string.pista_gmail else R.string.pista_clave_app))
             val ayuda = stringResource(
                 when (p.id) { "gmail" -> R.string.url_ayuda_gmail; "outlook" -> R.string.url_ayuda_outlook; "yahoo" -> R.string.url_ayuda_yahoo; else -> R.string.url_ayuda_icloud },
             )
             BotonTexto(stringResource(R.string.crear_clave_app), { abrirUrl(ctx, ayuda) })
         }
-        Campo(
+        if (mostrarClave || inicial != null) Campo(
             email, {
                 email = it.trim(); prueba = PruebaCuenta.Nada
                 if (inicial == null) presets.firstOrNull { pr -> Defaults.instance.providerForEmail(email)?.id == pr.id }?.let { pr -> if (pr.id != preset) elegir(pr.id) }
@@ -143,12 +222,12 @@ fun FormularioCuenta(
             stringResource(R.string.correo), teclado = KeyboardType.Email,
             error = if (email.isNotEmpty() && !correoValido) stringResource(R.string.correo_invalido) else null,
         )
-        Campo(
+        if (mostrarClave) Campo(
             clave, { clave = it; prueba = PruebaCuenta.Nada },
             stringResource(if (p.appPassword) R.string.clave_app else R.string.clave), secreto = true,
             placeholder = if (inicial != null) stringResource(R.string.clave_sin_cambios) else null,
         )
-        if (manual) {
+        if (manual && mostrarClave) {
             Campo(host, { host = it.trim() }, stringResource(R.string.servidor_imap), teclado = KeyboardType.Uri)
             Campo(puerto, { puerto = it.filter(Char::isDigit).take(5) }, stringResource(R.string.puerto), teclado = KeyboardType.Number)
             androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -162,23 +241,17 @@ fun FormularioCuenta(
         val listo = correoValido && (clave.isNotEmpty() || inicial != null) && host.isNotBlank() && (puerto.toIntOrNull() ?: 0) in 1..65535
         val ocupado = prueba is PruebaCuenta.Probando
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            BotonPrimario(
+            if (mostrarClave || inicialOauth) BotonPrimario(
                 textoGuardar,
                 {
                     prueba = PruebaCuenta.Probando
                     scope.launch {
-                        val pw = clave.ifEmpty { inicial?.let { c -> app.cuentas.imap(c)?.password } } ?: ""
-                        val cuentaImap = ImapAccount(email.lowercase(), host.trim(), puerto.toInt(), Security.of(seguridad), usuario.ifBlank { email.lowercase() }, pw)
-                        val r = probarCuenta(cuentaImap)
-                        prueba = r
-                        if (r is PruebaCuenta.Ok) {
-                            val c = app.cuentas.guardar(inicial?.id, email, preset, host, puerto.toInt(), seguridad, usuario, pw)
-                            app.telemetry.registrar(Telemetria.cuenta(c.email, nombreProveedorTelemetria(preset), Dominios.esPersonal(c.email)))
-                            app.telemetry.log.i("cuenta", "Account saved: ${c.email} (${preset})")
-                            onGuardada(c)
-                        } else if (r is PruebaCuenta.Fallo) {
-                            app.telemetry.error("cuenta", "Connection test failed (${r.razon}): ${r.detalle}", null, email)
-                        }
+                        val oauthActual = inicialOauth && clave.isEmpty()
+                        val pw = clave.ifEmpty {
+                            inicial?.let { c -> withContext(Dispatchers.IO) { runCatching { app.cuentas.imap(c)?.password }.getOrNull() } }
+                        } ?: ""
+                        val cuentaImap = ImapAccount(email.lowercase(), host.trim(), puerto.toInt(), Security.of(seguridad), usuario.ifBlank { email.lowercase() }, pw, oauth = oauthActual)
+                        guardarCuenta(cuentaImap, if (oauthActual) null else pw, if (oauthActual) AUTH_OAUTH else AUTH_CLAVE)
                     }
                 },
                 Modifier.weight(1f), activo = listo && !ocupado, icono = if (prueba is PruebaCuenta.Ok) Icons.Filled.Check else null,

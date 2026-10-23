@@ -70,6 +70,7 @@ fun textoFallo(f: Fallo): String = when (f.tipo) {
     Fallo.Tipo2.SIN_PAPELERA -> stringResource(R.string.err_sin_papelera)
     Fallo.Tipo2.SIN_LICENCIA -> stringResource(R.string.err_sin_licencia)
     Fallo.Tipo2.CUENTA_ILEGIBLE -> stringResource(R.string.err_cuenta_ilegible)
+    Fallo.Tipo2.GOOGLE_REAUTH -> stringResource(R.string.err_google_reauth)
     Fallo.Tipo2.OTRO -> stringResource(R.string.err_generico)
 }
 

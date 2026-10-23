@@ -45,6 +45,7 @@ import com.nonosky.nonimailtools.BuildConfig
 import com.nonosky.nonimailtools.NmtApp
 import com.nonosky.nonimailtools.R
 import com.nonosky.nonimailtools.data.Cuenta
+import com.nonosky.nonimailtools.data.GoogleReautenticar
 import com.nonosky.nonimailtools.data.timeouts
 import com.nonosky.nonimailtools.ui.theme.FormaTarjeta
 import com.nonosky.nonimailtools.ui.theme.dulce
@@ -164,7 +165,12 @@ private fun FilaCuenta(c: Cuenta, onEditar: () -> Unit, onBorrar: () -> Unit) {
         Fila(espacio = 8.dp) {
             BotonTexto(stringResource(R.string.probar_conexion), {
                 prueba = PruebaCuenta.Probando
-                scope.launch { prueba = app.cuentas.imap(c)?.let { probarCuenta(it) } ?: PruebaCuenta.Fallo(null, "") }
+                scope.launch {
+                    prueba = try {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.cuentas.imap(c) }
+                            ?.let { probarCuenta(it) } ?: PruebaCuenta.Fallo(null, "")
+                    } catch (e: GoogleReautenticar) { PruebaCuenta.GoogleReauth }
+                }
             }, activo = prueba !is PruebaCuenta.Probando)
             textoPrueba(prueba)?.let { Pista(it, error = prueba !is PruebaCuenta.Ok) }
         }
