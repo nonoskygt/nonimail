@@ -51,7 +51,7 @@
     ]
   },
   "providers": [
-    { "id": "gmail", "telemetry": "gmail", "host": "imap.gmail.com", "port": 993, "security": "ssl", "domains": ["gmail.com", "googlemail.com"], "appPassword": true },
+    { "id": "gmail", "telemetry": "gmail", "host": "imap.gmail.com", "port": 993, "security": "ssl", "domains": ["gmail.com", "googlemail.com"], "appPassword": true, "googleSignIn": true },
     { "id": "outlook", "telemetry": "outlook", "host": "outlook.office365.com", "port": 993, "security": "ssl", "domains": ["outlook.com", "hotmail.com", "live.com", "msn.com"], "appPassword": true },
     { "id": "yahoo", "telemetry": "yahoo", "host": "imap.mail.yahoo.com", "port": 993, "security": "ssl", "domains": ["yahoo.com", "ymail.com", "rocketmail.com"], "appPassword": true },
     { "id": "icloud", "telemetry": "icloud", "host": "imap.mail.me.com", "port": 993, "security": "ssl", "domains": ["icloud.com", "me.com", "mac.com"], "appPassword": true },

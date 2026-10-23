@@ -111,6 +111,10 @@
     <string name="err_conexion">No se pudo llegar al servidor.</string>
     <string name="err_sin_papelera">Este buzón no tiene carpeta Papelera. No se movió nada.</string>
     <string name="err_sin_licencia">Para ejecutar de verdad se necesita una licencia.</string>
+    <string name="iniciar_google">Iniciar sesión con Google</string>
+    <string name="usar_clave_app">Usar contraseña de aplicación</string>
+    <string name="err_google">No se completó el inicio de sesión con Google. Intente de nuevo.</string>
+    <string name="err_google_reauth">Vuelva a iniciar sesión con Google.</string>
     <string name="err_cuenta_ilegible">No se puede leer la contraseña guardada. Edite la cuenta.</string>
     <string name="err_generico">Algo falló. Vea los registros en Ajustes.</string>
     <string name="ultimos_mensajes">Últimos mensajes</string>

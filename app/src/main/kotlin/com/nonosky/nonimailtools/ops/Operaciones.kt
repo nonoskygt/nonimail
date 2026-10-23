@@ -27,6 +27,7 @@ import com.nonosky.nonimailtools.core.sync.SyncProgress
 import com.nonosky.nonimailtools.core.sync.SyncResult
 import com.nonosky.nonimailtools.core.telemetria.Telemetria
 import com.nonosky.nonimailtools.data.Cuenta
+import com.nonosky.nonimailtools.data.GoogleReautenticar
 import com.nonosky.nonimailtools.data.timeouts
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +36,7 @@ import kotlinx.coroutines.flow.update
 
 /** A short, translatable failure the UI shows in one line. */
 data class Fallo(val tipo: Tipo2, val detalle: String) {
-    enum class Tipo2 { AUTENTICACION, CONEXION, SIN_PAPELERA, SIN_LICENCIA, CUENTA_ILEGIBLE, OTRO }
+    enum class Tipo2 { AUTENTICACION, CONEXION, SIN_PAPELERA, SIN_LICENCIA, CUENTA_ILEGIBLE, GOOGLE_REAUTH, OTRO }
 }
 
 sealed interface EstadoEscaneo {
@@ -169,7 +170,9 @@ class Operaciones(private val app: NmtApp) {
 
     private fun escanear(t: Trabajo.Escanear, d: Defaults, avance: (Avance) -> Unit, secs: () -> Long) {
         val cuenta = t.cuenta
-        val acc = app.cuentas.imap(cuenta)
+        val acc = try { app.cuentas.imap(cuenta) } catch (e: GoogleReautenticar) {
+            _escaneo.value = EstadoEscaneo.Error(Fallo(Fallo.Tipo2.GOOGLE_REAUTH, e.message.orEmpty())); return
+        }
         if (acc == null) { _escaneo.value = EstadoEscaneo.Error(Fallo(Fallo.Tipo2.CUENTA_ILEGIBLE, "")); return }
         val v = app.ajustes.valores.value
         // Same interface for both engines; if the model cannot be loaded the heuristics score alone.
@@ -213,7 +216,9 @@ class Operaciones(private val app: NmtApp) {
         if (!t.dryRun && !gate.permitido) {
             _limpieza.value = EstadoLimpieza.Error(Fallo(Fallo.Tipo2.SIN_LICENCIA, cuenta.email)); return
         }
-        val acc = app.cuentas.imap(cuenta)
+        val acc = try { app.cuentas.imap(cuenta) } catch (e: GoogleReautenticar) {
+            _limpieza.value = EstadoLimpieza.Error(Fallo(Fallo.Tipo2.GOOGLE_REAUTH, e.message.orEmpty())); return
+        }
         if (acc == null) { _limpieza.value = EstadoLimpieza.Error(Fallo(Fallo.Tipo2.CUENTA_ILEGIBLE, "")); return }
         val opts = CleanOptions(t.dryRun, t.protegidos, rulesOf(t.keep, d), d.folders.trash)
         val rep = object : Reporter<CleanProgress> {
@@ -243,8 +248,9 @@ class Operaciones(private val app: NmtApp) {
         if (!t.dryRun && !gate.permitido) {
             _sync.value = EstadoSync.Error(Fallo(Fallo.Tipo2.SIN_LICENCIA, gate.cuenta)); return
         }
-        val o = app.cuentas.imap(t.origen)
-        val dd = app.cuentas.imap(t.destino)
+        val (o, dd) = try { app.cuentas.imap(t.origen) to app.cuentas.imap(t.destino) } catch (e: GoogleReautenticar) {
+            _sync.value = EstadoSync.Error(Fallo(Fallo.Tipo2.GOOGLE_REAUTH, e.message.orEmpty())); return
+        }
         if (o == null || dd == null) { _sync.value = EstadoSync.Error(Fallo(Fallo.Tipo2.CUENTA_ILEGIBLE, "")); return }
         val rep = object : Reporter<SyncProgress> {
             override fun log(line: String) { app.telemetry.log.i("sincronizar", line) }

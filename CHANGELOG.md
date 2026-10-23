@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-10-23
+
+### Added
+- **Iniciar sesión con Google, en un toque.** En el paso «Su primera cuenta» y al agregar una cuenta Gmail, el botón principal «Iniciar sesión con Google» reemplaza la contraseña de aplicación. Usa Google Identity Services (`AuthorizationClient`) con el permiso `https://mail.google.com/`; la app aún no está verificada por Google, así que se verá su aviso de «app no verificada».
+- La cuenta queda guardada como Gmail con acceso `oauth`: no se guarda ninguna contraseña ni token. Antes de cada análisis, limpieza o sincronización la app pide a Google un token nuevo (silencioso si ya se autorizó) y entra por IMAP con XOAUTH2.
+- Si Google necesita que la persona vuelva a autorizar, la operación termina con «Vuelva a iniciar sesión con Google» en lugar de fallar.
+
+### Changed
+- La contraseña de aplicación de Gmail sigue disponible, plegada bajo «Usar contraseña de aplicación».
+- Solo funcionan las compilaciones firmadas de GitHub (la llave de depuración no coincide con el cliente OAuth).
+- Version 1.4.0 (versionCode 10400).
+
 ## [1.3.0] - 2026-10-23
 
 ### Changed

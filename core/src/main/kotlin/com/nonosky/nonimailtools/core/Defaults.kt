@@ -104,6 +104,8 @@ data class ProviderPreset(
     val security: String,
     val domains: List<String>,
     val appPassword: Boolean,
+    /** True when the provider offers one-tap Google sign-in (OAuth, XOAUTH2). */
+    val googleSignIn: Boolean = false,
 )
 
 @Serializable

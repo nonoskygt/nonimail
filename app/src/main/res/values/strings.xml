@@ -111,6 +111,10 @@
     <string name="err_conexion">Could not reach the server.</string>
     <string name="err_sin_papelera">This mailbox has no Trash folder. Nothing was moved.</string>
     <string name="err_sin_licencia">A license is needed for a real run.</string>
+    <string name="iniciar_google">Sign in with Google</string>
+    <string name="usar_clave_app">Use an app password</string>
+    <string name="err_google">Google sign-in did not complete. Try again.</string>
+    <string name="err_google_reauth">Sign in with Google again.</string>
     <string name="err_cuenta_ilegible">The saved password cannot be read. Edit the account.</string>
     <string name="err_generico">Something failed. See the logs in Settings.</string>
     <string name="ultimos_mensajes">Last messages</string>

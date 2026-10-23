@@ -32,9 +32,15 @@ data class Cuenta(
     val security: String,
     val user: String,
     val clave: String,
+    /** "password" (default, [clave] holds the encrypted password) or "oauth" (Google; no secret stored, token fetched per use). */
+    val auth: String = AUTH_CLAVE,
 ) {
+    val esOauth get() = auth == AUTH_OAUTH
     override fun toString() = "Cuenta($email)"
 }
+
+const val AUTH_CLAVE = "password"
+const val AUTH_OAUTH = "oauth"
 
 val Cuenta.timeouts: ImapTimeouts get() = ImapTimeouts(BuildConfig.IMAP_CONNECT_TIMEOUT_MS, BuildConfig.IMAP_TIMEOUT_MS)
 
@@ -54,18 +60,28 @@ class RepoCuentas(private val ctx: Context, scope: CoroutineScope) {
     fun porEmail(email: String): Cuenta? = cuentas.value.firstOrNull { it.email.equals(email, ignoreCase = true) }
 
     /** Passwords in clear, only for scrubbing logs and telemetry. Never logged. */
-    fun secretos(): List<String> = cuentas.value.mapNotNull { Secretos.descifrar(it.clave) }.filter { it.length >= 4 }
+    fun secretos(): List<String> =
+        (cuentas.value.mapNotNull { Secretos.descifrar(it.clave) } + listOfNotNull(GoogleAuth.ultimoToken)).filter { it.length >= 4 }
 
+    /**
+     * Login data for the engines. Blocking for OAuth accounts (asks Google for a fresh access
+     * token, silent when already granted): call it off the main thread. Throws [GoogleReautenticar]
+     * when the person has to sign in with Google again.
+     */
     fun imap(c: Cuenta): ImapAccount? {
+        if (c.esOauth) {
+            val token = GoogleAuth.tokenSilencioso(ctx)
+            return ImapAccount(c.email, c.host, c.port, Security.of(c.security), c.user.ifBlank { c.email }, token, oauth = true)
+        }
         val pw = Secretos.descifrar(c.clave) ?: return null
         return ImapAccount(c.email, c.host, c.port, Security.of(c.security), c.user.ifBlank { c.email }, pw)
     }
 
     /** Adds or replaces (same id, or same e-mail). Returns the stored account. */
-    fun guardar(id: String?, email: String, proveedor: String, host: String, port: Int, security: String, user: String, password: String?): Cuenta {
+    fun guardar(id: String?, email: String, proveedor: String, host: String, port: Int, security: String, user: String, password: String?, auth: String = AUTH_CLAVE): Cuenta {
         val actual = cuentas.value.firstOrNull { it.id == id } ?: porEmail(email)
-        val clave = if (password.isNullOrEmpty()) actual?.clave ?: "" else Secretos.cifrar(password)
-        val nueva = Cuenta(actual?.id ?: UUID.randomUUID().toString(), email.trim().lowercase(), proveedor, host.trim(), port, security, user.trim(), clave)
+        val clave = if (auth == AUTH_OAUTH) "" else if (password.isNullOrEmpty()) actual?.clave ?: "" else Secretos.cifrar(password)
+        val nueva = Cuenta(actual?.id ?: UUID.randomUUID().toString(), email.trim().lowercase(), proveedor, host.trim(), port, security, user.trim(), clave, auth)
         val lista = cuentas.value.filter { it.id != nueva.id } + nueva
         escribir(lista)
         return nueva
