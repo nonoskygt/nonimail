@@ -133,7 +133,9 @@ jobs:
           cache: npm
           cache-dependency-path: escritorio/package-lock.json
       - run: npm ci
-      - run: echo '{ "origen_descarga": "github" }' > config/build-info.json
+      - name: Origen de la descarga
+        run: |
+          echo '{ "origen_descarga": "github" }' > config/build-info.json
       - name: Compilar
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
