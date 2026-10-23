@@ -56,9 +56,29 @@ test('generate pensando: si se corta sin responder devuelve null (no adivina del
   } finally { srv.close(); }
 });
 
-test('listModels devuelve los nombres ordenados y el digest de cada uno', async () => {
-  const { srv, url } = await fakeOllama(() => ({ body: { models: [{ name: 'b:9b', digest: 'd2' }, { name: 'a:9b', digest: 'd1' }] } }));
+test('listModels y testModel contra Ollama falso', async () => {
+  const { srv, url } = await fakeOllama((path, body) => {
+    if (path === '/api/tags') return { body: { models: [{ name: 'b:9b' }, { name: 'a:9b' }] } };
+    return { body: { response: /90% OFF/.test(body.prompt) ? '95' : '3' } };
+  });
   try {
-    assert.deepEqual(await llm.listModels(url), { ok: true, models: ['a:9b', 'b:9b'], digests: { 'b:9b': 'd2', 'a:9b': 'd1' } });
+    assert.deepEqual(await llm.listModels(url), { ok: true, models: ['a:9b', 'b:9b'] });
+    const t = await llm.testModel(cfgFor(url));
+    assert.equal(t.ok, true);
+    assert.deepEqual(t.results.map(r => r.score), [95, 3]);
+    assert.equal(t.think, null, 'sin "pensar" no se prueba el pensamiento');
+  } finally { srv.close(); }
+});
+
+test('testModel avisa si el modelo no termina de pensar', async () => {
+  const { srv, url } = await fakeOllama((path, body) => body.think
+    ? { body: { response: '', thinking: '…', done_reason: 'length' } }
+    : { body: { response: /90% OFF/.test(body.prompt) ? '95' : '3' } });
+  try {
+    const cfg = cfgFor(url); cfg.llm.think = true;
+    const t = await llm.testModel(cfg);
+    assert.equal(t.ok, true);
+    assert.equal(t.think.ok, false);
+    assert.match(t.think.error, /no termina de pensar con 100 tokens/);
   } finally { srv.close(); }
 });
