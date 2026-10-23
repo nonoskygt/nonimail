@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-10-23
+
+### Changed
+- **Busca la versión nueva cada vez que abre la app.** Antes esperaba al menos 6 horas desde la última búsqueda, y una versión recién publicada tardaba en llegar. Sigue buscando sola cada 12 horas en segundo plano.
+
 ## [1.4.0] - 2026-10-23
 
 ### Added
