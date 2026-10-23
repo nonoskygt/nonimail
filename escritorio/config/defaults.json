@@ -1,0 +1,315 @@
+{
+  "language": "",
+  "closeAction": "ask",
+  "appearance": {
+    "mode": "auto",
+    "accent": "carmesi",
+    "dayStartHour": 6,
+    "nightStartHour": 18,
+    "recheckMs": 60000,
+    "background": {
+      "light": "#f3f0e9",
+      "dark": "#1a1e25"
+    }
+  },
+  "host": "127.0.0.1",
+  "port": 8765,
+  "desktopPort": 0,
+  "http": {
+    "maxBodyBytes": 1048576,
+    "sseRetryMs": 3000
+  },
+  "service": {
+    "url": "https://mt.nonosky.com",
+    "timeoutMs": 8000
+  },
+  "links": {
+    "repo": "https://github.com/nonoskygt/nonimail-tools",
+    "issues": "https://github.com/nonoskygt/nonimail-tools/issues",
+    "releases": "https://github.com/nonoskygt/nonimail-tools/releases/latest",
+    "docs": {
+      "es": "https://github.com/nonoskygt/nonimail-tools/blob/main/README.es.md",
+      "en": "https://github.com/nonoskygt/nonimail-tools/blob/main/README.md"
+    },
+    "googleGuide": {
+      "es": "https://github.com/nonoskygt/nonimail-tools/blob/main/README.es.md#conectar-con-google",
+      "en": "https://github.com/nonoskygt/nonimail-tools/blob/main/README.md#connect-with-google"
+    },
+    "googleAppPasswords": "https://myaccount.google.com/apppasswords",
+    "googleCloudConsole": "https://console.cloud.google.com/apis/credentials"
+  },
+  "ollamaUrl": "http://127.0.0.1:11434",
+  "model": "qwen3.5:2b",
+  "ollama": {
+    "installer": {
+      "windows": "https://ollama.com/download/OllamaSetup.exe",
+      "windowsArgs": [
+        "/VERYSILENT",
+        "/SUPPRESSMSGBOXES",
+        "/NORESTART",
+        "/SP-"
+      ],
+      "windowsApp": "%LOCALAPPDATA%\\Programs\\Ollama\\ollama app.exe",
+      "linux": "https://ollama.com/install.sh",
+      "linuxManual": "curl -fsSL {url} | sh"
+    },
+    "exePaths": {
+      "win32": [
+        "%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe",
+        "%ProgramFiles%\\Ollama\\ollama.exe",
+        "%ProgramFiles(x86)%\\Ollama\\ollama.exe"
+      ],
+      "linux": ["/usr/local/bin/ollama", "/usr/bin/ollama"],
+      "darwin": ["/usr/local/bin/ollama", "/opt/homebrew/bin/ollama", "/Applications/Ollama.app/Contents/Resources/ollama"]
+    },
+    "tiers": [
+      { "id": "basic", "tag": "qwen3.5:2b", "sizeBytes": 2683396812, "ramGb": 10, "vramGb": 4 }
+    ],
+    "hardwareTimeoutMs": 4000,
+    "warmupTimeoutMs": 300000,
+    "probeTimeoutMs": 5000,
+    "requestTimeoutMs": 120000,
+    "thinkTimeoutMs": 300000,
+    "testTimeoutMs": 180000,
+    "downloadTimeoutMs": 1800000,
+    "installTimeoutMs": 1800000,
+    "startWaitMs": 90000,
+    "pullTimeoutMs": 21600000
+  },
+  "google": {
+    "clientId": "",
+    "clientSecret": "",
+    "authUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+    "tokenUrl": "https://oauth2.googleapis.com/token",
+    "revokeUrl": "https://oauth2.googleapis.com/revoke",
+    "timeoutMs": 20000,
+    "pendingTtlMs": 900000
+  },
+  "imap": {
+    "connectionTimeoutMs": 20000,
+    "greetingTimeoutMs": 20000,
+    "socketTimeoutMs": 120000
+  },
+  "smtp": {
+    "connectionTimeoutMs": 15000,
+    "greetingTimeoutMs": 15000,
+    "socketTimeoutMs": 30000
+  },
+  "unsubscribe": {
+    "timeoutMs": 20000,
+    "maxRedirects": 5
+  },
+  "llm": {
+    "enabled": true,
+    "numCtx": 4096,
+    "parallel": 1,
+    "think": false,
+    "thinkNumPredict": 2048,
+    "thinkNumCtx": 8192,
+    "doubtLow": 35,
+    "doubtHigh": 65,
+    "categoryScores": { "PERSONAL": 3, "SEGURIDAD": 3, "TRANSACCION": 10, "OTRO": 50, "BOLETIN": 85, "SOCIAL": 85, "PROMOCION": 95 }
+  },
+  "cleaning": {
+    "daysBack": 30,
+    "windowDays": 30,
+    "fetchChunk": 100,
+    "dureza": 50,
+    "band": 12,
+    "bodyMaxChars": 2500,
+    "protectConversations": true,
+    "myAddresses": [],
+    "autoUnsub": true,
+    "dryRun": true
+  },
+  "heuristicScore": {
+    "base": 10,
+    "bulk": 30,
+    "subject": 30,
+    "from": 15,
+    "body": 15
+  },
+  "sync": {
+    "fetchBatch": 500,
+    "progressEvery": 25,
+    "socketTimeoutMs": 1800000,
+    "maxBytes": 0,
+    "tlsInsecure": false,
+    "maxLogLines": 600
+  },
+  "licenses": {
+    "publicKeyFile": "",
+    "buyPath": "/licencias.html",
+    "verifyPath": "/api/licencias/verificar",
+    "prices": {
+      "currency": "USD",
+      "days": 30,
+      "limpiar": "1",
+      "sincronizar": "2"
+    }
+  },
+  "updates": {
+    "auto": true,
+    "apiUrl": "",
+    "startDelayMs": 10000,
+    "intervalMs": 14400000
+  },
+  "telemetry": {
+    "enabled": true,
+    "installPath": "/api/telemetria/v1/instalacion",
+    "eventsPath": "/api/telemetria/v1/eventos",
+    "flushIntervalMs": 300000,
+    "installIntervalMs": 86400000,
+    "maxQueue": 500,
+    "maxBatch": 200,
+    "maxBodyBytes": 262144,
+    "maxStack": 4000,
+    "timeoutMs": 10000,
+    "quitTimeoutMs": 3000
+  },
+  "filtro": {
+    "compartir": true,
+    "reputacion": true,
+    "decisionesPath": "/api/filtro/v1/decisiones",
+    "reputacionPath": "/api/filtro/v1/reputacion",
+    "intervalMs": 86400000,
+    "timeoutMs": 15000,
+    "maxBatch": 500,
+    "maxQueue": 5000,
+    "minN": 10,
+    "alto": 90,
+    "bajo": 10
+  },
+  "log": {
+    "dir": "logs",
+    "file": "nonimail-tools.log",
+    "maxBytes": 1048576,
+    "files": 5,
+    "keepRuns": 30
+  },
+  "metrics": {
+    "intervalMs": 2500,
+    "gpuTimeoutMs": 4000
+  },
+  "presets": {
+    "gmail": {
+      "label": "Gmail",
+      "imap": {
+        "host": "imap.gmail.com",
+        "port": 993,
+        "secure": true
+      },
+      "smtp": {
+        "host": "smtp.gmail.com",
+        "port": 465,
+        "secure": true
+      }
+    },
+    "yahoo": {
+      "label": "Yahoo",
+      "imap": {
+        "host": "imap.mail.yahoo.com",
+        "port": 993,
+        "secure": true
+      },
+      "smtp": {
+        "host": "smtp.mail.yahoo.com",
+        "port": 465,
+        "secure": true
+      }
+    },
+    "icloud": {
+      "label": "iCloud",
+      "imap": {
+        "host": "imap.mail.me.com",
+        "port": 993,
+        "secure": true
+      },
+      "smtp": {
+        "host": "smtp.mail.me.com",
+        "port": 587,
+        "secure": false
+      }
+    },
+    "aol": {
+      "label": "AOL",
+      "imap": {
+        "host": "imap.aol.com",
+        "port": 993,
+        "secure": true
+      },
+      "smtp": {
+        "host": "smtp.aol.com",
+        "port": 465,
+        "secure": true
+      }
+    },
+    "zoho": {
+      "label": "Zoho",
+      "imap": {
+        "host": "imap.zoho.com",
+        "port": 993,
+        "secure": true
+      },
+      "smtp": {
+        "host": "smtp.zoho.com",
+        "port": 465,
+        "secure": true
+      }
+    },
+    "gmx": {
+      "label": "GMX",
+      "imap": {
+        "host": "imap.gmx.com",
+        "port": 993,
+        "secure": true
+      },
+      "smtp": {
+        "host": "mail.gmx.com",
+        "port": 465,
+        "secure": true
+      }
+    },
+    "yandex": {
+      "label": "Yandex",
+      "imap": {
+        "host": "imap.yandex.com",
+        "port": 993,
+        "secure": true
+      },
+      "smtp": {
+        "host": "smtp.yandex.com",
+        "port": 465,
+        "secure": true
+      }
+    },
+    "fastmail": {
+      "label": "Fastmail",
+      "imap": {
+        "host": "imap.fastmail.com",
+        "port": 993,
+        "secure": true
+      },
+      "smtp": {
+        "host": "smtp.fastmail.com",
+        "port": 465,
+        "secure": true
+      }
+    },
+    "custom": {
+      "label": ""
+    }
+  },
+  "accounts": [],
+  "activeAccount": "",
+  "setup": {
+    "done": false
+  },
+  "heuristics": {
+    "keepOverride": "(bi en l[ií]nea|bi-?b@?nking|banco industrial|banrural|\\bbac\\b|g&t|bantrab|promerica|\\bbam\\b|\\bbanco\\b|\\bbank\\b|estado de cuenta|operaci[oó]n electr[oó]nica|transferencia|comprobante|\\brecibo\\b|receipt|\\bfactura\\b|invoice|\\bfel\\b|\\bsat\\b|\\bsaldo\\b|tarjeta de cr[eé]dito|dep[oó]sito|c[oó]digo de (verificaci[oó]n|seguridad)|c[oó]digo es \\d|verification code|\\botp\\b|inicio de sesi[oó]n|new login|alerta de seguridad|security alert|sesi[oó]n (expirada|restaurada|confirmada)|payment|pago|recordatorio de pago|\\bcotizaci[oó]n\\b)",
+    "subject": "(\\b\\d{1,3}\\s*%\\s*(off|de\\s*descuento|dto)\\b|\\bdeal\\b|\\bsale\\b|\\boferta\\b|\\bdescuento\\b|\\bgratis\\b|\\bfree\\b|\\bsave\\b|\\bahorra\\b|\\bexclusive\\b|\\bexclusiv[oa]\\b|\\bspecial offer\\b|\\bcombo\\b|\\bnewsletter\\b|\\bpromo\\b|cyber monday|black friday|prime day|flash sale|limited time|hurry|urgente|añade a|cuenta nueva)",
+    "from": "(noreply|no-reply|donotreply|marketing|newsletter|promociones|promotions|deals|hello@|news@|info@|updates@|notifications@|mailer|campaign)",
+    "body": "(unsubscribe|darse de baja|cancelar suscripci|view in browser|ver en navegador|click here|haz click aqui|shop now|comprar ahora|act now|don.t miss|no te lo pierdas)"
+  },
+  "llmPrompt": "Clasifique este correo en UNA categoría. Responda solo la palabra.\nPERSONAL: lo escribió una persona (amigo, familia, colega, cliente), incluye respuestas \"Re:\".\nTRANSACCION: factura, recibo, pago, estado de cuenta, pedido o envío del usuario, cita, trámite, renovación de un servicio, avisos del gobierno o de impuestos (SAT, declaraciones, municipalidad).\nSEGURIDAD: código de verificación, inicio de sesión, alerta de cuenta, cambio de contraseña.\nPROMOCION: ofertas, descuentos, cupones, ventas, webinars, encuestas, publicidad.\nBOLETIN: newsletter, noticias, novedades, resúmenes.\nSOCIAL: notificaciones de redes sociales (invitaciones, likes, seguidores).\nOTRO: notificación automática que no encaja arriba.\nUna cuenta de empresa que manda un aviso del pedido, pago o cuenta del usuario es TRANSACCION o SEGURIDAD, no PROMOCION.\nSi invita a comprar, ofrece descuento, cupón, envío gratis o \"solo hoy\", es PROMOCION aunque mencione pedidos o envíos."
+}

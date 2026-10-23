@@ -1,0 +1,113 @@
+name: Release
+
+# Al subir una etiqueta v* se compilan los instaladores en Windows y Linux y se publican en GitHub Releases,
+# con sumas SHA256 y copias con nombre estable (las que enlazan los scripts de instalación y el sitio).
+# Para la actualización automática también se publican latest.yml (+ .blockmap) en Windows y latest-linux.yml
+# en Linux: electron-builder los genera junto al instalador (con --publish never igual, porque package.json
+# trae build.publish) y citan los archivos CON versión en el nombre, que se suben tal cual.
+# Se compila con --publish never y se sube todo en un único paso (publish): así los dos sistemas no compiten por crear
+# la misma release ni se sube nada dos veces.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compilar (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: La etiqueta debe coincidir con package.json
+        shell: bash
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          if [ "v$v" != "${GITHUB_REF_NAME}" ]; then echo "La etiqueta ${GITHUB_REF_NAME} no coincide con la versión $v"; exit 1; fi
+      - run: npm ci
+      - run: npm test
+      # El build de GitHub Releases declara su origen para la telemetría (TELEMETRIA.md: origen_descarga)
+      - name: Origen de la descarga
+        shell: bash
+        run: |
+          echo '{ "origen_descarga": "github" }' > config/build-info.json
+          cat config/build-info.json
+      # Cliente OAuth «Desktop app» de Nonosky para «Iniciar sesión con Google». En apps de escritorio estos
+      # valores no son confidenciales (Google lo dice así) y PKCE protege el flujo; se inyectan al compilar
+      # desde los secretos del repositorio y quedan en el defaults.json empaquetado, nunca en el código.
+      - name: Cliente de Google de la versión
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "Sin GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET: esta versión sale sin «Iniciar sesión con Google»"
+          else
+            node -e "const fs=require('fs');const f='config/defaults.json';const d=JSON.parse(fs.readFileSync(f,'utf8'));d.google.clientId=process.env.GOOGLE_CLIENT_ID;d.google.clientSecret=process.env.GOOGLE_CLIENT_SECRET;fs.writeFileSync(f,JSON.stringify(d,null,2)+'\n');"
+            echo "Cliente de Google inyectado en config/defaults.json (valores no mostrados)"
+          fi
+      - name: Compilar (Windows)
+        if: runner.os == 'Windows'
+        run: npx electron-builder --win nsis portable --publish never
+      - name: Compilar (Linux)
+        if: runner.os == 'Linux'
+        run: npx electron-builder --linux AppImage deb --publish never
+      - name: Copias con nombre estable
+        shell: bash
+        working-directory: dist
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp NoniMail-Tools-Setup-*.exe NoniMail-Tools-Setup.exe
+            cp NoniMail-Tools-Portable-*.exe NoniMail-Tools-Portable.exe
+          else
+            cp NoniMail-Tools-*.AppImage NoniMail-Tools.AppImage
+            cp nonimail-tools_*_amd64.deb nonimail-tools_amd64.deb
+          fi
+          ls -la
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instaladores-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            dist/NoniMail-Tools-*.exe
+            dist/NoniMail-Tools*.AppImage
+            dist/nonimail-tools_*.deb
+            dist/*.blockmap
+            dist/latest*.yml
+
+  publish:
+    name: Publicar
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Sumas SHA256
+        working-directory: release
+        run: |
+          ls -la
+          # los metadatos de actualización (latest*.yml) y los .blockmap se suben pero no llevan suma
+          test -f latest.yml && test -f latest-linux.yml
+          grep -q 'NoniMail-Tools-Setup-' latest.yml && grep -q 'NoniMail-Tools-.*AppImage' latest-linux.yml
+          ls | grep -v -E '^latest.*\.yml$|\.blockmap$' | xargs sha256sum > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          make_latest: true
+          fail_on_unmatched_files: true

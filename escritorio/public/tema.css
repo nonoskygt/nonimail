@@ -1,0 +1,239 @@
+/* Tema «Dulce» de NoniMail Tools (escritorio). Valores de TEMA-DULCE.md: cream/oscuro, seis acentos,
+   modo claro/oscuro/auto. Los pone theme-init.js en <html data-theme data-acento> antes de pintar.
+   Letra Figtree incluida en el paquete (licencia OFL, ver fonts/OFL.txt). */
+
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/figtree-latin-ext-wght-normal.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/figtree-latin-wght-normal.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- Claro (predeterminado también sin JavaScript) ---------- */
+
+:root,
+html[data-theme="dulce"] {
+  color-scheme: light;
+
+  --bg: #f3f0e9;            /* lienzo crema */
+  --bg2: #ece8df;           /* riel, barra lateral */
+  --panel: #fcfbf8;         /* tarjeta */
+  --panel2: #f6f3ed;        /* hundido: input, hover, registro */
+  --border: #e3ddd1;
+  --border2: #d4ccbe;
+  --hair: #e6e0d5;          /* borde suave de tarjeta */
+  --text: #27241f;
+  --muted: #5c574e;
+  --ink3: #6b655a;
+  --field: #fffefb;
+  --placeholder: #7a7366;
+  --border-control: #8a8172; /* borde de inputs y casillas: 3:1 sobre --field y --panel */
+  --raise: #fff;            /* hover que «levanta» */
+  --chip: #ebe6dc;
+
+  --teal: #17695c;
+  --green: #1d6f40;
+  --amber: #8a5a14;
+  --red: #b42318;
+  --blue: #2c5d9e;          /* el azul del acento «azul»: para estados informativos */
+
+  /* Rellenos con texto blanco encima (en claro coinciden con el color de texto). */
+  --teal-fill: #17695c;   --teal-press: #10544a;
+  --green-fill: #1d6f40;  --green-press: #175b34;
+  --amber-fill: #8a5a14;  --amber-press: #724a10;
+  --red-fill: #b42318;    --red-press: #951d13;
+  --blue-fill: #2c5d9e;   --blue-press: #234c83;
+  --on-fill: #fff;
+
+  --shade-rgb: 70, 52, 28;
+  --ink-rgb: 39, 36, 31;
+  --glow-a: rgba(214, 160, 72, 0.10);   /* resplandor ámbar arriba a la derecha */
+  --glow-b: rgba(184, 40, 63, 0.05);
+  --shadow-card: 0 1px 2px rgba(var(--shade-rgb), 0.06), 0 8px 24px -14px rgba(var(--shade-rgb), 0.16);
+  --shadow-pop: 0 2px 6px rgba(var(--shade-rgb), 0.08), 0 24px 48px -20px rgba(var(--shade-rgb), 0.30);
+  --scrim: rgba(38, 30, 18, 0.34);
+  --tint-pct: 10%;
+
+  /* Acento carmesí (los demás acentos sólo cambian estas tres). */
+  --accent: #b8283f;        /* texto e íconos */
+  --accent-fill: #b8283f;   /* botones e interruptores, con texto blanco */
+  --accent-press: #9e2135;
+
+  /* Muestras del selector de color: en claro, el relleno de cada acento. */
+  --sw-carmesi: #b8283f;
+  --sw-verde-azulado: #17695c;
+  --sw-violeta: #7a45ad;
+  --sw-azul: #2c5d9e;
+  --sw-ambar: #8a5a14;
+  --sw-verde: #1d6f40;
+}
+
+/* ---------- Oscuro ---------- */
+
+html[data-theme="dulce-dark"] {
+  color-scheme: dark;
+
+  --bg: #1a1e25;
+  --bg2: #171a20;
+  --panel: #21262e;
+  --panel2: #272c35;
+  --border: #343a45;
+  --border2: #434a57;
+  --hair: #2f353f;
+  --text: #ebe7df;
+  --muted: #b3b8c1;
+  --ink3: #9aa0ab;
+  --field: #1d2128;
+  --placeholder: #8d939e;
+  --border-control: #737b88;
+  --raise: #2e343e;
+  --chip: #2e343e;
+
+  --teal: #63c9b7;
+  --green: #5cc98a;
+  --amber: #e2ac52;
+  --red: #f68d80;
+  --blue: #8db8ec;
+
+  --teal-fill: #1c7d6d;   --teal-press: #17695c;
+  --green-fill: #1f7a47;  --green-press: #1a6a3d;
+  --amber-fill: #8f5e16;  --amber-press: #7a4f12;
+  --red-fill: #b23a2e;    --red-press: #9b3228;
+  --blue-fill: #2f63a8;   --blue-press: #27548f;
+  --on-fill: #fff;
+
+  --shade-rgb: 0, 0, 0;
+  --ink-rgb: 235, 231, 223;
+  --glow-a: rgba(198, 54, 80, 0.075);
+  --glow-b: rgba(96, 165, 170, 0.06);
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 12px 32px -20px rgba(0, 0, 0, 0.7);
+  --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 48px -20px rgba(0, 0, 0, 0.6);
+  --scrim: rgba(9, 11, 15, 0.62);
+  --tint-pct: 16%;
+
+  --accent: #ea7a8f;
+  --accent-fill: #b8364e;
+  --accent-press: #a52f45;
+
+  /* En oscuro la muestra es el acento como texto: así se distingue sobre la tarjeta. */
+  --sw-carmesi: #ea7a8f;
+  --sw-verde-azulado: #63c9b7;
+  --sw-violeta: #c6a6ec;
+  --sw-azul: #8db8ec;
+  --sw-ambar: #e2ac52;
+  --sw-verde: #5cc98a;
+}
+
+/* ---------- Acentos ----------
+   Cada acento tiene su regla clara y su regla oscura; la oscura pesa más (dos atributos). */
+
+html[data-acento="carmesi"] { --accent: #b8283f; --accent-fill: #b8283f; --accent-press: #9e2135; }
+html[data-theme="dulce-dark"][data-acento="carmesi"] { --accent: #ea7a8f; --accent-fill: #b8364e; --accent-press: #a52f45; }
+
+html[data-acento="verde-azulado"] { --accent: #17695c; --accent-fill: #17695c; --accent-press: #10544a; }
+html[data-theme="dulce-dark"][data-acento="verde-azulado"] { --accent: #63c9b7; --accent-fill: #1c7d6d; --accent-press: #17695c; }
+
+html[data-acento="violeta"] { --accent: #7a45ad; --accent-fill: #7a45ad; --accent-press: #643893; }
+html[data-theme="dulce-dark"][data-acento="violeta"] { --accent: #c6a6ec; --accent-fill: #7d4fb0; --accent-press: #6a3f99; }
+
+html[data-acento="azul"] { --accent: #2c5d9e; --accent-fill: #2c5d9e; --accent-press: #234c83; }
+html[data-theme="dulce-dark"][data-acento="azul"] { --accent: #8db8ec; --accent-fill: #2f63a8; --accent-press: #27548f; }
+
+html[data-acento="ambar"] { --accent: #8a5a14; --accent-fill: #8a5a14; --accent-press: #724a10; }
+html[data-theme="dulce-dark"][data-acento="ambar"] { --accent: #e2ac52; --accent-fill: #8f5e16; --accent-press: #7a4f12; }
+
+html[data-acento="verde"] { --accent: #1d6f40; --accent-fill: #1d6f40; --accent-press: #175b34; }
+html[data-theme="dulce-dark"][data-acento="verde"] { --accent: #5cc98a; --accent-fill: #1f7a47; --accent-press: #1a6a3d; }
+
+/* ---------- Tokens derivados (mismo elemento: siguen al modo y al acento) ---------- */
+
+:root {
+  --on-accent: var(--on-fill);
+  --accent-tint: color-mix(in srgb, var(--accent-fill) var(--tint-pct), var(--panel));
+  --accent-soft: color-mix(in srgb, var(--accent-fill) 12%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 45%, transparent);
+  --accent-ring: color-mix(in srgb, var(--accent-fill) 18%, transparent);
+  --accent-shadow: 0 1px 2px color-mix(in srgb, var(--accent-fill) 22%, transparent),
+    0 6px 14px -8px color-mix(in srgb, var(--accent-fill) 55%, transparent);
+  --selection: color-mix(in srgb, var(--accent) 20%, transparent);
+
+  --teal-tint: color-mix(in srgb, var(--teal) var(--tint-pct), var(--panel));
+  --green-tint: color-mix(in srgb, var(--green) var(--tint-pct), var(--panel));
+  --amber-tint: color-mix(in srgb, var(--amber) var(--tint-pct), var(--panel));
+  --red-tint: color-mix(in srgb, var(--red) var(--tint-pct), var(--panel));
+  --blue-tint: color-mix(in srgb, var(--blue) var(--tint-pct), var(--panel));
+  --teal-line: color-mix(in srgb, var(--teal) 40%, transparent);
+  --green-line: color-mix(in srgb, var(--green) 40%, transparent);
+  --amber-line: color-mix(in srgb, var(--amber) 40%, transparent);
+  --red-line: color-mix(in srgb, var(--red) 40%, transparent);
+  --blue-line: color-mix(in srgb, var(--blue) 40%, transparent);
+
+  --topbar: color-mix(in srgb, var(--panel) 90%, transparent);
+  --row-hover: rgba(var(--ink-rgb), 0.035);
+
+  --font-ui: "Figtree", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --radius: 10px;           /* controles */
+  --radius-lg: 14px;        /* tarjetas */
+  --radius-pill: 999px;     /* chips y pastillas */
+}
+
+/* ---------- Superficies del navegador ---------- */
+
+html {
+  background-color: var(--bg);
+}
+
+body {
+  background:
+    radial-gradient(1100px 520px at 88% -12%, var(--glow-a), transparent 62%),
+    radial-gradient(820px 420px at -8% 108%, var(--glow-b), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+::selection {
+  background: var(--selection);
+  color: var(--text);
+}
+
+* {
+  scrollbar-color: rgba(var(--ink-rgb), 0.2) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--ink-rgb), 0.16);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input:is([type="checkbox"], [type="radio"], [type="range"]),
+progress {
+  accent-color: var(--accent-fill);
+}
+
+:is(h1, h2, h3) {
+  letter-spacing: -0.012em;
+}
+

@@ -1,0 +1,39 @@
+# === Secretos y datos personales — NUNCA versionar ===
+# Contraseña IMAP, Client Secret y token de Google.
+secrets.json
+# Tu cuenta, tus direcciones y (en 1.x) la clave del bridge; y los respaldos de la migración.
+config.json
+config.json.bak*
+# Trabajos sin terminar: remitentes y asuntos reales.
+progress.json
+*.tmp
+# Reglas por remitente: direcciones de correo reales de terceros.
+senders.json
+# Copia local del bridge con la API key real hardcodeada.
+# Lo que se publica es gmail_bridge.example.gs
+gmail_bridge_patched.gs
+
+# === Salida de ejecución sobre el buzón real ===
+# Los logs registran asuntos, remitentes y decisiones de correos reales.
+logs/
+*.log
+server-stdout.txt
+
+# === Configuración local ===
+config.local.json
+.env
+.env.*
+
+# === Entorno ===
+node_modules/
+# Caché local de graphify (grafo del código generado en esta máquina)
+graphify-out/
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Artefactos de compilación (electron-builder) y datos de la compilación de GitHub Releases
+dist/
+config/build-info.json
