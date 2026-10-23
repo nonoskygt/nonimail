@@ -78,6 +78,10 @@ class HeuristicaTest {
         assertEquals(42, Ollama.parseScore("de 0 a 100 -> 42", null))
         assertEquals(7, Ollama.parseScore("sin numero", 7))
         assertNull(Ollama.parseScore(null, null))
+        val cat = Defaults.instance.llm.categoryScores
+        assertEquals(95, Ollama.parseScore("PROMOCION", null, cat))
+        assertEquals(10, Ollama.parseScore(" Transacción.", null, cat))
+        assertEquals(3, Ollama.parseScore("seguridad", null, cat))
     }
 
     @Test fun ollamaUrlNormalization() {

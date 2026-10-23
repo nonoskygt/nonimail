@@ -9,11 +9,10 @@ class ModelosTest {
     private val cfg = Defaults.instance.localAi
     private val gb = 1024L * 1024 * 1024
 
-    @Test fun recomiendaElMayorQueCabe() {
-        assertEquals("basico", Recomendador.recomendar(cfg, 3 * gb, 50 * gb).id)    // gama baja
-        assertEquals("mediano", Recomendador.recomendar(cfg, 8 * gb, 50 * gb).id)   // gama media/alta
-        assertEquals("grande", Recomendador.recomendar(cfg, 16 * gb, 50 * gb).id)   // tope de gama
-        assertEquals("basico", Recomendador.recomendar(cfg, 16 * gb, 2 * gb).id)    // sin espacio
+    @Test fun unSoloModeloProbado() {
+        assertEquals(listOf("basico"), cfg.models.map { it.id })                  // solo Gemma 4 E2B (24/24 en nuestro banco)
+        assertEquals("basico", Recomendador.recomendar(cfg, 3 * gb, 50 * gb).id)
+        assertEquals("basico", Recomendador.recomendar(cfg, 16 * gb, 2 * gb).id)
     }
 
     @Test fun progresoDeDescarga() {

@@ -36,7 +36,7 @@ data class Valores(
     val ollamaModelo: String = BuildConfig.OLLAMA_MODEL,
     /** "" = none, "basico" / "mediano" / "grande" = model on the phone, "red" = Ollama on the LAN. */
     val iaModo: String = "",
-    /** Id of the tier whose model was downloaded, verified and loaded once. */
+    /** File name of the model that was downloaded, verified and loaded once (a retired model no longer matches). */
     val iaListoId: String = "",
     val telemetria: Boolean = true,
     val serviceUrl: String = BuildConfig.SERVICE_URL,
@@ -61,10 +61,11 @@ data class Valores(
 ) {
     /** Installs from before 1.1 only had the Ollama address. */
     val iaModoEfectivo: String get() = iaModo.ifBlank { if (ollamaUrl.isNotBlank()) "red" else "" }
+        .let { m -> if (m == "" || m == "red" || Defaults.instance.localAi.models.any { it.id == m }) m else "" } // tier retirado → sin IA hasta elegir
     val iaActiva: Boolean get() = when (val m = iaModoEfectivo) {
         "" -> false
         "red" -> ollamaUrl.isNotBlank()
-        else -> iaListoId == m
+        else -> Defaults.instance.localAi.models.firstOrNull { it.id == m }?.archivo == iaListoId
     }
     val modo: Modo get() = Modo.of(modoElegido)
     val acento: Acento get() = Acento.of(acentoElegido)

@@ -91,6 +91,8 @@ data class LlmDefaults(
     val numCtx: Int,
     val numPredict: Int,
     val prompt: String,
+    /** The model answers one category word; the app turns it into a score. */
+    val categoryScores: Map<String, Int> = emptyMap(),
 )
 
 @Serializable

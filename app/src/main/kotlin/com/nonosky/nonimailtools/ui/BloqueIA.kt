@@ -67,7 +67,9 @@ fun BloqueIA() {
         val enFila = maxWidth >= ANCHO_FILA
         val tarjetas: @Composable (Modifier, ModeloIa) -> Unit = { mod, m ->
             NivelTarjeta(
-                nombre = nombreNivel(m.id), tamano = bytesLegibles(m.bytes), horizontal = !enFila,
+                nombre = nombreNivel(m.id),
+                tamano = stringResource(R.string.ia_requisitos, bytesLegibles(m.bytes), bytesLegibles(Defaults.instance.localAi.let { it.ramMultiple * m.bytes + it.ramExtraMb * 1024L * 1024L })),
+                horizontal = !enFila,
                 elegido = elegido == m.id, recomendado = m.id == recomendado, activo = !trabajando,
                 onClick = { app.ajustes.iaModo(m.id) }, modifier = mod,
             )
@@ -90,7 +92,7 @@ fun BloqueIA() {
     val modelo = niveles.firstOrNull { it.id == elegido }
     if (modelo != null) {
         val e = if (enCursoId == modelo.id) estado else EstadoIa.Inactivo
-        PasoModelo(modelo, e, listo = v.iaListoId == modelo.id && (e is EstadoIa.Inactivo || e is EstadoIa.Listo))
+        PasoModelo(modelo, e, listo = v.iaListoId == modelo.archivo && (e is EstadoIa.Inactivo || e is EstadoIa.Listo))
     }
     if (elegido == "red") PanelServidorRed()
 }

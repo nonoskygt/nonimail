@@ -58,6 +58,7 @@
     <string name="ia_no_responde">No answer from the server</string>
     <string name="ia_ram">Your phone: %1$s RAM · %2$s free</string>
     <string name="ia_recomendado">Recommended for your phone</string>
+    <string name="ia_requisitos">%1$s · needs %2$s of RAM</string>
     <string name="ia_basico">Basic</string>
     <string name="ia_mediano">Medium</string>
     <string name="ia_grande">Large</string>

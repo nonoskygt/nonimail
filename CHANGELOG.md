@@ -3,6 +3,12 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-10-23
+
+### Changed
+- **Un solo modelo en el teléfono: Gemma 4 E2B.** Es el único que acertó los 24 correos de nuestro banco de pruebas (alertas de seguridad, pedidos, facturas, trámites, correos personales y promociones). Qwen3 0.6B y Gemma 4 E4B se retiraron; sus archivos se borran al preparar el modelo nuevo. La tarjeta muestra el tamaño y la RAM que necesita.
+- **La IA clasifica por categoría.** El modelo responde una palabra (PERSONAL, TRANSACCION, SEGURIDAD, PROMOCION, BOLETIN, SOCIAL u OTRO) y la app la convierte en puntaje (`llm.categoryScores`), igual que la app de escritorio 1.3.5.
+
 ## [1.2.0] - 2026-10-22
 
 ### Added

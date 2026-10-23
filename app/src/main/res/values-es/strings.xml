@@ -58,6 +58,7 @@
     <string name="ia_no_responde">El servidor no responde</string>
     <string name="ia_ram">Su teléfono: %1$s de RAM · %2$s libres</string>
     <string name="ia_recomendado">Recomendado para su teléfono</string>
+    <string name="ia_requisitos">%1$s · requiere %2$s de RAM</string>
     <string name="ia_basico">Básico</string>
     <string name="ia_mediano">Mediano</string>
     <string name="ia_grande">Grande</string>
