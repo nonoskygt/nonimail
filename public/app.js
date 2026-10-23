@@ -600,7 +600,8 @@
     $('ai-on').checked = !!s.llm.enabled || !!S.config.aiEnabled;
     $('sys-close').value = s.closeAction || 'ask';
     $('ai-url').value = s.ollamaUrl; $('ai-model').value = s.model;
-    if (S.sec === 'ia') mountOllamaPanel($('ai-panel'), { getModel: () => $('ai-model').value.trim(), keepCustom: true, onSelect: (tag) => { $('ai-model').value = tag; }, onValidated: showValidation });
+    $('ai-think').checked = !!s.llm.think; $('ai-think-n').value = s.llm.thinkNumPredict;
+    if (S.sec === 'ia') mountOllamaPanel($('ai-panel'), { getModel: () => $('ai-model').value.trim(), keepCustom: true, onSelect: (tag) => { $('ai-model').value = tag; } });
     // limpieza
     const c = s.cleaning;
     for (const k of ['daysBack', 'windowDays', 'dureza', 'band', 'fetchChunk', 'bodyMaxChars']) $(`c-${k}`).value = c[k];
@@ -796,19 +797,19 @@
       msg.append(h('div', { class: `msgline ${r.ok ? 'ok' : 'warn'}`, text: r.ok ? t('ui.ai.ready', { v: r.version }) : r.error }));
     } catch (e) { msg.append(h('div', { class: 'msgline bad', text: e.message })); }
   };
-  // «Probar modelo» es la validación completa: avanza en la barra del panel («Validando modelo… 7/16») y se puede cancelar
-  function showValidation(ev) {
-    const msg = clear($('ai-msg'));
-    if (ev.error) return msg.append(h('div', { class: ev.cancelled ? 'msgline warn' : 'msgline bad', text: ev.cancelled ? t('ui.ai.cancelled') : ev.error }));
-    msg.append(h('div', { class: `msgline ${ev.pass ? 'ok' : 'bad'}`, text: ev.pass ? t('ui.ai.testOk') : t('ui.ai.testFail') }));
-    for (const r of ev.reasons || []) msg.append(h('div', { class: 'msgline warn', text: r }));
-  }
   $('ai-test').onclick = async () => {
-    clear($('ai-msg'));
-    try { await api('POST', '/api/llm/test', { ollamaUrl: $('ai-url').value.trim(), model: $('ai-model').value.trim() }); } catch (e) { fail(e); }
+    const msg = clear($('ai-msg')); $('ai-test').disabled = true; msg.append(h('div', { class: 'msgline warn', text: t('ui.ai.testing') }));
+    try {
+      const r = await api('POST', '/api/llm/test', { ollamaUrl: $('ai-url').value.trim(), model: $('ai-model').value.trim(), think: $('ai-think').checked, thinkNumPredict: $('ai-think-n').value });
+      clear(msg);
+      for (const x of r.results || []) msg.append(h('div', { class: 'msgline', text: `${x.name}: ${x.score ?? '?'} (${t('ui.ai.expect')} ${x.expect}) · ${x.ms} ms` }));
+      if (r.think) msg.append(h('div', { class: `msgline ${r.think.ok ? 'ok' : 'warn'}`, text: r.think.ok ? `${t('ui.ai.think')}: ${r.think.score ?? '?'} · ${r.think.ms} ms` : r.think.error }));
+      msg.append(h('div', { class: `msgline ${r.ok ? 'ok' : 'bad'}`, text: r.ok ? t('ui.ai.testOk') : (r.error || t('ui.ai.testFail')) }));
+    } catch (e) { clear(msg).append(h('div', { class: 'msgline bad', text: e.message })); }
+    $('ai-test').disabled = false;
   };
   $('ai-save').onclick = () => {
-    const llmCfg = { enabled: $('ai-on').checked };
+    const llmCfg = { ...S.settings.settings.llm, think: $('ai-think').checked, thinkNumPredict: parseInt($('ai-think-n').value, 10) || 2048, enabled: $('ai-on').checked };
     saveSettings({ ollamaUrl: $('ai-url').value.trim(), model: $('ai-model').value.trim(), llm: llmCfg }, $('ai-msg')).catch(() => {});
   };
   $('ai-url').addEventListener('change', async () => {
@@ -874,7 +875,6 @@
       return { pct: null, label: t('ui.ai.starting') };
     }
     if (ev.task === 'start') return { pct: null, label: t('ui.ai.starting') };
-    if (ev.phase === 'validate') return { pct: ev.pct, label: ev.n ? t('ui.ai.validating', { i: ev.i, n: ev.n }) : t('ui.ai.validatingWait') };
     if (ev.phase === 'configure') return { pct: 100, label: t('ui.ai.configuring') };
     if (ev.pct != null && ev.total) return { pct: ev.pct, label: t('ui.ai.dlModel', { pct: ev.pct, done: gbText(ev.completed), total: gbText(ev.total) }) };
     return { pct: ev.pct, label: t('ui.ai.dlModelWait') };
@@ -888,25 +888,18 @@
   // o: { getModel(), onSelect(tag), onChange(st) }
   function mountOllamaPanel(root, o) {
     for (const old of [...ollamaPanels]) if (old.root === root) ollamaPanels.delete(old);
-    const P = { root, o, st: null, ev: null, checking: true, sel: null, autoStarted: false, manual: null, tried: new Set() };
+    const P = { root, o, st: null, ev: null, checking: true, sel: null, autoStarted: false, manual: null };
     ollamaPanels.add(P);
     P.busy = () => !!(P.ev && !P.ev.done);
     P.refresh = async () => {
       try { P.st = await api('GET', '/api/setup/ollama'); } catch (e) { P.st = null; }
       P.checking = false;
-      if (P.st && P.sel && !P.st.tiers.some(x => x.tag === P.sel)) P.sel = null; // el tier elegido ya no se ofrece (no pasó la prueba)
       if (P.st && !P.sel) {
-        const cur = o.getModel ? o.getModel() : null;
-        const hit = cur && P.st.tiers.find(x => x.tag === cur);
-        const custom = !!(o.keepCustom && cur && !hit && P.st.models.includes(cur) && !P.st.hidden.includes(cur)); // un modelo propio, fuera de los tiers
-        // por defecto: el recomendado entre los que pasan (lo calcula el servidor), nunca «Básico» si cabe uno mayor
-        P.sel = hit && hit.installed ? hit.tag : custom ? null : P.st.selected;
+        const cur = o.getModel ? o.getModel() : P.st.model;
+        const hit = P.st.tiers.find(x => x.tag === cur);
+        P.sel = hit ? hit.tag : (P.st.tiers.find(x => x.id === P.st.recommended.id) || P.st.tiers[0]).tag;
+        if (!hit && o.keepCustom && cur) P.sel = null;
         if (P.sel && o.onSelect) o.onSelect(P.sel);
-      }
-      // un tier ya instalado y sin resultado guardado se valida solo, de a uno
-      if (P.st && P.st.running && !P.busy()) {
-        const x = P.st.tiers.find(y => y.installed && !y.validation && !P.tried.has(y.tag));
-        if (x) { P.tried.add(x.tag); try { const r = await api('POST', '/api/setup/ollama/validate', { model: x.tag }); if (!r.cached) P.ev = { task: 'validate', phase: 'validate', pct: 0 }; } catch (e) { fail(e); } }
       }
       // instalado pero cerrado: se arranca solo, sin pedirle nada al usuario
       if (P.st && P.st.installed && !P.st.running && !P.autoStarted && !P.busy()) {
@@ -927,8 +920,7 @@
         h('span', { class: 'spacer' }));
       if (notFound && !(busy && ev.task === 'install')) head.append(h('button', { class: 'btn primary', text: t('ui.ai.install'), onclick: () => P.doInstall() }));
       root.append(head);
-      if (st.nonePassed) root.append(h('div', { class: 'msgline warn', text: t('ui.ai.nonePassed') }));
-      if ((st.running || P.sel) && !st.nonePassed) {
+      if (st.running || P.sel) {
         const grid = h('div', { class: 'tiers', role: 'radiogroup' });
         for (const x of st.tiers) {
           const on = P.sel === x.tag, rec = st.recommended.id === x.id;
@@ -947,8 +939,6 @@
       } else if (failed) {
         root.append(h('div', { class: 'prog-row' }, h('div', { class: `msgline ${ev.cancelled ? 'warn' : 'bad'}`, style: 'flex:1', text: ev.cancelled ? t('ui.ai.cancelled') : ev.error }),
           h('button', { class: 'btn sm', text: t('ui.ai.retry'), onclick: () => P.retry() })));
-      } else if (ev && ev.rejected) {
-        root.append(h('div', { class: 'prog-row' }, h('div', { class: 'msgline warn', style: 'flex:1', text: t('ui.ai.rejected', { m: ev.model }) })));
       } else if (st.running && sel) {
         if (sel.installed) root.append(h('div', { class: 'prog-row' }, h('div', { class: 'msgline ok', style: 'flex:1', text: ev && ev.phase === 'done' ? t('ui.ai.done') : t('ui.ai.modelReady', { m: sel.tag }) })));
         else root.append(h('div', { class: 'prog-row' }, h('small', { style: 'flex:1', text: t('ui.ai.modelMissing', { m: sel.tag }) }), h('button', { class: 'btn primary sm', text: t('ui.ai.use1'), onclick: () => P.doPull(sel.tag) })));
@@ -963,7 +953,6 @@
       const k = P.ev && P.ev.task; P.ev = null;
       if (k === 'pull' && P.sel) return P.doPull(P.sel);
       if (k === 'install') return P.doInstall();
-      if (k === 'validate') { P.tried.clear(); return P.refresh(); }
       P.autoStarted = false; return P.refresh();
     };
     P.doInstall = async () => {
@@ -978,7 +967,7 @@
     };
     P.event = (ev) => {
       P.ev = ev;
-      if (ev.done) { if (ev.task === 'validate' && o.onValidated) o.onValidated(ev); P.refresh(); return; }
+      if (ev.done) { P.refresh(); return; }
       P.render(); if (o.onChange) o.onChange(P.st);
     };
     P.render();
@@ -1032,7 +1021,7 @@
         const skip = h('button', { class: 'btn', text: t('ui.ai.skip'), onclick: async () => { try { if (this.panel && this.panel.busy()) await api('POST', '/api/setup/ollama/cancel', {}).catch(() => {}); await api('POST', '/api/setup/prefs', { ai: false }); S.config.aiEnabled = false; this.step = 3; this.render(); } catch (e) { fail(e); } } });
         this.panel = mountOllamaPanel(panelBox, {
           getModel: () => null, // en el configurador manda la recomendación para este equipo
-          onChange: (st) => { const P = this.panel; const sel = P && st && st.tiers.find(x => x.tag === P.sel); nextBtn.disabled = !!(P && P.busy()) || !(st && st.running && ((sel && sel.installed) || st.nonePassed)); },
+          onChange: (st) => { const P = this.panel; const sel = P && st && st.tiers.find(x => x.tag === P.sel); nextBtn.disabled = !!(P && P.busy()) || !(st && st.running && sel && sel.installed); },
         });
         nextBtn.disabled = true;
         foot.append(back(), nextBtn, h('span', { class: 'spacer' }), skip);

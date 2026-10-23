@@ -40,9 +40,10 @@ test('toda clave que el código o la interfaz piden existe en los dos idiomas', 
     for (const m of s.matchAll(/\b(?:t|err|cfgErr)\(\s*'([A-Za-z0-9_.-]+)'/g)) used.add(m[1]);
     for (const m of s.matchAll(/data-i18n(?:-ph|-title)?="([^"]+)"/g)) used.add(m[1]);
   }
-  // claves compuestas: kind.*, sync.side.*, ui.mode.*, ui.accent.*, ui.lic.t.*, ui.wiz.s1-4
+  // claves compuestas: kind.*, llm.sample.*, sync.side.*, ui.mode.*, ui.accent.*, ui.lic.t.*, ui.wiz.s1-4
   for (const k of ['scan', 'execute', 'auto']) used.add(`kind.${k}`);
   used.add('eng.doneClean'); used.add('eng.doneCleanDry');
+  for (const k of ['promo', 'personal']) used.add(`llm.sample.${k}`);
   for (const k of ['origen', 'destino']) used.add(`sync.side.${k}`);
   for (const k of ['auto', 'claro', 'oscuro']) used.add(`ui.mode.${k}`);
   for (const k of ['carmesi', 'verde-azulado', 'violeta', 'azul', 'ambar', 'verde']) used.add(`ui.accent.${k}`);
@@ -232,7 +233,7 @@ test('Ollama: baja el modelo con /api/pull y reporta el progreso hasta "success"
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const events = [], pulled = [];
   const cfg = JSON.parse(JSON.stringify(defaults())); cfg.ollamaUrl = `http://127.0.0.1:${srv.address().port}`;
-  const o = new OllamaSetup({ cfg: () => cfg, sse: e => events.push(e), onPulled: m => pulled.push(m), validateModel: async () => ({ pass: true, reasons: [] }) });
+  const o = new OllamaSetup({ cfg: () => cfg, sse: e => events.push(e), onPulled: m => pulled.push(m) });
   assert.deepEqual(o.pull('m:1b'), { started: true, model: 'm:1b' });
   assert.throws(() => o.pull('otro'), /en curso/);
   for (let i = 0; i < 100 && !(events.length && events[events.length - 1].done); i++) await new Promise(x => setTimeout(x, 40));
