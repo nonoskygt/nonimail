@@ -50,73 +50,9 @@ import com.nonosky.nonimailtools.R
 import com.nonosky.nonimailtools.ui.theme.dulce
 import com.nonosky.nonimailtools.ui.theme.fondoDulce
 
-private const val PASOS = 5
-
-/**
- * First-run configurator: language + appearance, permissions, optional AI, telemetry, first
- * account. It is shown again from Ajustes. [onTerminar] marks it done.
- */
+/** Notifications and battery: shown in Ajustes, each with its button until granted. */
 @Composable
-fun Configurador(onTerminar: () -> Unit, onSalir: (() -> Unit)? = null) {
-    val app = NmtApp.instance
-    val d = dulce
-    val cuentas by app.cuentas.cuentas.collectAsState()
-    var paso by rememberSaveable { mutableIntStateOf(0) }
-
-    Box(Modifier.fillMaxSize().fondoDulce(d).safeDrawingPadding()) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            Column(Modifier.padding(top = 16.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Etiqueta(stringResource(R.string.paso_de, paso + 1, PASOS))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (i in 0 until PASOS) {
-                        Box(
-                            Modifier.weight(1f).height(4.dp)
-                                .background(if (i <= paso) d.accentFill else d.border, CircleShape),
-                        )
-                    }
-                }
-                Text(
-                    stringResource(
-                        when (paso) { 0 -> R.string.cfg_idioma_apariencia; 1 -> R.string.cfg_permisos; 2 -> R.string.cfg_ia; 3 -> R.string.cfg_telemetria; else -> R.string.cfg_cuenta },
-                    ),
-                    style = MaterialTheme.typography.headlineMedium, color = d.text,
-                )
-            }
-
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                when (paso) {
-                    0 -> {
-                        Tarjeta { BloqueIdioma() }
-                        Tarjeta { BloqueApariencia() }
-                    }
-                    1 -> PasoPermisos()
-                    2 -> Tarjeta { BloqueIA() }
-                    3 -> Tarjeta { BloqueTelemetria() }
-                    else -> Tarjeta {
-                        FormularioCuenta(null, onGuardada = { onTerminar() })
-                    }
-                }
-            }
-
-            Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (paso > 0) BotonSecundario(stringResource(R.string.atras), { paso-- }, Modifier.weight(1f))
-                else if (onSalir != null) BotonSecundario(stringResource(R.string.cancelar), onSalir, Modifier.weight(1f))
-                when {
-                    paso == 2 -> {
-                        // The download keeps going in the background: the person can move on.
-                        val hayIa = app.ajustes.valores.collectAsState().value.iaModoEfectivo.isNotBlank()
-                        BotonPrimario(stringResource(if (hayIa) R.string.siguiente else R.string.omitir), { paso++ }, Modifier.weight(1f))
-                    }
-                    paso < PASOS - 1 -> BotonPrimario(stringResource(R.string.siguiente), { paso++ }, Modifier.weight(1f))
-                    cuentas.isNotEmpty() -> BotonPrimario(stringResource(R.string.finalizar), onTerminar, Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PasoPermisos() {
+fun BloquePermisos() {
     val ctx = LocalContext.current
     val d = dulce
     var refresco by remember { mutableIntStateOf(0) }

@@ -53,7 +53,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
-fun AjustesScreen(repetirConfigurador: () -> Unit, modifier: Modifier = Modifier) {
+fun AjustesScreen(modifier: Modifier = Modifier) {
     val app = NmtApp.instance
     val ctx = LocalContext.current
     val d = dulce
@@ -76,11 +76,13 @@ fun AjustesScreen(repetirConfigurador: () -> Unit, modifier: Modifier = Modifier
                 BotonSecundario(stringResource(R.string.agregar_cuenta), { agregando = true }, Modifier.fillMaxWidth(), icono = Icons.Filled.Add)
             }
         }
+        item { BloqueLicencias() }
         item { Tarjeta { BloqueIdioma() } }
         item { Tarjeta { BloqueApariencia() } }
         item { Tarjeta { BloqueIA() } }
         item { Tarjeta { BloqueActualizacion() } }
         item { Tarjeta { BloqueTelemetria() } }
+        item { Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { BloquePermisos() } }
         item {
             Tarjeta {
                 Titulo(stringResource(R.string.servicio))
@@ -95,11 +97,6 @@ fun AjustesScreen(repetirConfigurador: () -> Unit, modifier: Modifier = Modifier
                     BotonSecundario(stringResource(R.string.ver_registros), { verLog = true }, Modifier.weight(1f), icono = Icons.Filled.Info)
                     BotonSecundario(stringResource(R.string.compartir_registros), { compartirRegistros(ctx) }, Modifier.weight(1f), icono = Icons.Filled.Share)
                 }
-            }
-        }
-        item {
-            Tarjeta {
-                BotonSecundario(stringResource(R.string.repetir_configurador), repetirConfigurador, Modifier.fillMaxWidth(), icono = Icons.Filled.Refresh)
             }
         }
         item {

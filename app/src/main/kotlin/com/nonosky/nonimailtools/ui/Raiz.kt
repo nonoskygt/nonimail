@@ -14,11 +14,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -57,7 +57,14 @@ fun Raiz() {
     val v by app.ajustes.valores.collectAsState()
     val hora = horaActual()
     val oscuro = Modo.esOscuro(v.modo, hora)
-    var reconfigurando by rememberSaveable { mutableStateOf(false) }
+    // No setup wizard: the app opens on its tabs. The first time, it only records the install.
+    LaunchedEffect(Unit) {
+        if (!v.configurado) {
+            app.ajustes.configurado(true)
+            app.telemetry.registrar(Telemetria.inicio())
+            app.telemetry.enviarYa()
+        }
+    }
 
     DulceTheme(v.modo, v.acento, oscuro) {
         val d = dulce
@@ -69,19 +76,7 @@ fun Raiz() {
             c.isAppearanceLightNavigationBars = !oscuro
         }
         Box(Modifier.fillMaxSize().fondoDulce(d)) {
-            if (!v.configurado || reconfigurando) {
-                Configurador(
-                    onTerminar = {
-                        app.ajustes.configurado(true)
-                        reconfigurando = false
-                        app.telemetry.registrar(Telemetria.inicio())
-                        app.telemetry.enviarYa()
-                    },
-                    onSalir = if (v.configurado) ({ reconfigurando = false }) else null,
-                )
-            } else {
-                Cascaron(repetirConfigurador = { reconfigurando = true })
-            }
+            Cascaron()
         }
     }
 }
@@ -89,13 +84,12 @@ fun Raiz() {
 private data class Pestana(val titulo: Int, val icono: ImageVector)
 
 @Composable
-internal fun Cascaron(repetirConfigurador: () -> Unit, tabInicial: Int = 0) {
+internal fun Cascaron(tabInicial: Int = 0) {
     val d = dulce
     var tab by rememberSaveable { mutableIntStateOf(tabInicial) }
     val pestanas = listOf(
         Pestana(R.string.tab_limpiar, Iconos.Brillo),
         Pestana(R.string.tab_sincronizar, Icons.Filled.Refresh),
-        Pestana(R.string.tab_licencias, Iconos.Llave),
         Pestana(R.string.tab_ajustes, Icons.Filled.Settings),
     )
     Scaffold(
@@ -119,10 +113,9 @@ internal fun Cascaron(repetirConfigurador: () -> Unit, tabInicial: Int = 0) {
             BannerActualizacion()
             val m = Modifier.weight(1f)
             when (tab) {
-                0 -> LimpiarScreen({ tab = 3 }, { tab = 2 }, m)
-                1 -> SincronizarScreen({ tab = 3 }, { tab = 2 }, m)
-                2 -> LicenciasScreen(m)
-                else -> AjustesScreen(repetirConfigurador, m)
+                0 -> LimpiarScreen({ tab = 2 }, m)
+                1 -> SincronizarScreen({ tab = 2 }, m)
+                else -> AjustesScreen(m)
             }
         }
     }

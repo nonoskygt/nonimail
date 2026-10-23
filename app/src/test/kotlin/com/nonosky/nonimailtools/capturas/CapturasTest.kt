@@ -21,7 +21,6 @@ import com.nonosky.nonimailtools.data.Secretos
 import com.nonosky.nonimailtools.ops.EstadoEscaneo
 import com.nonosky.nonimailtools.ops.EstadoSync
 import com.nonosky.nonimailtools.ui.Cascaron
-import com.nonosky.nonimailtools.ui.Configurador
 import com.nonosky.nonimailtools.ui.theme.Acento
 import com.nonosky.nonimailtools.ui.theme.DulceTheme
 import com.nonosky.nonimailtools.ui.theme.Modo
@@ -72,9 +71,7 @@ class CapturasTest {
 
     private fun app() = ApplicationProvider.getApplicationContext<NmtApp>()
 
-    @Test fun configuradorClaro() = escena("configurador-1-claro", Modo.CLARO) { Configurador({}) }
 
-    @Test fun configuradorOscuro() = escena("configurador-1-oscuro", Modo.OSCURO) { Configurador({}) }
 
     private fun cargarEscaneo() {
         val a = app()
@@ -97,9 +94,9 @@ class CapturasTest {
         )
     }
 
-    @Test fun limpiarClaro() { cargarEscaneo(); escena("limpiar-claro", Modo.CLARO) { Cascaron({}, 0) } }
+    @Test fun limpiarClaro() { cargarEscaneo(); escena("limpiar-claro", Modo.CLARO) { Cascaron(0) } }
 
-    @Test fun limpiarOscuro() { cargarEscaneo(); escena("limpiar-oscuro", Modo.OSCURO, Acento.of("verde-azulado")) { Cascaron({}, 0) } }
+    @Test fun limpiarOscuro() { cargarEscaneo(); escena("limpiar-oscuro", Modo.OSCURO, Acento.of("verde-azulado")) { Cascaron(0) } }
 
     @Test fun sincronizarResultado() {
         val a = app()
@@ -117,12 +114,11 @@ class CapturasTest {
                 "ana@gmail.com", "ventas@empresa.com",
             ),
         )
-        escena("sincronizar-claro", Modo.CLARO, Acento.of("violeta")) { Cascaron({}, 1) }
+        escena("sincronizar-claro", Modo.CLARO, Acento.of("violeta")) { Cascaron(1) }
     }
 
-    @Test fun licencias() = escena("licencias-claro", Modo.CLARO) { Cascaron({}, 2) }
 
-    @Test fun ajustesClaro() = escena("ajustes-claro", Modo.CLARO) { Cascaron({}, 3) }
+    @Test fun ajustesClaro() = escena("ajustes-claro", Modo.CLARO) { Cascaron(2) }
 
-    @Test fun ajustesOscuro() = escena("ajustes-oscuro", Modo.OSCURO, Acento.of("ambar")) { Cascaron({}, 3) }
+    @Test fun ajustesOscuro() = escena("ajustes-oscuro", Modo.OSCURO, Acento.of("ambar")) { Cascaron(2) }
 }

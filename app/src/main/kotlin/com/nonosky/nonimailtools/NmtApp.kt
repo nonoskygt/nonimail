@@ -10,6 +10,7 @@ import com.nonosky.nonimailtools.core.telemetria.Telemetria
 import com.nonosky.nonimailtools.data.Ajustes
 import com.nonosky.nonimailtools.data.RepoCuentas
 import com.nonosky.nonimailtools.data.RepoLicencias
+import com.nonosky.nonimailtools.data.Servicio
 import com.nonosky.nonimailtools.ia.IaManager
 import com.nonosky.nonimailtools.lang.Idioma
 import com.nonosky.nonimailtools.ops.Operaciones
@@ -28,6 +29,7 @@ class NmtApp : Application() {
     lateinit var ajustes: Ajustes; private set
     lateinit var cuentas: RepoCuentas; private set
     lateinit var licencias: RepoLicencias; private set
+    lateinit var servicio: Servicio; private set
     lateinit var telemetry: Telemetry; private set
     lateinit var operaciones: Operaciones; private set
     lateinit var ia: IaManager; private set
@@ -45,6 +47,7 @@ class NmtApp : Application() {
         ajustes = Ajustes(this, scope)
         cuentas = RepoCuentas(this, scope)
         licencias = RepoLicencias(this, scope)
+        servicio = Servicio(this, ajustes, licencias, scope)
         telemetry = Telemetry(this, ajustes, cuentas)
         operaciones = Operaciones(this)
         ia = IaManager(this)
@@ -58,6 +61,8 @@ class NmtApp : Application() {
                 telemetry.programarPeriodico()
                 telemetry.enviarYa()
                 actualizaciones.alIniciar()
+                // Signed in to the web service: refresh the licenses bought since last time.
+                if (servicio.email.value.isNotEmpty()) scope.launch(Dispatchers.IO) { runCatching { servicio.traerLicencias() } }
                 // While the app is open, a batch goes out every 5 minutes.
                 periodico = scope.launch {
                     while (true) { delay(5 * 60_000L); telemetry.enviarYa() }
