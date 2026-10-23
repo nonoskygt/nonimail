@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.4
+
+- **Un solo modelo: `qwen3.5:2b`.** Es el único que se ofrece (24/24 en nuestras pruebas, ~140 ms por correo; requiere 10 GB de RAM o GPU de 4 GB). Si usted tenía elegido `qwen3.5:4b` o `qwen3.5:9b`, la app pasa sola al 2b.
+
 ## 1.3.3
 
 - **Requisitos de hardware en cada modelo.** La tarjeta de cada modelo dice cuánta RAM o GPU necesita (Básico: 10 GB de RAM o GPU de 4 GB; Grande: 18 GB de RAM o GPU de 8 GB).

@@ -18,7 +18,7 @@ before(async () => { service = await startService(); });
 after(async () => { await service.close(); });
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nm-tel-'));
-  cfg = C.deepDefaults(defaults(), { service: { url: service.url }, setup: { done: true }, llm: { enabled: true }, model: 'qwen3.5:9b' });
+  cfg = C.deepDefaults(defaults(), { service: { url: service.url }, setup: { done: true }, llm: { enabled: true }, model: 'qwen3.5:2b' });
   service.posts.length = 0; service.status = 200; service.statuses.length = 0;
   tel = mk();
 });
@@ -37,7 +37,7 @@ test('instalación: carga útil del contrato, app desktop y origen de descarga',
   assert.equal(p.headers['user-agent'], 'NoniMailTools/1.0.0 (linux; x64)');
   assert.deepEqual(Object.keys(p.body).sort(), ['app', 'arch', 'ia_local', 'install_id', 'locale', 'modelo', 'origen_descarga', 'os', 'os_version', 'version', 'zona_horaria'].sort());
   assert.equal(p.body.app, 'desktop'); assert.equal(p.body.os, 'linux'); assert.equal(p.body.origen_descarga, 'github');
-  assert.equal(p.body.ia_local, true); assert.equal(p.body.modelo, 'qwen3.5:9b'); assert.equal(p.body.locale, 'es-GT');
+  assert.equal(p.body.ia_local, true); assert.equal(p.body.modelo, 'qwen3.5:2b'); assert.equal(p.body.locale, 'es-GT');
   assert.equal(p.body.ip, undefined, 'el cliente no manda su IP');
 });
 

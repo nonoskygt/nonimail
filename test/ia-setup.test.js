@@ -68,7 +68,6 @@ test('recomendación del modelo según el equipo', () => {
   const tiers = defaults().ollama.tiers;
   const r = (ramGb, vramGb) => recommend(tiers, { ramBytes: ramGb * GB, gpu: vramGb ? { vramBytes: vramGb * GB } : null });
   assert.deepEqual(r(16, 6), { id: 'basic', mode: 'gpu', warn: false });    // NVIDIA 6 GB
-  assert.deepEqual(r(32, 24), { id: 'large', mode: 'gpu', warn: false });
   assert.deepEqual(r(16, 0), { id: 'basic', mode: 'cpu', warn: false });    // 16 GB sin GPU
   assert.deepEqual(r(8, 0), { id: 'basic', mode: 'low', warn: true });      // no cabe nada: básico y aviso
 });

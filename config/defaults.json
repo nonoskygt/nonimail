@@ -63,8 +63,7 @@
       "darwin": ["/usr/local/bin/ollama", "/opt/homebrew/bin/ollama", "/Applications/Ollama.app/Contents/Resources/ollama"]
     },
     "tiers": [
-      { "id": "basic", "tag": "qwen3.5:2b", "sizeBytes": 2683396812, "ramGb": 10, "vramGb": 4 },
-      { "id": "large", "tag": "qwen3.5:9b", "sizeBytes": 6550825550, "ramGb": 18, "vramGb": 8 }
+      { "id": "basic", "tag": "qwen3.5:2b", "sizeBytes": 2683396812, "ramGb": 10, "vramGb": 4 }
     ],
     "hardwareTimeoutMs": 4000,
     "warmupTimeoutMs": 300000,
