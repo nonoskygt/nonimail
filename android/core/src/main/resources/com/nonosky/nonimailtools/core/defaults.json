@@ -1,0 +1,64 @@
+{
+  "heuristics": {
+    "keepOverride": "(bi en l[ií]nea|bi-?b@?nking|banco industrial|banrural|\\bbac\\b|g&t|bantrab|promerica|\\bbam\\b|\\bbanco\\b|\\bbank\\b|estado de cuenta|account statement|operaci[oó]n electr[oó]nica|transferencia|wire transfer|comprobante|\\brecibo\\b|receipt|\\bfactura\\b|invoice|\\bfel\\b|\\bsat\\b|\\bsaldo\\b|\\bbalance\\b|tarjeta de cr[eé]dito|credit card|dep[oó]sito|deposit|c[oó]digo de (verificaci[oó]n|seguridad)|c[oó]digo es \\d|verification code|\\botp\\b|one-?time code|inicio de sesi[oó]n|new (sign-?in|login)|alerta de seguridad|security alert|sesi[oó]n (expirada|restaurada|confirmada)|payment|\\bpago|recordatorio de pago|cotizaci[oó]n|\\bquote\\b|purchase order|orden de compra|\\bproveedor\\b|\\bsupplier\\b)",
+    "subject": "(\\b\\d{1,3}\\s*%\\s*(off|de\\s*descuento|dto)\\b|\\bdeal\\b|\\bsale\\b|\\boferta\\b|\\bdescuento\\b|\\bgratis\\b|\\bfree\\b|\\bsave\\b|\\bahorra\\b|\\bexclusive\\b|\\bexclusiv[oa]\\b|\\bspecial offer\\b|\\bcombo\\b|\\bnewsletter\\b|\\bpromo\\b|cyber monday|black friday|prime day|flash sale|limited time|hurry)",
+    "from": "(noreply|no-reply|donotreply|marketing|newsletter|promociones|promotions|deals|hello@|news@|info@|updates@|notifications@|mailer|campaign)",
+    "body": "(unsubscribe|darse de baja|cancelar suscripci|view in browser|ver en navegador|click here|haz click aqui|shop now|comprar ahora|act now|don.t miss|no te lo pierdas)"
+  },
+  "scores": {
+    "contact": 0,
+    "protected": 0,
+    "promo": 95,
+    "automaticBulk": 88,
+    "bulk": 75,
+    "automatic": 60,
+    "person": 15
+  },
+  "cleaning": {
+    "scanMode": "dias",
+    "scanCount": 1000,
+    "scanDays": 30,
+    "hardness": 50,
+    "band": 12,
+    "maxSamples": 3,
+    "sentScanMax": 2000,
+    "bodyMaxChars": 1200,
+    "fetchBatch": 500
+  },
+  "sync": {
+    "fetchBatch": 500,
+    "progressEvery": 25,
+    "maxErrorSamples": 5
+  },
+  "llm": {
+    "numCtx": 4096,
+    "numPredict": 16,
+    "prompt": "Clasifique este correo en UNA categoría. Responda solo la palabra.\nPERSONAL: lo escribió una persona (amigo, familia, colega, cliente), incluye respuestas \"Re:\".\nTRANSACCION: factura, recibo, pago, estado de cuenta, pedido o envío del usuario, cita, trámite, renovación de un servicio, avisos del gobierno o de impuestos (SAT, declaraciones, municipalidad).\nSEGURIDAD: código de verificación, inicio de sesión, alerta de cuenta, cambio de contraseña.\nPROMOCION: ofertas, descuentos, cupones, ventas, webinars, encuestas, publicidad.\nBOLETIN: newsletter, noticias, novedades, resúmenes.\nSOCIAL: notificaciones de redes sociales (invitaciones, likes, seguidores).\nOTRO: notificación automática que no encaja arriba.\nUna cuenta de empresa que manda un aviso del pedido, pago o cuenta del usuario es TRANSACCION o SEGURIDAD, no PROMOCION.\nSi invita a comprar, ofrece descuento, cupón, envío gratis o \"solo hoy\", es PROMOCION aunque mencione pedidos o envíos.",
+    "categoryScores": { "PERSONAL": 3, "SEGURIDAD": 3, "TRANSACCION": 10, "OTRO": 50, "BOLETIN": 85, "SOCIAL": 85, "PROMOCION": 95 }
+  },
+  "localAi": {
+    "ramMultiple": 2,
+    "ramExtraMb": 2048,
+    "diskExtraMb": 1024,
+    "models": [
+      {
+        "id": "basico",
+        "url": "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/a790a852d433991c0c0a41c1154cf9b3850300fa/gemma-4-E2B-it.litertlm",
+        "bytes": 2588147712,
+        "sha256": "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+        "archivo": "gemma-4-E2B-it.litertlm"
+      }
+    ]
+  },
+  "providers": [
+    { "id": "gmail", "telemetry": "gmail", "host": "imap.gmail.com", "port": 993, "security": "ssl", "domains": ["gmail.com", "googlemail.com"], "appPassword": true, "googleSignIn": true, "smtpHost": "smtp.gmail.com", "smtpPort": 465, "smtpSecurity": "ssl" },
+    { "id": "outlook", "telemetry": "outlook", "host": "outlook.office365.com", "port": 993, "security": "ssl", "domains": ["outlook.com", "hotmail.com", "live.com", "msn.com"], "appPassword": true, "smtpHost": "smtp.office365.com", "smtpPort": 587, "smtpSecurity": "starttls" },
+    { "id": "yahoo", "telemetry": "yahoo", "host": "imap.mail.yahoo.com", "port": 993, "security": "ssl", "domains": ["yahoo.com", "ymail.com", "rocketmail.com"], "appPassword": true, "smtpHost": "smtp.mail.yahoo.com", "smtpPort": 465, "smtpSecurity": "ssl" },
+    { "id": "icloud", "telemetry": "icloud", "host": "imap.mail.me.com", "port": 993, "security": "ssl", "domains": ["icloud.com", "me.com", "mac.com"], "appPassword": true, "smtpHost": "smtp.mail.me.com", "smtpPort": 587, "smtpSecurity": "starttls" },
+    { "id": "imap", "telemetry": "imap", "host": "", "port": 993, "security": "ssl", "domains": [], "appPassword": false, "smtpHost": "", "smtpPort": 465, "smtpSecurity": "ssl" }
+  ],
+  "folders": {
+    "trash": ["Trash", "INBOX.Trash", "Papelera", "INBOX.Papelera", "Deleted Items", "Deleted Messages", "Elementos eliminados", "[Gmail]/Trash", "[Gmail]/Papelera"],
+    "sent": ["Sent", "Sent Items", "Sent Messages", "Sent Mail", "Enviados", "Elementos enviados", "INBOX.Sent", "INBOX.Enviados", "[Gmail]/Sent Mail", "[Gmail]/Enviados"]
+  }
+}

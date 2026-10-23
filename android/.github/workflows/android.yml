@@ -1,0 +1,147 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Install the Android SDK parts the build needs
+        timeout-minutes: 10
+        run: |
+          # compileSdk 37 is newer than what the runner image ships; install it explicitly
+          # instead of letting AGP try to download it in the middle of the build.
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          set +o pipefail
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
+
+      - name: Unit tests and debug build
+        timeout-minutes: 30
+        run: |
+          # gradle.properties caps the heap for the owner's small VM; a 16 GB runner can afford more.
+          args=(--no-daemon --console=plain
+            "-Dorg.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
+            -Dorg.gradle.workers.max=4 -Dkotlin.daemon.jvmargs=-Xmx1g)
+          # Own watchdog: when the build hangs, print thread dumps and fail with a log, instead of
+          # GitHub cancelling the job at the limit and losing the output.
+          ./gradlew "${args[@]}" :core:test :app:testDebugUnitTest assembleDebug &
+          build=$!
+          ( sleep 1500
+            echo "::error::Gradle did not finish in 25 minutes; thread dumps follow"
+            for p in $("$JAVA_HOME/bin/jps" -q); do echo "=== JVM $p"; "$JAVA_HOME/bin/jstack" "$p" | head -250; done
+            for p in $("$JAVA_HOME/bin/jps" -q); do kill -9 "$p" 2>/dev/null; done ) &
+          watchdog=$!
+          wait "$build" && rc=0 || rc=$?
+          kill "$watchdog" 2>/dev/null || true
+          exit $rc
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-reports
+          path: |
+            core/build/reports/tests
+            app/build/reports/tests
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v5
+        with:
+          name: NoniMail-Tools-debug
+          path: app/build/outputs/apk/debug/*.apk
+
+  release:
+    name: Signed release
+    needs: build-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Install the Android SDK parts the build needs
+        timeout-minutes: 10
+        run: |
+          # compileSdk 37 is newer than what the runner image ships; install it explicitly
+          # instead of letting AGP try to download it in the middle of the build.
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          set +o pipefail
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
+
+      - name: Decode the signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "Secret ANDROID_KEYSTORE_BASE64 is empty"; exit 1; }
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "NMT_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed APK and AAB (download origin = github)
+        timeout-minutes: 30
+        env:
+          NMT_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          NMT_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          NMT_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ./gradlew --no-daemon --console=plain \
+            "-Dorg.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8" \
+            -Dorg.gradle.workers.max=4 \
+            assembleRelease bundleRelease \
+            -Pnmt.origenDescarga=github \
+            -Pnmt.versionName="$VERSION"
+
+      - name: Collect files and checksums
+        timeout-minutes: 5
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/NoniMail-Tools-$VERSION.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/NoniMail-Tools.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/NoniMail-Tools-$VERSION.aab"
+          "$ANDROID_HOME"/build-tools/37.0.0/apksigner verify --print-certs dist/NoniMail-Tools.apk | grep -v '^WARNING'
+          (cd dist && sha256sum NoniMail-Tools-"$VERSION".apk NoniMail-Tools.apk NoniMail-Tools-"$VERSION".aab > SHA256SUMS.txt)
+          cat dist/SHA256SUMS.txt
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/NoniMail-Tools.apk
+            dist/NoniMail-Tools-*.apk
+            dist/NoniMail-Tools-*.aab
+            dist/SHA256SUMS.txt
+          generate_release_notes: true
