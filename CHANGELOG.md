@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-10-23
+
+### Changed
+- **Sin configurador.** La app abre directo en Limpiar. Si no hay cuenta, el formulario (con «Iniciar sesión con Google») aparece ahí mismo. Idioma, apariencia, IA, permisos, telemetría y actualizaciones están en Ajustes.
+- **Sin pestaña Licencias.** Las cuentas personales no muestran nada de licencias ni precios. Con una cuenta de dominio propio, Ajustes muestra «Licencias» con «Iniciar sesión» (la misma cuenta de mt.nonosky.com: trae sola las licencias compradas) y «Comprar licencia»; pegar una clave queda como opción plegada.
+- **Limpiar solo por días.** Se quitó «Últimos mensajes».
+- **Terminales en vivo.** Limpiar muestra «CPU · lectura + heurística» y «IA · modelo» (qué responde el modelo y el puntaje); Sincronizar muestra «Red · sincronización» (carpeta, copiados, KB y velocidad).
+- **Fases y textos como en escritorio.** Escaneando N / M correos, Agrupando por remitente, Clasificando N / M remitentes, Eliminando. El botón dice **Eliminar** (va a la papelera). Cada remitente tiene **Nunca eliminar** (guarda la regla; la fila muestra «Siempre se conserva» y «Quitar regla»).
+
 ## [1.4.1] - 2026-10-23
 
 ### Changed

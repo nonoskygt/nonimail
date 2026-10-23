@@ -31,13 +31,14 @@ import com.nonosky.nonimailtools.core.licencias.Tipo
 import com.nonosky.nonimailtools.core.sync.FolderResult
 import com.nonosky.nonimailtools.core.sync.SyncProgress
 import com.nonosky.nonimailtools.ops.EstadoSync
+import com.nonosky.nonimailtools.ops.Operaciones
 import com.nonosky.nonimailtools.ops.Trabajo
 import com.nonosky.nonimailtools.util.bytesLegibles
 import com.nonosky.nonimailtools.ui.theme.Cifras
 import com.nonosky.nonimailtools.ui.theme.dulce
 
 @Composable
-fun SincronizarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Modifier = Modifier) {
+fun SincronizarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
     val app = NmtApp.instance
     val ctx = LocalContext.current
     val d = dulce
@@ -65,7 +66,7 @@ fun SincronizarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier
             item {
                 Tarjeta {
                     Titulo(stringResource(R.string.sync_necesita_dos))
-                    BotonPrimario(stringResource(R.string.agregar_cuenta), irAAjustes, Modifier.fillMaxWidth())
+                    FormularioCuenta(null, onGuardada = {})
                 }
             }
             return@LazyColumn
@@ -79,7 +80,7 @@ fun SincronizarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier
                 Campo(excluir, { excluir = it }, stringResource(R.string.carpetas_excluir), placeholder = stringResource(R.string.carpetas_excluir_ejemplo))
                 FilaInterruptor(stringResource(R.string.simulacion), simulacion, { simulacion = it }, detalle = stringResource(R.string.simulacion_sync_pista))
                 if (!simulacion && puerta?.permitido == false) {
-                    PuertaLicencia(Tipo.SINCRONIZAR, puerta.cuenta, v.serviceUrl, irALicencias)
+                    PuertaLicencia(Tipo.SINCRONIZAR, puerta.cuenta, v.serviceUrl)
                 }
                 if (estado is EstadoSync.Corriendo) {
                     val p = (estado as EstadoSync.Corriendo).p
@@ -98,6 +99,11 @@ fun SincronizarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier
                     (estado as? EstadoSync.Error)?.let { Pista(textoFallo(it.f), error = true) }
                 }
             }
+        }
+
+        item {
+            val red by app.operaciones.terminal(Operaciones.Terminal.RED).collectAsState()
+            if (red.isNotEmpty()) VentanaTerminal(stringResource(R.string.term_red), red)
         }
 
         val listo = estado as? EstadoSync.Listo

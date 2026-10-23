@@ -87,12 +87,45 @@ data class Avance(val titulo: Int, val detalle: String, val fraccion: Float?)
  * cancel flag. The engines run in [ejecutar], always inside [OperacionService].
  */
 class Operaciones(private val app: NmtApp) {
+    private companion object { const val MAX_LINEAS = 200 }
+
     private val _escaneo = MutableStateFlow<EstadoEscaneo>(EstadoEscaneo.Reposo)
     private val _limpieza = MutableStateFlow<EstadoLimpieza>(EstadoLimpieza.Reposo)
     private val _sync = MutableStateFlow<EstadoSync>(EstadoSync.Reposo)
     val escaneo: StateFlow<EstadoEscaneo> = _escaneo.asStateFlow()
     val limpieza: StateFlow<EstadoLimpieza> = _limpieza.asStateFlow()
     val sync: StateFlow<EstadoSync> = _sync.asStateFlow()
+
+    /** Live terminal windows: reading + heuristics, the AI model, and the sync network. */
+    enum class Terminal { CPU, IA, RED }
+    private val terminales = Terminal.entries.associateWith { MutableStateFlow<List<String>>(emptyList()) }
+    fun terminal(t: Terminal): StateFlow<List<String>> = terminales.getValue(t).asStateFlow()
+    private fun limpiarTerminal(vararg t: Terminal) = t.forEach { terminales.getValue(it).value = emptyList() }
+
+    /** Appends one line (secrets scrubbed), keeping the last [MAX_LINEAS]. */
+    private fun escribir(t: Terminal, linea: String) {
+        var l = linea
+        for (s in app.cuentas.secretos()) l = l.replace(s, "••••")
+        val f = terminales.getValue(t)
+        f.value = (f.value + l).takeLast(MAX_LINEAS)
+    }
+
+    private fun faseRed(f: SyncProgress.Phase) = when (f) {
+        SyncProgress.Phase.CONNECTING -> "conectando"
+        SyncProgress.Phase.PLANNING -> "planificando"
+        SyncProgress.Phase.INDEXING -> "comparando"
+        SyncProgress.Phase.COPYING -> "copiando"
+        SyncProgress.Phase.VERIFYING -> "verificando"
+        SyncProgress.Phase.DONE -> "listo"
+    }
+
+    /** Engine lines tagged «[cpu] »/«[ia] » go to their window; the rest only to the log file. */
+    private fun ruteo(linea: String) {
+        when {
+            linea.startsWith("[cpu] ") -> escribir(Terminal.CPU, linea.removePrefix("[cpu] "))
+            linea.startsWith("[ia] ") -> escribir(Terminal.IA, linea.removePrefix("[ia] "))
+        }
+    }
 
     private val _ocupada = MutableStateFlow(false)
     val ocupada: StateFlow<Boolean> = _ocupada.asStateFlow()
@@ -186,7 +219,7 @@ class Operaciones(private val app: NmtApp) {
             t.modo, t.cantidad, t.protegidos, rulesOf(t.keep, d), d.scores, d.cleaning, d.folders.sent, ia, d.llm.prompt, d.llm.categoryScores,
         )
         val rep = object : Reporter<ScanProgress> {
-            override fun log(line: String) { app.telemetry.log.i("limpiar", line) }
+            override fun log(line: String) { app.telemetry.log.i("limpiar", line); ruteo(line) }
             override fun cancelled() = cancelada
             override fun progress(p: ScanProgress) {
                 _escaneo.value = EstadoEscaneo.Corriendo(cuenta.email, p)
@@ -195,6 +228,9 @@ class Operaciones(private val app: NmtApp) {
         }
         try {
             app.telemetry.log.i("limpiar", "Scan start (${t.modo.id}=${t.cantidad}, ai=${ia != null})")
+            limpiarTerminal(Terminal.CPU, Terminal.IA)
+            escribir(Terminal.CPU, "Conectando con ${cuenta.email} · últimos ${t.cantidad} días")
+            escribir(Terminal.IA, if (ia != null) "Modelo listo" else "IA apagada: decide solo la heurística")
             val r = Limpieza(cuenta.timeouts).scan(acc, opts, rep)
             r.aiError?.let { app.telemetry.error("ia", it, null, cuenta.email) }
             _escaneo.value = EstadoEscaneo.Listo(cuenta, r)
@@ -222,7 +258,7 @@ class Operaciones(private val app: NmtApp) {
         if (acc == null) { _limpieza.value = EstadoLimpieza.Error(Fallo(Fallo.Tipo2.CUENTA_ILEGIBLE, "")); return }
         val opts = CleanOptions(t.dryRun, t.protegidos, rulesOf(t.keep, d), d.folders.trash)
         val rep = object : Reporter<CleanProgress> {
-            override fun log(line: String) { app.telemetry.log.i("limpiar", line) }
+            override fun log(line: String) { app.telemetry.log.i("limpiar", line); escribir(Terminal.CPU, line.removePrefix("[cpu] ")) }
             override fun cancelled() = cancelada
             override fun progress(p: CleanProgress) {
                 _limpieza.value = EstadoLimpieza.Corriendo(t.dryRun, p)
@@ -231,6 +267,7 @@ class Operaciones(private val app: NmtApp) {
         }
         try {
             app.telemetry.log.i("limpiar", "Execute start (dryRun=${t.dryRun}, senders=${t.remitentes.size})")
+            escribir(Terminal.CPU, (if (t.dryRun) "Simulación: " else "Eliminando: ") + "${t.remitentes.size} remitentes")
             val r = Limpieza(cuenta.timeouts).execute(acc, t.remitentes, opts, rep)
             _limpieza.value = EstadoLimpieza.Listo(r, cuenta.email)
             app.telemetry.registrar(
@@ -253,15 +290,26 @@ class Operaciones(private val app: NmtApp) {
         }
         if (o == null || dd == null) { _sync.value = EstadoSync.Error(Fallo(Fallo.Tipo2.CUENTA_ILEGIBLE, "")); return }
         val rep = object : Reporter<SyncProgress> {
-            override fun log(line: String) { app.telemetry.log.i("sincronizar", line) }
+            var ultima = 0L
+            var carpeta = ""
+            val inicio = System.currentTimeMillis()
+            override fun log(line: String) { app.telemetry.log.i("sincronizar", line); escribir(Terminal.RED, line) }
             override fun cancelled() = cancelada
             override fun progress(p: SyncProgress) {
+                val ahora = System.currentTimeMillis()
+                if (p.folder != carpeta || ahora - ultima >= 1000) {
+                    carpeta = p.folder; ultima = ahora
+                    val kbs = p.bytes / 1024.0 / ((ahora - inicio).coerceAtLeast(1) / 1000.0)
+                    escribir(Terminal.RED, "${faseRed(p.phase)} · ${p.folder} · ${p.folderCopied}/${p.folderToCopy} · total ${p.copied} · ${p.bytes / 1024} KB · ${"%.0f".format(kbs)} KB/s")
+                }
                 _sync.value = EstadoSync.Corriendo(t.dryRun, p)
                 avance(Avance(t.titulo, "${p.foldersDone}/${p.foldersTotal} · ${p.folder}", p.fraction))
             }
         }
         try {
             app.telemetry.log.i("sincronizar", "Sync start (dryRun=${t.dryRun})")
+            limpiarTerminal(Terminal.RED)
+            escribir(Terminal.RED, "${t.origen.email} → ${t.destino.email}" + if (t.dryRun) " (simulación)" else "")
             val r = SyncEngine(t.origen.timeouts, d.sync).run(o, dd, SyncOptions(t.dryRun, t.incluir, t.excluir), rep)
             _sync.value = EstadoSync.Listo(r, t.origen.email, t.destino.email)
             val resultado = when { r.cancelled -> "cancelado"; r.ok -> "ok"; else -> "error" }

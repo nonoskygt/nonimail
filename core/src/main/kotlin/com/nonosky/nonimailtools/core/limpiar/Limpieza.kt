@@ -78,7 +78,7 @@ data class ScanResult(
 )
 
 data class ScanProgress(val phase: Phase, val done: Int = 0, val total: Int = 0, val senders: Int = 0) {
-    enum class Phase { CONNECTING, SENT, INBOX, AI, DONE }
+    enum class Phase { CONNECTING, SENT, INBOX, GROUPING, AI, DONE }
 
     val fraction: Float get() = if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else 0f
 }
@@ -208,16 +208,19 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                             g.unsubscribe = g.unsubscribe || unsub
                             g.bulk = g.bulk || bulk
                         }
+                        log("[cpu] Leídos $reviewed / ${uids.size} correos · ${groups.size} remitentes")
                         emit(ScanProgress(ScanProgress.Phase.INBOX, reviewed, uids.size, groups.size))
                     }
                 }
 
                 // 3) Score each sender once.
+                emit(ScanProgress(ScanProgress.Phase.GROUPING, groups.size, groups.size, groups.size))
                 val effectiveContacts = contacts + groups.values.filter { it.replied }.map { it.email }
                 for (g in groups.values) {
                     val subjects = g.samples + listOfNotNull(g.protectedSubject)
                     val (score, reason) = Heuristica.score(g.email, g.name, subjects, g.bulk, effectiveContacts, opt.protectedList, opt.rules, opt.levels)
                     scored += SenderScore(g.email, g.name, g.count, g.bytes, g.samples.toList(), g.unsubscribe, g.bulk, score, reason, score)
+                    log("[cpu] ${g.email} · ${g.count} correos → $score (${reason.name.lowercase()})")
                 }
 
                 // 4) Optional local AI for every sender that is not protected.
@@ -236,6 +239,7 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                         try {
                             val text = ai.generate(Ollama.buildPrompt(opt.llmPrompt, "${s.name} <${s.email}>", s.samples, s.bulk || bodyBulk, body))
                             val llm = Ollama.parseScore(text, null, opt.categoryScores)
+                            log("[ia] ${s.email} → ${text.trim().lineSequence().firstOrNull().orEmpty().take(40)} = ${llm ?: "?"}")
                             if (llm != null) {
                                 scored[i] = s.copy(score = llm, reason = Reason.IA, bulk = s.bulk || bodyBulk)
                                 aiScored++

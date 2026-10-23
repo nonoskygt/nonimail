@@ -2,6 +2,8 @@ package com.nonosky.nonimailtools.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -55,6 +57,7 @@ import com.nonosky.nonimailtools.core.limpiar.SenderScore
 import com.nonosky.nonimailtools.core.limpiar.Seleccion
 import com.nonosky.nonimailtools.ops.EstadoEscaneo
 import com.nonosky.nonimailtools.ops.EstadoLimpieza
+import com.nonosky.nonimailtools.ops.Operaciones
 import com.nonosky.nonimailtools.ops.Trabajo
 import com.nonosky.nonimailtools.util.bytesLegibles
 import com.nonosky.nonimailtools.ui.theme.Cifras
@@ -76,7 +79,7 @@ fun reasonText(r: Reason): String = stringResource(
 )
 
 @Composable
-fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Modifier = Modifier) {
+fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
     val app = NmtApp.instance
     val ctx = LocalContext.current
     val d = dulce
@@ -89,9 +92,9 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
     val defaults = Defaults.instance
 
     val cuenta = cuentas.firstOrNull { it.id == v.cuentaLimpiar } ?: cuentas.firstOrNull()
-    var modo by rememberSaveable { mutableStateOf(v.escaneoModo.ifEmpty { defaults.cleaning.scanMode }) }
+    // Only days: an old «últimos mensajes» setting falls back to the default days.
     var cantidad by rememberSaveable {
-        mutableStateOf((v.escaneoCantidad.takeIf { it > 0 } ?: if (v.escaneoModo == "dias") defaults.cleaning.scanDays else defaults.cleaning.scanCount).toString())
+        mutableStateOf((v.escaneoCantidad.takeIf { it > 0 && v.escaneoModo == "dias" } ?: defaults.cleaning.scanDays).toString())
     }
     var dureza by rememberSaveable { mutableIntStateOf(v.duerezaEfectiva) }
     var simulacion by rememberSaveable { mutableStateOf(true) }
@@ -114,7 +117,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
     val protegidos = remember(v.protegidos) { v.protegidosLista }
     val keepEfectivo = if (keepValido) keepTexto else defaults.heuristics.keepOverride
     val usarIa = v.usarIa && v.iaActiva
-    val cantidadInt = cantidad.toIntOrNull()?.coerceIn(1, 100_000)
+    val cantidadInt = cantidad.toIntOrNull()?.coerceIn(1, 3650)
     val resumen = resultado?.let { Seleccion.resumen(it.senders, elegidos.toSet()) }
     val puerta = cuenta?.let { LicenseGate.check(listOf(it.email), Tipo.LIMPIAR, licencias, System.currentTimeMillis() / 1000) }
 
@@ -124,25 +127,16 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
         item { Encabezado(stringResource(R.string.tab_limpiar)) }
 
         if (cuentas.isEmpty() || cuenta == null) {
-            item {
-                Tarjeta {
-                    Titulo(stringResource(R.string.sin_cuentas))
-                    BotonPrimario(stringResource(R.string.agregar_cuenta), irAAjustes, Modifier.fillMaxWidth())
-                }
-            }
+            item { Tarjeta { FormularioCuenta(null, onGuardada = {}) } }
             return@LazyColumn
         }
 
         item {
             Tarjeta {
                 SelectorCuenta(stringResource(R.string.cuenta), cuentas, cuenta, { app.ajustes.cuentaLimpiar(it.id); app.operaciones.reiniciarEscaneo() })
-                Fila(espacio = 8.dp) {
-                    Pastilla(stringResource(R.string.ultimos_mensajes), modo == "mensajes", { modo = "mensajes"; cantidad = (v.escaneoCantidad.takeIf { it > 0 && v.escaneoModo == "mensajes" } ?: defaults.cleaning.scanCount).toString() })
-                    Pastilla(stringResource(R.string.ultimos_dias), modo == "dias", { modo = "dias"; cantidad = (v.escaneoCantidad.takeIf { it > 0 && v.escaneoModo == "dias" } ?: defaults.cleaning.scanDays).toString() })
-                }
                 Campo(
-                    cantidad, { cantidad = it.filter(Char::isDigit).take(6) },
-                    stringResource(if (modo == "dias") R.string.cantidad_dias else R.string.cantidad_mensajes),
+                    cantidad, { cantidad = it.filter(Char::isDigit).take(4) },
+                    stringResource(R.string.cantidad_dias),
                     teclado = KeyboardType.Number,
                 )
                 if (v.iaActiva) {
@@ -156,16 +150,28 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
                     BotonPrimario(
                         stringResource(if (resultado != null) R.string.escanear_de_nuevo else R.string.escanear),
                         {
-                            app.ajustes.escaneo(modo, cantidadInt ?: 1000)
+                            val dias = cantidadInt ?: defaults.cleaning.scanDays
+                            app.ajustes.escaneo("dias", dias)
                             app.operaciones.iniciar(
                                 ctx,
-                                Trabajo.Escanear(cuenta, ScanMode.of(modo), cantidadInt ?: 1000, usarIa, protegidos, keepEfectivo),
+                                Trabajo.Escanear(cuenta, ScanMode.DIAS, dias, usarIa, protegidos, keepEfectivo),
                             )
                         },
                         Modifier.fillMaxWidth(), activo = !ocupada && cantidadInt != null, icono = Icons.Filled.Search,
                     )
                 }
                 (escaneo as? EstadoEscaneo.Error)?.let { Pista(textoFallo(it.f), error = true) }
+            }
+        }
+
+        item {
+            val cpu by app.operaciones.terminal(Operaciones.Terminal.CPU).collectAsState()
+            val ia by app.operaciones.terminal(Operaciones.Terminal.IA).collectAsState()
+            if (cpu.isNotEmpty() || ia.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VentanaTerminal(stringResource(R.string.term_cpu), cpu)
+                    if (usarIa) VentanaTerminal(stringResource(R.string.term_ia, nombreModeloIa(v)), ia)
+                }
             }
         }
 
@@ -210,9 +216,14 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
 
             val corte = Seleccion.lineaDeCorte(dureza, defaults.cleaning.band)
             items(resultado.senders, key = { it.email }) { s ->
+                val regla = s.email in protegidos
                 FilaRemitente(
-                    s, corte, s.email in elegidos,
+                    s, corte, s.email in elegidos && !regla, regla,
                     onCambio = { on -> if (on) { if (s.email !in elegidos) elegidos.add(s.email) } else elegidos.remove(s.email) },
+                    onNunca = {
+                        app.ajustes.protegidos((if (regla) protegidos - s.email else protegidos + s.email).joinToString("\n"))
+                        elegidos.remove(s.email)
+                    },
                 )
             }
 
@@ -230,12 +241,12 @@ fun LimpiarScreen(irAAjustes: () -> Unit, irALicencias: () -> Unit, modifier: Mo
                     val estado = limpieza
                     if (estado is EstadoLimpieza.Corriendo) {
                         BarraProgreso(estado.p.fraction)
-                        Pista(stringResource(R.string.limpiando_avance, estado.p.done, estado.p.total, estado.p.moved))
+                        fraseFase(stringResource(R.string.fase_eliminando, estado.p.done, estado.p.total))
                         BotonSecundario(stringResource(R.string.cancelar), { app.operaciones.cancelar() }, Modifier.fillMaxWidth(), icono = Icons.Filled.Close)
                     } else {
                         val n = resumen?.correos ?: 0
                         val bloqueada = !simulacion && puerta?.permitido == false
-                        if (bloqueada) PuertaLicencia(Tipo.LIMPIAR, cuenta.email, v.serviceUrl, irALicencias)
+                        if (bloqueada) PuertaLicencia(Tipo.LIMPIAR, cuenta.email, v.serviceUrl)
                         BotonPrimario(
                             if (simulacion) stringResource(R.string.simular) else stringResource(R.string.mover_papelera, n),
                             {
@@ -290,6 +301,7 @@ private fun Progreso(p: ScanProgress) {
         ScanProgress.Phase.CONNECTING -> stringResource(R.string.fase_conectando)
         ScanProgress.Phase.SENT -> stringResource(R.string.fase_enviados)
         ScanProgress.Phase.INBOX -> stringResource(R.string.fase_bandeja, p.done, p.total)
+        ScanProgress.Phase.GROUPING -> stringResource(R.string.fase_agrupando)
         ScanProgress.Phase.AI -> stringResource(R.string.fase_ia, p.done, p.total)
         ScanProgress.Phase.DONE -> stringResource(R.string.fase_listo)
     }
@@ -298,9 +310,9 @@ private fun Progreso(p: ScanProgress) {
 }
 
 @Composable
-private fun FilaRemitente(s: SenderScore, corte: Int, marcado: Boolean, onCambio: (Boolean) -> Unit) {
+private fun FilaRemitente(s: SenderScore, corte: Int, marcado: Boolean, regla: Boolean, onCambio: (Boolean) -> Unit, onNunca: () -> Unit) {
     val d = dulce
-    val bloqueado = s.isProtected
+    val bloqueado = s.isProtected || regla
     Tarjeta(onClick = if (bloqueado) null else ({ onCambio(!marcado) })) {
         Fila(espacio = 8.dp) {
             if (bloqueado) {
@@ -329,9 +341,10 @@ private fun FilaRemitente(s: SenderScore, corte: Int, marcado: Boolean, onCambio
             PistaPuntaje(s.score, corte, bloqueado, Modifier.weight(1f))
             Text(s.score.toString(), style = MaterialTheme.typography.labelMedium.merge(Cifras), color = d.muted)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Sello(reasonText(s.reason), if (bloqueado) Tono.OK else Tono.NEUTRO)
-            if (s.unsubscribe) Sello(stringResource(R.string.baja_disponible), Tono.NEUTRO)
+        Fila(espacio = 6.dp) {
+            Sello(if (regla) stringResource(R.string.siempre_se_conserva) else reasonText(s.reason), if (bloqueado) Tono.OK else Tono.NEUTRO, icono = if (regla) Icons.Filled.Lock else null)
+            Box(Modifier.weight(1f))
+            if (regla || s.reason != Reason.PROTEGIDO_USUARIO) BotonTexto(stringResource(if (regla) R.string.quitar_regla else R.string.nunca_eliminar), onNunca)
         }
     }
 }
@@ -378,3 +391,8 @@ private fun ResultadoLimpieza(e: EstadoLimpieza.Listo) {
         if (r.cancelled) Sello(stringResource(R.string.operacion_cancelada), Tono.AVISO)
     }
 }
+
+/** Name of the model the AI terminal talks to: the LAN Ollama model or the file of the phone model. */
+private fun nombreModeloIa(v: com.nonosky.nonimailtools.data.Valores): String =
+    if (v.iaModoEfectivo == "red") v.ollamaModelo
+    else Defaults.instance.localAi.models.firstOrNull { it.id == v.iaModoEfectivo }?.archivo?.substringBefore(".litertlm") ?: ""

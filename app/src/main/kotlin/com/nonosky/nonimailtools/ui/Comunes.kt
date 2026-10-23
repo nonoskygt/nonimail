@@ -115,7 +115,7 @@ fun SelectorCuenta(
  * Simulating is always free.
  */
 @Composable
-fun PuertaLicencia(tipo: Tipo, cuenta: String, serviceUrl: String, irALicencias: () -> Unit) {
+fun PuertaLicencia(tipo: Tipo, cuenta: String, serviceUrl: String) {
     val ctx = LocalContext.current
     val d = dulce
     Tarjeta(hundida = true) {
@@ -123,11 +123,12 @@ fun PuertaLicencia(tipo: Tipo, cuenta: String, serviceUrl: String, irALicencias:
             Icon(Icons.Filled.Lock, null, tint = d.amber, modifier = Modifier.size(20.dp))
             Titulo(stringResource(R.string.puerta_titulo, nombreTipo(tipo)))
         }
-        Pista(stringResource(R.string.puerta_detalle, cuenta, precio(tipo), BuildConfig.LICENSE_DAYS))
+        var entrando by remember { mutableStateOf(false) }
         Fila {
-            BotonPrimario(stringResource(R.string.comprar), { abrirUrl(ctx, LicenseGate.buyUrl(serviceUrl, cuenta, tipo)) }, Modifier.weight(1f))
-            BotonSecundario(stringResource(R.string.tengo_clave), irALicencias, Modifier.weight(1f))
+            BotonPrimario(stringResource(R.string.comprar_licencia), { abrirUrl(ctx, LicenseGate.buyUrl(serviceUrl, cuenta, tipo)) }, Modifier.weight(1f))
+            BotonSecundario(stringResource(R.string.iniciar_sesion), { entrando = true }, Modifier.weight(1f))
         }
+        if (entrando) DialogoSesion(onCerrar = { entrando = false }, onAbierta = { entrando = false })
     }
 }
 
@@ -149,3 +150,34 @@ fun PistaPuntaje(puntaje: Int, corte: Int, protegido: Boolean, modifier: Modifie
 
 @Composable
 fun fraseFase(texto: String) = Text(texto, style = MaterialTheme.typography.bodyMedium, color = dulce.muted, fontWeight = FontWeight.Medium)
+
+private val FondoTerminal = androidx.compose.ui.graphics.Color(0xFF14121A)
+private val TextoTerminal = androidx.compose.ui.graphics.Color(0xFFD9D4E6)
+
+/** Live terminal window (dark, monospace, follows the last line). Tapping the title folds it. */
+@Composable
+fun VentanaTerminal(titulo: String, lineas: List<String>, modifier: Modifier = Modifier) {
+    val d = dulce
+    var abierta by androidx.compose.runtime.saveable.rememberSaveable(titulo) { mutableStateOf(true) }
+    val lista = androidx.compose.foundation.lazy.rememberLazyListState()
+    androidx.compose.runtime.LaunchedEffect(lineas.size) { if (lineas.isNotEmpty()) lista.scrollToItem(lineas.size - 1) }
+    Column(modifier.fillMaxWidth().clip(FormaControl).background(FondoTerminal)) {
+        Text(
+            (if (abierta) "▾ " else "▸ ") + titulo,
+            style = MaterialTheme.typography.labelMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            color = d.accent, modifier = Modifier.fillMaxWidth().clickable { abierta = !abierta }.padding(horizontal = 10.dp, vertical = 8.dp),
+        )
+        if (abierta) {
+            androidx.compose.foundation.lazy.LazyColumn(
+                Modifier.fillMaxWidth().height(150.dp).padding(start = 10.dp, end = 10.dp, bottom = 8.dp), state = lista,
+            ) {
+                items(lineas.size) { i ->
+                    Text(
+                        lineas[i], style = MaterialTheme.typography.bodySmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = TextoTerminal, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
