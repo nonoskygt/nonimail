@@ -99,7 +99,7 @@
   }
 
   // ---------------------------------------------------------------- estado
-  const S = { config: null, settings: null, lic: null, setup: null, senders: new Map(), over: new Map(), job: { running: false }, sync: null, scanDone: false, unsubMark: new Map(), authOpen: false, phaseDismissed: false, tab: 'cuentas', sec: 'ia', presets: null, draftEmail: '', draftPrivate: false, googleWait: false };
+  const S = { config: null, settings: null, lic: null, setup: null, senders: new Map(), over: new Map(), rules: {}, openDom: new Set(), job: { running: false }, sync: null, scanDone: false, unsubMark: new Map(), authOpen: false, phaseDismissed: false, tab: 'cuentas', sec: 'ia', presets: null, draftEmail: '', draftPrivate: false, googleWait: false };
   const acctById = (id) => (S.config.accounts || []).find(a => a.id === id);
   const activeAcct = () => acctById(S.config.activeAccount) || (S.config.accounts || [])[0] || null;
   const busy = () => (S.job && S.job.running) || (S.sync && S.sync.running);
@@ -214,11 +214,19 @@
   const dureza = () => cl.dureza;
   function effDecision(s) {
     if (S.over.has(s.email)) return S.over.get(s.email);
-    if (s.rule === 'delete') return 'delete';
-    if (s.rule === 'protect' || s.protected) return 'keep';
+    const rule = ruleOf(s);
+    if (rule === 'delete') return 'delete';
+    if (rule === 'protect' || s.protected) return 'keep';
     if (s.score == null) return 'keep';
     // igual que classify.decide(): solo se marca lo claro; el margen de duda queda en Conservar
-    return s.score >= (100 - dureza()) + ((S.config.cleaning || {}).band || 0) ? 'delete' : 'keep';
+    return s.score >= umbral() ? 'delete' : 'keep';
+  }
+  // Ruido mínimo (0-100) para eliminar con la dureza actual; por encima de 100 no se marca nada por sí solo
+  const umbral = () => (100 - dureza()) + ((S.config.cleaning || {}).band || 0);
+  function renderDureza() {
+    const u = umbral(), n = [...S.senders.values()].filter(x => !ruleOf(x) && !x.protected && x.score != null && x.score >= u).length;
+    $('cl-dureza-v').textContent = dureza();
+    $('cl-dureza-h').textContent = (u > 100 ? t('ui.clean.strictNone') : t('ui.clean.strictHint', { min: u })) + (S.senders.size ? ' ' + t('ui.clean.strictCount', { n }) : '');
   }
   function renderClean() {
     const acct = activeAcct();
@@ -290,33 +298,98 @@
   const icon = (name) => h('span', { class: 'ico', html: ICONS[name] });
   // marca de baja: la que puso la persona; si no, el valor por defecto del interruptor global (solo para los que se eliminan)
   const unsubMarked = (s) => s.canUnsub && !s.unsubDone && (S.unsubMark.has(s.email) ? S.unsubMark.get(s.email) : $('cl-unsub').checked && effDecision(s) === 'delete');
+  // Reglas guardadas: la clave es el correo del remitente o '@dominio'. La del dominio vale para todos sus
+  // remitentes y la de un remitente es una excepción a ella.
+  const domOf = (s) => s.dominio || (s.email.split('@')[1] || '');
+  const ownRule = (s) => S.rules[s.email] || null;
+  const domRule = (s) => S.rules['@' + domOf(s)] || null;
+  const ruleOf = (s) => ownRule(s) || domRule(s);
+  async function loadRulesMap() {
+    try { S.rules = (await api('GET', '/api/sender-rules')).rules || {}; } catch (_) { /* sin servidor: queda lo que había */ }
+    renderSenders();
+  }
+  async function sendRule(email, rule) {
+    try {
+      const r = await api('POST', '/api/sender-rule', { email, rule });
+      if (r.rule) S.rules[email] = r.rule; else delete S.rules[email];
+      S.over.delete(email); renderSenders();
+      if (S.sec === 'reglas') loadSenderRules();
+    } catch (e) { fail(e); }
+  }
+  // Un remitente suelto: si coincide con lo que ya decide su dominio no hace falta excepción
+  function setSenderDecision(s, val) {
+    const want = val === 'keep' ? 'protect' : 'delete', dr = domRule(s);
+    return sendRule(s.email, dr && dr === want ? 'none' : want);
+  }
+  // Todo el dominio: borra las excepciones y manda la misma decisión a todos sus remitentes
+  async function setDomainDecision(dom, rule) {
+    try {
+      const r = await api('POST', '/api/domain-rule', { domain: dom, rule, reset: true });
+      S.rules = r.rules || S.rules; renderSenders();
+      if (S.sec === 'reglas') loadSenderRules();
+    } catch (e) { fail(e); }
+  }
+  function senderRow(s, child) {
+    const dec = effDecision(s), own = ownRule(s), mark = unsubMarked(s);
+    const cls = s.score == null ? '' : s.score >= 60 ? 'hi' : s.score <= 40 ? 'lo' : 'mid';
+    // Conservar / Eliminar guardan la regla del remitente (Ajustes → Reglas; se sincroniza con el perfil en línea)
+    const tgl = (val, label) => h('button', { type: 'button', 'aria-pressed': String(dec === val), text: label, onclick: () => setSenderDecision(s, val) });
+    const acts = h('div', { class: 'row acts' });
+    if (s.unsubDone) acts.append(h('span', { class: 'pill ok', text: t('ui.clean.unsubDone') }));
+    else if (s.canUnsub) acts.append(h('button', { type: 'button', class: 'btn sm tgl', 'aria-pressed': String(mark), title: t('ui.clean.unsubMarkTip'), onclick: () => { S.unsubMark.set(s.email, !mark); renderSenders(); } }, icon('mailx'), t('ui.clean.unsubOne')));
+    if (own) acts.append(h('button', { type: 'button', class: 'btn sm', title: t('ui.clean.unprotectTip'), onclick: () => sendRule(s.email, 'none') }, icon('lock'), t('ui.clean.unprotect')));
+    const flags = [];
+    if (own && child && domRule(s) && domRule(s) !== own) flags.push(h('div', { class: 's-flag warn' }, icon('lock'), t('ui.clean.exception')));
+    else if (own === 'protect') flags.push(h('div', { class: 's-flag' }, icon('lock'), t('ui.clean.alwaysKept')));
+    else if (own === 'delete') flags.push(h('div', { class: 's-flag warn' }, icon('lock'), t('ui.clean.alwaysMoved')));
+    else if (child && domRule(s)) flags.push(h('div', { class: 's-flag' }, icon('lock'), t('ui.clean.byDomain')));
+    if (mark) flags.push(h('div', { class: 's-flag warn' }, icon('mailx'), t('ui.clean.willUnsub')));
+    return h('tr', { class: child ? 'child' : '' },
+      h('td', { title: (s.samples || []).slice(0, 3).join(' · ') }, h('div', { class: 's-name', text: s.name || s.email }), h('div', { class: 's-mail', text: s.email }), flags),
+      h('td', { class: 'num', text: fmtNum(s.count) }),
+      h('td', { class: 'num' }, h('span', { class: `score ${cls}`, text: s.score == null ? '…' : s.score, title: s.reason || '' })),
+      h('td', {}, h('div', { class: `seg sm ${dec === 'delete' ? 'del' : 'keep'}` }, tgl('keep', t('ui.clean.keep')), tgl('delete', t('ui.clean.move')))),
+      h('td', {}, acts));
+  }
+  // Fila del dominio con varios remitentes: su decisión vale para todos; elegir uno aparte crea una excepción
+  function domainRow(dom, members, open) {
+    const decs = new Set(members.map(effDecision)), dec = decs.size === 1 ? [...decs][0] : null, rule = S.rules['@' + dom] || null;
+    const scores = members.map(m => m.score).filter(x => x != null), top = scores.length ? Math.max(...scores) : null;
+    const cls = top == null ? '' : top >= 60 ? 'hi' : top <= 40 ? 'lo' : 'mid';
+    const tgl = (val, label) => h('button', { type: 'button', 'aria-pressed': String(dec === val), text: label, onclick: () => setDomainDecision(dom, val === 'keep' ? 'protect' : 'delete') });
+    const nExc = members.filter(m => ownRule(m) && rule && ownRule(m) !== rule).length;
+    const flags = [];
+    if (rule) flags.push(h('div', { class: `s-flag${rule === 'delete' ? ' warn' : ''}` }, icon('lock'), (rule === 'delete' ? t('ui.clean.domainMoved') : t('ui.clean.domainKept'))));
+    if (nExc) flags.push(h('div', { class: 's-flag warn' }, t('ui.clean.exceptions', { n: nExc })));
+    else if (!dec) flags.push(h('div', { class: 's-flag' }, t('ui.clean.mixed')));
+    const acts = h('div', { class: 'row acts' });
+    if (rule) acts.append(h('button', { type: 'button', class: 'btn sm', title: t('ui.clean.unprotectTip'), onclick: () => setDomainDecision(dom, 'none') }, icon('lock'), t('ui.clean.unprotect')));
+    return h('tr', { class: 'grp' },
+      h('td', {}, h('button', { type: 'button', class: 'dom-toggle', 'aria-expanded': String(open), 'aria-label': t('ui.clean.expand', { d: dom }), onclick: () => { if (open) S.openDom.delete(dom); else S.openDom.add(dom); renderSenders(); } }, open ? '▾' : '▸'),
+        h('span', { class: 's-name', text: '@' + dom }), ' ', h('span', { class: 's-mail', text: t('ui.clean.nSenders', { n: members.length }) }), flags),
+      h('td', { class: 'num', text: fmtNum(members.reduce((a, m) => a + m.count, 0)) }),
+      h('td', { class: 'num' }, h('span', { class: `score ${cls}`, text: top == null ? '…' : top, title: t('ui.clean.maxScore') })),
+      h('td', {}, h('div', { class: `seg sm ${dec === 'delete' ? 'del' : 'keep'}` }, tgl('keep', t('ui.clean.keep')), tgl('delete', t('ui.clean.move')))),
+      h('td', {}, acts));
+  }
   function renderSenders() {
     const body = clear($('cl-rows')), q = $('cl-filter').value.trim().toLowerCase();
     const all = [...S.senders.values()].sort((a, b) => b.count - a.count);
     const list = all.filter(s => !q || s.email.includes(q) || (s.name || '').toLowerCase().includes(q));
     $('cl-empty').hidden = all.length > 0;
     $('cl-empty').textContent = S.job.running && S.job.kind === 'scan' ? t('ui.clean.scanning') : t('ui.clean.empty');
+    renderDureza();
     const sel = all.filter(s => effDecision(s) === 'delete');
     $('cl-sel').textContent = t('ui.clean.selected', { n: sel.length, m: fmtNum(sel.reduce((a, s) => a + s.count, 0)) });
-    for (const s of list.slice(0, 600)) {
-      const dec = effDecision(s), never = s.rule === 'protect', mark = unsubMarked(s);
-      const cls = s.score == null ? '' : s.score >= 60 ? 'hi' : s.score <= 40 ? 'lo' : 'mid';
-      const tgl = (val, label) => h('button', { type: 'button', 'aria-pressed': String(dec === val), disabled: never, text: label, onclick: () => { S.over.set(s.email, val); renderSenders(); } });
-      const acts = h('div', { class: 'row acts' });
-      if (s.unsubDone) acts.append(h('span', { class: 'pill ok', text: t('ui.clean.unsubDone') }));
-      else if (s.canUnsub) acts.append(h('button', { type: 'button', class: 'btn sm tgl', 'aria-pressed': String(mark), title: t('ui.clean.unsubMarkTip'), onclick: () => { S.unsubMark.set(s.email, !mark); renderSenders(); } }, icon('mailx'), t('ui.clean.unsubOne')));
-      acts.append(h('button', { type: 'button', class: 'btn sm tgl', 'aria-pressed': String(never), title: t('ui.clean.protectTip'), onclick: async () => {
-        try { const r = await api('POST', '/api/sender-rule', { email: s.email, rule: never ? 'none' : 'protect' }); s.rule = r.rule; s.protected = r.rule === 'protect' ? true : s.protected; S.over.delete(s.email); renderSenders(); } catch (e) { fail(e); }
-      } }, icon('lock'), never ? t('ui.clean.unprotect') : t('ui.clean.protect')));
-      const flags = [];
-      if (never) flags.push(h('div', { class: 's-flag' }, icon('lock'), t('ui.clean.alwaysKept')));
-      if (mark) flags.push(h('div', { class: 's-flag warn' }, icon('mailx'), t('ui.clean.willUnsub')));
-      body.append(h('tr', {},
-        h('td', { title: (s.samples || []).slice(0, 3).join(' · ') }, h('div', { class: 's-name', text: s.name || s.email }), h('div', { class: 's-mail', text: s.email }), flags),
-        h('td', { class: 'num', text: fmtNum(s.count) }),
-        h('td', { class: 'num' }, h('span', { class: `score ${cls}`, text: s.score == null ? '…' : s.score, title: s.reason || '' })),
-        h('td', {}, h('div', { class: `seg sm ${dec === 'delete' ? 'del' : 'keep'}` }, tgl('keep', t('ui.clean.keep')), tgl('delete', t('ui.clean.move')))),
-        h('td', {}, acts)));
+    // agrupa por dominio: con 2 o más remitentes sale una fila de dominio con ellos debajo
+    const groups = new Map();
+    for (const s of list) { const d = domOf(s); if (!groups.has(d)) groups.set(d, []); groups.get(d).push(s); }
+    const ordered = [...groups.entries()].sort((a, b) => b[1].reduce((x, m) => x + m.count, 0) - a[1].reduce((x, m) => x + m.count, 0));
+    for (const [dom, members] of ordered.slice(0, 400)) {
+      if (members.length < 2) { body.append(senderRow(members[0], false)); continue; }
+      const open = !!q || S.openDom.has(dom) || members.some(m => ownRule(m) && S.rules['@' + dom] && ownRule(m) !== S.rules['@' + dom]);
+      body.append(domainRow(dom, members, open));
+      if (open) for (const m of members) body.append(senderRow(m, true));
     }
   }
   const renderSendersSoon = debounce(renderSenders, 150);
@@ -364,7 +437,7 @@
   $('cl-unsub').addEventListener('change', renderSenders);
   $('cl-stop').onclick = () => api('POST', '/api/stop', {}).catch(fail);
   $('cl-filter').addEventListener('input', renderSendersSoon);
-  $('cl-dureza').addEventListener('input', (e) => { cl.dureza = parseInt(e.target.value, 10); $('cl-dureza-v').textContent = cl.dureza; renderSenders(); });
+  $('cl-dureza').addEventListener('input', (e) => { cl.dureza = parseInt(e.target.value, 10); renderSenders(); });
 
   function addLog(el, text, kind, ts) {
     const line = h('div', { class: `l-${kind || 'info'}`, text: `${ts ? `${ts} ` : ''}${text}` });
@@ -509,26 +582,33 @@
     const priv = (S.config.accounts || []).find(a => !a.personal);
     return (priv && priv.email) || S.draftEmail || authState().email || '';
   };
-  function mountAuth(root, { onlyWhenNeeded }) {
-    const B = { root, mode: 'login', email: '', pw: '', key: '', onlyWhenNeeded };
+  function mountAuth(root, { onlyWhenNeeded, ajustes }) {
+    const B = { root, mode: 'login', email: '', pw: '', key: '', onlyWhenNeeded, ajustes: !!ajustes };
     authBoxes.push(B);
     B.go = (mode) => { B.mode = mode; B.render(true); const f = qs('input:not([type=hidden])', root); if (f && !f.value) f.focus(); };
     B.render = (force) => {
       const a = authState();
       // la sesión se pide solo si la persona pulsó «Iniciar sesión» en una cuenta comercial
       const hasCommercial = (S.config.accounts || []).some(x => !x.personal);
-      root.hidden = a.signedIn || !(S.authOpen && hasCommercial);
-      const key = `out:${B.mode}`;
+      root.hidden = B.ajustes ? false : a.signedIn || !(S.authOpen && hasCommercial);
+      const key = `${a.signedIn ? 'in' : 'out'}:${B.mode}:${a.email || ''}`;
       if (!force && key === B.key) return;
       B.key = key;
       clear(root);
+      // Configuración: con sesión abierta solo se muestra con quién se sincroniza
+      if (B.ajustes && a.signedIn) {
+        root.append(h('div', { class: 'card-h' }, h('h2', { text: t('ui.auth.syncTitle') }), h('span', { class: 'spacer' }), h('span', { class: 'pill ok', text: a.email })),
+          h('div', { class: 'hint', text: t('ui.auth.syncedAs', { email: a.email }) }),
+          h('div', { class: 'row' }, h('button', { class: 'btn sm', type: 'button', text: t('ui.auth.logout'), onclick: async () => { try { await api('POST', '/api/auth/logout', {}); await refreshConfig(); } catch (e) { fail(e); } } })));
+        return;
+      }
       const msg = h('div', { class: 'authmsg', 'aria-live': 'polite' });
       const say = (kind, text) => clear(msg).append(h('div', { class: `msgline ${kind}`, text }));
       const run = (btn, fn) => async (e) => {
         e.preventDefault(); btn.disabled = true; clear(msg);
         try { await fn(); } catch (er) { say('bad', er.message); } finally { btn.disabled = false; }
       };
-      const head = (pill) => h('div', { class: 'card-h' }, h('h2', { text: t('ui.auth.title') }), h('span', { class: 'spacer' }), pill);
+      const head = (pill) => h('div', { class: 'card-h' }, h('h2', { text: B.ajustes ? t('ui.auth.syncTitle') : t('ui.auth.title') }), h('span', { class: 'spacer' }), pill);
       const input = (type, label, value, o = {}) => h('label', { class: 'fld' }, h('span', { text: label }), h('input', { type, value: value || '', autocomplete: o.ac || 'off', spellcheck: 'false', maxlength: o.max, inputmode: o.mode, required: true }));
       const val = (lbl) => qs('input', lbl).value.trim();
       const done = async (r) => {
@@ -542,16 +622,24 @@
       if (B.mode === 'login') {
         const em = input('email', t('ui.auth.email'), B.email || sessionEmail(), { ac: 'username' });
         const pw = input('password', t('ui.auth.password'), '', { ac: 'current-password' });
-        const go = h('button', { class: 'btn primary', type: 'submit', text: t('ui.auth.enter') });
+        const go = h('button', { class: 'btn primary', type: 'submit', text: B.ajustes ? t('ui.auth.createOrEnter') : t('ui.auth.enter') });
         const forgot = h('button', { class: 'btn link', type: 'button', text: t('ui.auth.forgot'), onclick: () => { B.email = val(em); B.go('forgot'); } });
         const form = h('form', { class: 'authform', novalidate: true }, em, pw, go);
         form.onsubmit = run(go, async () => {
           B.email = val(em); B.pw = qs('input', pw).value;
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(B.email)) throw new Error(t('ui.auth.badEmail'));
           const r = await api('POST', '/api/auth/login', { email: B.email, password: B.pw });
           if (r.codigo) { B.go('code'); say('ok', t('ui.auth.codeSent', { email: B.email })); return; }
           B.pw = ''; await done(r);
         });
-        root.append(head(pill), h('div', { class: 'hint', text: t('ui.auth.needed') }), form, h('div', { class: 'row' }, forgot, h('button', { class: 'btn link', type: 'button', text: t('ui.cancel'), onclick: () => { S.authOpen = false; renderAuthBoxes(); } })), msg);
+        if (B.ajustes) {
+          // Crear cuenta o entrar, en un paso: correo + contraseña (si el correo es nuevo llega un código) o Google
+          const gbtn = h('button', { class: 'btn google', type: 'button', onclick: async () => {
+            gbtn.disabled = true; clear(msg);
+            try { const r = await api('POST', '/api/auth/google/start', {}); window.open(r.authUrl, '_blank', 'noopener'); say('ok', t('ui.auth.googleWait')); } catch (er) { say('bad', er.message); } finally { gbtn.disabled = false; }
+          } }, h('span', { class: 'g-mark', 'aria-hidden': 'true', text: 'G' }), t('ui.auth.google'));
+          root.append(head(pill), h('div', { class: 'hint', text: t('ui.auth.syncIntro') }), form, h('div', { class: 'or', text: t('ui.auth.or') }), h('div', { class: 'row' }, gbtn, forgot), msg);
+        } else root.append(head(pill), h('div', { class: 'hint', text: t('ui.auth.needed') }), form, h('div', { class: 'row' }, forgot, h('button', { class: 'btn link', type: 'button', text: t('ui.cancel'), onclick: () => { S.authOpen = false; renderAuthBoxes(); } })), msg);
       } else if (B.mode === 'code') {
         const code = input('text', t('ui.auth.code'), '', { ac: 'one-time-code', max: 6, mode: 'numeric' });
         const go = h('button', { class: 'btn primary', type: 'submit', text: t('ui.auth.confirm') });
@@ -577,6 +665,7 @@
   }
   const renderAuthBoxes = () => { for (const B of authBoxes) B.render(); };
   mountAuth($('auth-cuentas'), { onlyWhenNeeded: true });
+  mountAuth($('auth-ajustes'), { ajustes: true });
 
   // ================================================================ AJUSTES
   async function loadSettings() { S.settings = await api('GET', '/api/settings'); return S.settings; }
@@ -829,12 +918,14 @@
     try {
       const { list } = await api('GET', '/api/sender-rules'), box = clear($('r-senders-list'));
       $('r-senders-n').textContent = fmtNum(list.length);
+      const sy = (await api('GET', '/api/sender-rules')).sync || {};
+      $('r-senders-sync').textContent = !S.config.auth || !S.config.auth.signedIn ? t('ui.rules.syncOff') : sy.ok ? t('ui.rules.syncOk') : sy.ok === false && sy.error !== 'sin-servicio' ? t('ui.rules.syncErr') : t('ui.rules.syncOk');
       if (!list.length) box.append(h('div', { class: 'hint', text: t('ui.rules.sendersNone') }));
       for (const r of list) box.append(h('div', { class: 'acct-item' },
-        h('div', { class: 'who', text: r.email }),
+        h('div', { class: 'who', text: r.email.startsWith('@') ? t('ui.rules.domainAll', { d: r.email.slice(1) }) : r.email }),
         h('span', { class: `pill ${r.rule === 'protect' ? 'ok' : 'warn'}`, text: r.rule === 'protect' ? t('ui.rules.never') : t('ui.rules.always') }),
         h('button', { class: 'btn sm', type: 'button', text: t('ui.rules.remove'), onclick: async () => {
-          try { await api('POST', '/api/sender-rule', { email: r.email, rule: 'none' }); const s = S.senders.get(r.email); if (s) { s.rule = null; renderSenders(); } loadSenderRules(); } catch (e) { fail(e); }
+          try { await api('POST', '/api/sender-rule', { email: r.email, rule: 'none' }); delete S.rules[r.email]; renderSenders(); loadSenderRules(); } catch (e) { fail(e); }
         } })));
     } catch (e) { fail(e); }
   }
@@ -1064,6 +1155,10 @@
     } else if (m.t === 'senders') {
       for (const s of m.list) { const prev = S.senders.get(s.email); S.senders.set(s.email, prev ? Object.assign(prev, s) : s); }
       renderSendersSoon(); $('st-senders').textContent = fmtNum(S.senders.size);
+    } else if (m.t === 'auth') {
+      if (m.ok) { refreshConfig().then(() => toast(t('ui.auth.syncedAs', { email: m.email }), 'ok')); loadRulesMap(); } else toast(m.error, 'bad');
+    } else if (m.t === 'reglas') {
+      loadRulesMap(); if (S.sec === 'reglas') loadSenderRules();
     } else if (m.t === 'scandone') {
       S.scanDone = true; renderClean();
     } else if (m.t === 'progress') {
@@ -1149,7 +1244,7 @@
   function initCleanControls() {
     const c = S.config.cleaning;
     if (!busy()) {
-      cl.dureza = c.dureza; $('cl-dureza').value = c.dureza; $('cl-dureza-v').textContent = c.dureza;
+      cl.dureza = c.dureza; $('cl-dureza').value = c.dureza; renderDureza();
       $('cl-dry').checked = !!c.dryRun; $('cl-unsub').checked = !!c.autoUnsub;
       const sel = $('cl-range'); const opt = [...sel.options].find(o => parseInt(o.value, 10) === c.daysBack);
       if (opt) sel.value = opt.value;
@@ -1176,7 +1271,7 @@
       S.job = S.config.job || { running: false };
       S.sync = S.config.sync;
       try { S.lic = await api('GET', '/api/licenses'); } catch (_) { /* sin licencias */ }
-      initCleanControls(); $('sy-dry').checked = true;
+      initCleanControls(); $('sy-dry').checked = true; loadRulesMap();
       if (S.config.auth.signedIn) api('POST', '/api/licenses/sync', {}).then(() => refreshConfig()).catch(() => { /* sin red: valen las claves guardadas */ });
       // si había un escaneo hecho, el servidor lo conserva: se recupera
       try { const r = await api('GET', '/api/senders'); if (r.senders.length) { S.senders = new Map(r.senders.map(s => [s.email, s])); S.scanDone = true; } } catch (_) { /* nada */ }

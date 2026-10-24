@@ -98,7 +98,9 @@
               <option value="90" data-i18n="ui.clean.days90"></option><option value="365" data-i18n="ui.clean.days365"></option>
               <option value="0" data-i18n="ui.clean.all"></option>
             </select></label>
-          <label class="fld"><span><span data-i18n="ui.clean.strict"></span> <b id="cl-dureza-v"></b></span><input type="range" id="cl-dureza" min="0" max="100"></label>
+          <div class="fld dureza"><label for="cl-dureza"><span data-i18n="ui.clean.strict"></span>: <b id="cl-dureza-v"></b> / 100</label>
+            <div class="dureza-r"><small data-i18n="ui.clean.strictLow"></small><input type="range" id="cl-dureza" min="0" max="100" step="5" aria-describedby="cl-dureza-h"><small data-i18n="ui.clean.strictHigh"></small></div>
+            <small class="hint" id="cl-dureza-h" aria-live="polite"></small></div>
           <label class="chk"><input type="checkbox" id="cl-dry"> <span data-i18n="ui.dry"></span></label>
           <label class="chk"><input type="checkbox" id="cl-unsub"> <span data-i18n="ui.clean.unsub"></span></label>
           <span class="spacer"></span>
@@ -208,6 +210,7 @@
         </div>
 
         <div class="set-sec" id="sec-reglas">
+          <div class="card" id="auth-ajustes"></div>
           <div class="rules-grid">
             <label class="fld"><span data-i18n="ui.rules.keep"></span><textarea id="r-keep"></textarea></label>
             <label class="fld"><span data-i18n="ui.rules.subject"></span><textarea id="r-subject"></textarea></label>
@@ -217,6 +220,7 @@
           </div>
           <details class="gclient sender-rules" id="r-senders">
             <summary><span data-i18n="ui.rules.senders"></span> <span class="pill sm" id="r-senders-n">0</span></summary>
+            <div class="hint" id="r-senders-sync"></div>
             <div id="r-senders-list"></div>
           </details>
           <div class="row"><button class="btn primary" id="r-save" data-i18n="ui.save"></button><button class="btn" id="r-reset" data-i18n="ui.rules.reset"></button></div>

@@ -12,6 +12,8 @@ const PATHS = {
   resetRequest: '/api/auth/password-reset-request',
   resetConfirm: '/api/auth/password-reset-confirm',
   licenses: '/api/licencias',
+  reglas: '/api/reglas-remitentes',
+  google: '/api/auth/google',
 };
 
 const httpErr = (code, message) => Object.assign(new Error(message), { code });
@@ -82,6 +84,14 @@ class ServiceAuth {
     return this._open(email, r.body.access_token);
   }
 
+  // Con Google: el servicio verifica el id_token y abre (o crea) la cuenta de ese correo, sin contraseña
+  async loginGoogle(idToken, email) {
+    const r = await this._call('POST', PATHS.google, { body: { id_token: idToken } });
+    if (r.status === 404) throw httpErr(502, t('auth.googleUnavailable'));
+    if (!r.ok || !r.body || !r.body.access_token) throw this._fail(r);
+    return this._open(String((r.body.email || email) || '').toLowerCase(), r.body.access_token);
+  }
+
   async confirm(email, code, password) {
     email = this._need(email, password);
     code = String(code || '').replace(/\s+/g, '');
@@ -121,6 +131,13 @@ class ServiceAuth {
     this.o.secrets.set({ serviceToken: null, serviceEmail: null });
     if (this.o.log) this.o.log.info('servicio: sesión cerrada');
     return { signedIn: false, email: '' };
+  }
+
+  // Reglas por remitente del perfil en línea (lib/reglas-sync.js). Devuelve la respuesta cruda para que quien llama decida.
+  async reglasRemitentes(method, body) {
+    const token = this.token;
+    if (!token) throw httpErr(401, t('auth.signedOut'));
+    return this._call(method, PATHS.reglas, { token, body });
   }
 
   // Trae las licencias del usuario y las pasa por la verificación sin conexión de lib/licenses.

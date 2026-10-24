@@ -18,7 +18,7 @@ const C = require('./config');
 const i18n = require('./i18n');
 const { t } = i18n;
 const { Secrets } = require('./secrets');
-const { compileRules } = require('./classify');
+const { compileRules, dominio: dominioAgrupado } = require('./classify');
 const llm = require('./llm');
 const { ProgressStore } = require('./batches');
 const { Engine } = require('./engine');
@@ -32,6 +32,7 @@ const { Telemetry } = require('./telemetry');
 const { Reputacion } = require('./filtro');
 const { Licenses, TIPOS } = require('./licenses');
 const { esPersonal, esCorreo, dominioDe } = require('./licenses/domains');
+const { ReglasSync } = require('./reglas-sync');
 const { ServiceAuth, algunaRequiereSesion, pestanasActivas } = require('./service-auth');
 const { SyncRunner } = require('./sync/runner');
 const { OllamaSetup } = require('./ollama');
@@ -103,6 +104,7 @@ async function createApp(o = {}) {
 
   const LIC = new Licenses({ file: file('licenses.json'), getConfig: CFG, log: LOG, fetch: o.fetch });
   const AUTH = new ServiceAuth({ getConfig: CFG, secrets: SECRETS, licenses: LIC, log: LOG, fetch: o.fetch });
+  const REGLAS = new ReglasSync({ auth: AUTH, senders: SENDERS, save: saveSenders, log: LOG, onChange: () => sse({ t: 'reglas' }) });
   const TEL = new Telemetry({ dir: dataDir, getConfig: CFG, version: PKG.version, userEmails, log: LOG, fetch: o.fetch, locale: o.locale });
   const REP = new Reputacion({ dir: dataDir, getConfig: CFG, publicKey: () => LIC.publicKey(), log: LOG, fetch: o.fetch });
   const reportError = (e, contexto = 'app', cuenta) => {
@@ -371,7 +373,7 @@ async function createApp(o = {}) {
     return null;
   }
 
-  const authDone = (r) => { sse({ t: 'config', config: publicConfig() }); return r; };
+  const authDone = (r) => { sse({ t: 'config', config: publicConfig() }); if (r && r.signedIn) REGLAS.soon(0); return r; };
   const routes = {
     // ----- general -----
     'GET /api/config': () => publicConfig(),
@@ -396,15 +398,23 @@ async function createApp(o = {}) {
     },
     'POST /api/jobs/discard': (b) => { engine.discard(b.key); return { ok: true, pending: engine.pendingJobs() }; },
     // remitentes con regla guardada (Nunca eliminar / Siempre eliminar): se listan en Ajustes → Reglas
-    'GET /api/sender-rules': () => ({ list: Object.entries(SENDERS.rules).map(([email, rule]) => ({ email, rule })).sort((a, b) => a.email.localeCompare(b.email)) }),
+    'GET /api/sender-rules': () => ({ sync: REGLAS.state, rules: { ...SENDERS.rules }, list: Object.entries(SENDERS.rules).map(([email, rule]) => ({ email, rule })).sort((a, b) => a.email.localeCompare(b.email)) }),
     'POST /api/sender-rule': (b) => {
       const email = String(b.email || '').trim().toLowerCase(), rule = b.rule;
-      if (!email) throw httpErr(400, t('api.missingEmail'));
-      if (rule === 'none' || rule == null) delete SENDERS.rules[email];
-      else if (['delete', 'protect'].includes(rule)) SENDERS.rules[email] = rule;
-      else throw httpErr(400, t('api.badRule'));
-      saveSenders();
+      if (!email || email === '@') throw httpErr(400, t('api.missingEmail'));
+      if (!(rule === 'none' || rule == null || ['delete', 'protect'].includes(rule))) throw httpErr(400, t('api.badRule'));
+      REGLAS.set(email, rule == null ? 'none' : rule);
       return { ok: true, email, rule: SENDERS.rules[email] || null, protected: rule === 'protect' };
+    },
+    // Regla de todo un dominio. Con reset se borran las excepciones de sus remitentes (el dominio vuelve a mandar en todos).
+    'POST /api/domain-rule': (b) => {
+      const dom = dominioAgrupado(`x@${String(b.domain || '').replace(/^@/, '')}`), rule = b.rule;
+      if (!dom) throw httpErr(400, t('api.missingEmail'));
+      if (!(rule === 'none' || rule == null || ['delete', 'protect'].includes(rule))) throw httpErr(400, t('api.badRule'));
+      const cambios = { ['@' + dom]: rule == null ? 'none' : rule };
+      if (b.reset) for (const k of Object.keys(SENDERS.rules)) if (!k.startsWith('@') && dominioAgrupado(k) === dom) cambios[k] = 'none';
+      REGLAS.lote(cambios);
+      return { ok: true, domain: dom, rule: SENDERS.rules['@' + dom] || null, rules: Object.fromEntries(Object.entries(SENDERS.rules)) };
     },
     'POST /api/unsubscribe': async (b) => {
       const email = String(b.email || '').trim().toLowerCase();
@@ -555,6 +565,17 @@ async function createApp(o = {}) {
       PENDING_OAUTH.set(state, { verifier, clientId, clientSecret, custom: !!(b.clientId || b.clientSecret) || gc.custom, accountId: b.accountId || '', loginHint: b.email || '', at: Date.now() });
       return { authUrl: oauth.buildAuthUrl({ clientId, redirectUri: redirectUri(), state, challenge, loginHint: b.email || undefined, authUrl: cfg.google.authUrl }) };
     },
+    // Iniciar sesión en el servicio con Google (crea la cuenta si es nueva). Solo pide «openid email».
+    'POST /api/auth/google/start': () => {
+      const cfg = CFG();
+      const gc = oauth.clientFor(cfg, SECRETS);
+      if (!gc.clientId || !gc.clientSecret) throw httpErr(400, t('google.unavailable'), { unavailable: true });
+      for (const [k, v] of PENDING_OAUTH) if (Date.now() - v.at > cfg.google.pendingTtlMs) PENDING_OAUTH.delete(k);
+      const state = crypto.randomBytes(16).toString('hex');
+      const { verifier, challenge } = oauth.createPkce();
+      PENDING_OAUTH.set(state, { purpose: 'servicio', verifier, clientId: gc.clientId, clientSecret: gc.clientSecret, at: Date.now() });
+      return { authUrl: oauth.buildAuthUrl({ clientId: gc.clientId, redirectUri: redirectUri(), state, challenge, authUrl: cfg.google.authUrl, identity: true }) };
+    },
     'POST /api/oauth/google/disconnect': async (b) => {
       if (busy()) throw httpErr(409, t('eng.busy'));
       const a = findAccount(b.id) || activeAccount();
@@ -593,6 +614,7 @@ async function createApp(o = {}) {
       LOG.info(`configurador terminado (idioma ${i18n.language()}, IA ${CFG().llm.enabled ? CFG().model : 'no'}, telemetría ${CFG().telemetry.enabled ? 'sí' : 'no'})`);
       await TEL.sendInstall(true).catch(() => {});
       REP.start();
+  REGLAS.soon(5000);
       TEL.flush().catch(() => {});
       return publicConfig();
     },
@@ -668,6 +690,15 @@ async function createApp(o = {}) {
         if (!p) return send(400, false, t('oauth.expired'));
         PENDING_OAUTH.delete(st);
         if (u.searchParams.get('error')) return send(400, false, t('oauth.googleSaid', { error: u.searchParams.get('error') }));
+        if (p.purpose === 'servicio') {
+          try {
+            const id = await oauth.exchangeIdentity({ clientId: p.clientId, clientSecret: p.clientSecret, code: u.searchParams.get('code'), verifier: p.verifier, redirectUri: redirectUri(), tokenUrl: CFG().google.tokenUrl });
+            const r = await AUTH.loginGoogle(id.idToken, id.email);
+            REGLAS.soon(0);
+            sse({ t: 'auth', ok: true, email: r.email, config: publicConfig() });
+            return send(200, true, t('oauth.connectedAs', { email: r.email }));
+          } catch (e) { sse({ t: 'auth', ok: false, error: e.message }); return send(400, false, e.message); }
+        }
         if (busy()) return send(409, false, t('oauth.busy'));
         try {
           const tk = await oauth.exchangeCode({ clientId: p.clientId, clientSecret: p.clientSecret, code: u.searchParams.get('code'), verifier: p.verifier, redirectUri: redirectUri(), tokenUrl: CFG().google.tokenUrl });
@@ -744,7 +775,7 @@ async function createApp(o = {}) {
   let closed = false;
   async function close() {
     if (closed) return; closed = true;
-    clearInterval(metricsTimer); UPD.stop(); REP.stop();
+    clearInterval(metricsTimer); UPD.stop(); REP.stop(); REGLAS.stop();
     engine.stop(); SYNC.stop(); OLL.cancel();
     for (const r of clients) { try { r.end(); } catch (_) {} }
     clients.clear();

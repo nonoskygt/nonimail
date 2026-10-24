@@ -30,10 +30,13 @@ function createPkce() {
   return { verifier, challenge: b64url(crypto.createHash('sha256').update(verifier).digest()) };
 }
 
-function buildAuthUrl({ clientId, redirectUri, state, challenge, loginHint, authUrl = ENDPOINTS.auth }) {
+// identidad: solo «openid email» para iniciar sesión en el servicio de NoniMail Tools (sin permiso de correo ni token de actualización)
+const IDENTITY_SCOPES = 'openid email';
+
+function buildAuthUrl({ clientId, redirectUri, state, challenge, loginHint, authUrl = ENDPOINTS.auth, identity = false }) {
   const q = new URLSearchParams({
-    client_id: clientId, redirect_uri: redirectUri, response_type: 'code', scope: SCOPES,
-    access_type: 'offline', prompt: 'consent', state, code_challenge: challenge, code_challenge_method: 'S256',
+    client_id: clientId, redirect_uri: redirectUri, response_type: 'code', scope: identity ? IDENTITY_SCOPES : SCOPES,
+    ...(identity ? { prompt: 'select_account' } : { access_type: 'offline', prompt: 'consent' }), state, code_challenge: challenge, code_challenge_method: 'S256',
   });
   if (loginHint) q.set('login_hint', loginHint);
   return `${authUrl}?${q}`;
@@ -67,6 +70,17 @@ async function exchangeCode({ clientId, clientSecret, code, verifier, redirectUr
   return { refreshToken: j.refresh_token, accessToken: j.access_token, expiresAt: Date.now() + (j.expires_in || 3600) * 1000, email: emailFromIdToken(j.id_token) };
 }
 
+// Inicio de sesión con Google: devuelve el correo y el id_token (el servicio lo verifica por su cuenta).
+async function exchangeIdentity({ clientId, clientSecret, code, verifier, redirectUri, tokenUrl = ENDPOINTS.token }) {
+  const j = await tokenRequest(tokenUrl, {
+    client_id: clientId, client_secret: clientSecret, code, code_verifier: verifier,
+    grant_type: 'authorization_code', redirect_uri: redirectUri,
+  });
+  const email = emailFromIdToken(j.id_token);
+  if (!j.id_token || !email) throw new Error(t('google.noIdentity'));
+  return { email, idToken: j.id_token };
+}
+
 async function refreshAccessToken({ clientId, clientSecret, refreshToken, tokenUrl = ENDPOINTS.token }) {
   const j = await tokenRequest(tokenUrl, { client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' });
   return { accessToken: j.access_token, expiresAt: Date.now() + (j.expires_in || 3600) * 1000 };
@@ -90,4 +104,4 @@ class TokenCache {
   clear() { this.cache.clear(); }
 }
 
-module.exports = { clientFor, ENDPOINTS, SCOPES, GMAIL_SCOPE, createPkce, buildAuthUrl, exchangeCode, refreshAccessToken, revoke, emailFromIdToken, TokenCache };
+module.exports = { clientFor, ENDPOINTS, SCOPES, GMAIL_SCOPE, createPkce, buildAuthUrl, exchangeCode, exchangeIdentity, refreshAccessToken, revoke, emailFromIdToken, TokenCache };

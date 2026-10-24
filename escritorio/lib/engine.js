@@ -258,13 +258,13 @@ class Engine {
   _senderView(g) {
     return {
       email: g.email, name: g.name, count: g.count, samples: g.samples, canUnsub: !!g.lu,
-      unsubDone: this.isUnsubDone(g.email), protected: g.prot, rule: this.senderRules()[g.email] || null, score: g.score, reason: g.reason,
+      unsubDone: this.isUnsubDone(g.email), protected: g.prot, rule: this.senderRules()[g.email] || null, dominio: C.dominio(g.email), score: g.score, reason: g.reason,
     };
   }
   _senderList(job) { return Object.values(job.senders).map(g => this._senderView(g)); }
 
   _initialScore(g, ctx, meta) {
-    const rule = ctx.senderRules[g.email];
+    const rule = C.reglaDe(ctx.senderRules, g.email);
     g.prot = C.isProtected(ctx.rules, ctx.senderRules, g.email, meta.subject, meta.from);
     if (rule === 'delete') { g.score = 100; g.reason = 'regla-usuario'; }
     else if (rule === 'protect') { g.score = 0; g.reason = 'regla-usuario'; }
@@ -354,7 +354,7 @@ class Engine {
     if (!scan) return;
     const elegidos = new Set(job.params.emails), bajas = new Set(job.params.unsub);
     const filas = Object.values(scan).map(g => ({
-      g, decision: ctx.senderRules[g.email] === 'protect' ? 'nunca' : bajas.has(g.email) && elegidos.has(g.email) ? 'baja' : elegidos.has(g.email) ? 'eliminar' : 'conservar',
+      g, decision: C.reglaDe(ctx.senderRules, g.email) === 'protect' ? 'nunca' : bajas.has(g.email) && elegidos.has(g.email) ? 'baja' : elegidos.has(g.email) ? 'eliminar' : 'conservar',
     })).filter(x => x.decision === 'nunca' || (!x.g.prot && !ctx.mine.has(x.g.email) && (x.decision !== 'conservar' || x.g.score != null)));
     const lista = F.armarDecisiones(filas, Infinity);
     if (lista.length) this.onDecisiones(lista);
@@ -402,7 +402,7 @@ class Engine {
     for (const m of metas) {
       job.totals.seen++;
       const ss = C.shortSubj(m.subject, 42);
-      const rule = ctx.senderRules[m.email];
+      const rule = C.reglaDe(ctx.senderRules, m.email);
       let del = false, why = '', noted = false;
       if (job.kind === 'execute') del = job.params.emails.includes(m.email);
       else { const g = job.senders[m.email]; del = C.decide(g.score, job.params.dureza, cfg.cleaning.band) === 'delete'; why = `${g.score}`; }

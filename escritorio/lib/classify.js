@@ -10,6 +10,23 @@ function parseFrom(from) {
   return { email, name };
 }
 
+// Dominio con el que se agrupa un remitente: los dos últimos tramos (empresa.com), tres si es del tipo
+// empresa.com.gt / empresa.co.uk. Quien llama lo guarda en minúsculas.
+const SEGUNDO_NIVEL = new Set(['com', 'net', 'org', 'co', 'gov', 'gob', 'edu', 'mil', 'ac', 'go']);
+function dominio(email) {
+  const at = String(email || '').lastIndexOf('@');
+  if (at < 0) return '';
+  const p = String(email).slice(at + 1).trim().toLowerCase().split('.').filter(Boolean);
+  if (p.length <= 2) return p.join('.');
+  const n = p[p.length - 1].length === 2 && SEGUNDO_NIVEL.has(p[p.length - 2]) ? 3 : 2;
+  return p.slice(-n).join('.');
+}
+
+// Reglas por remitente con herencia: la del remitente manda (excepción) y, si no tiene, vale la de su dominio ('@empresa.com').
+function reglaDe(reglas, email) {
+  return reglas[email] || reglas['@' + dominio(email)] || undefined;
+}
+
 function shortSubj(s, n = 55) { s = s || '–'; return s.length > n ? s.slice(0, n) + '...' : s; }
 
 // Un patrón vacío NUNCA coincide: new RegExp('') coincidiría con todo y borraría la bandeja entera.
@@ -29,7 +46,7 @@ const test = (rx, s) => !!rx && rx.test(s || '');
 
 // regla 'delete' DESPROTEGE (gana sobre el regex financiero); 'protect' siempre conserva
 function isProtected(rules, senderRules, email, subject, from) {
-  const r = senderRules[email];
+  const r = reglaDe(senderRules, email);
   if (r === 'delete') return false;
   if (r === 'protect') return true;
   return test(rules.keep, subject) || test(rules.keep, from);
@@ -105,4 +122,4 @@ function htmlToText(html) {
     .trim();
 }
 
-module.exports = { parseFrom, shortSubj, compilePattern, compileRules, isProtected, looksLikeReply, isConversation, decide, htmlToText, heuristicScore, matchedRules, reputationVerdict };
+module.exports = { dominio, reglaDe, parseFrom, shortSubj, compilePattern, compileRules, isProtected, looksLikeReply, isConversation, decide, htmlToText, heuristicScore, matchedRules, reputationVerdict };
