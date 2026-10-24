@@ -8,7 +8,7 @@ Aquí viven las apps de NoniMail Tools (MIT):
 | `android/` | Android. Kotlin/Compose, módulos `:core` y `:app`; IA en el teléfono con LiteRT-LM | CI de GitHub (`android.yml`) |
 | `herramientas/banco.py` | Banco de 24 correos etiquetados para probar un modelo de IA | `OLLAMA_URL=… python3 herramientas/banco.py <modelo>` |
 
-El servicio web (mt.nonosky.com) **no** está en este repositorio. Las apps solo hablan con él por HTTP: licencias, telemetría, filtro colectivo e inicio de sesión. Los contratos están en `escritorio/TELEMETRIA.md` y en el código de cada app.
+El servicio web (mt.nonosky.com) **no** está en este repositorio. Las apps solo hablan con él por HTTP: licencias, telemetría, filtro colectivo e inicio de sesión. Los contratos están en `SERVICIO.md` (cuenta, Google, reglas por remitente) y en el código de cada app.
 
 ## Reglas de las apps
 1. **Escritorio, Android y web hacen lo mismo.** Toda función o regla nueva se aplica en las dos apps en el mismo cambio, y se deja anotado lo que toque a la web.
