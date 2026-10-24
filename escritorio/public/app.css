@@ -332,3 +332,4 @@ tr.child td:first-child { padding-left: 34px; }
 #auth-ajustes, .sender-rules { flex: none; }
 #auth-ajustes .authform { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
 #auth-ajustes .authform .btn.primary { grid-column: 1 / -1; }
+.term-h .meter small { color: var(--muted); font-size: 11px; margin-right: 4px; }

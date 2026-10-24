@@ -1,10 +1,13 @@
 # Changelog
 
-## 1.4.0
+## 1.6.0
 
 - **Las decisiones se guardan.** Conservar y Eliminar en Limpiar ya no se pierden al escanear de nuevo: cada clic guarda una regla por remitente, visible en Ajustes → Reglas → Remitentes con regla. «Quitar regla» devuelve la decisión al ruido y la dureza.
 - **Agrupado por dominio.** Los remitentes del mismo dominio (`@tienda.com`, `@banco.com.gt`) salen juntos: la fila del dominio conserva o elimina a todos y, al elegir uno aparte, se crea una excepción que queda marcada. La regla del dominio también se aplica a los remitentes nuevos de ese dominio.
 - **Dureza explícita.** El deslizador muestra 0–100 con Suave y Estricta en los extremos, el ruido mínimo que se elimina y cuántos remitentes sin regla marca.
+- **Lo eliminado sale de la lista.** Tras eliminar de verdad, los remitentes borrados desaparecen de la lista; en simulación se quedan.
+- **Medidor de RAM** junto al de CPU, encima de la terminal de lectura.
+- **Eliminar también lo protegido.** Elegir Eliminar en un remitente protegido guarda «Siempre eliminar» y gana a la protección; solo «Conservar» lo bloquea.
 - **Sincronización con una cuenta.** Ajustes → Reglas explica que las preferencias viven en el equipo y que, para tenerlas en otras apps, hay que crear una cuenta allí mismo: correo válido y contraseña (código de confirmación si el correo es nuevo) o «Continuar con Google». Las reglas se fusionan por fecha con `GET/PUT /api/reglas-remitentes` y, sin sesión o sin servicio, siguen funcionando en local.
 
 ## 1.3.5

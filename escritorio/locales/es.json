@@ -525,5 +525,6 @@
   "ui.auth.googleWait": "Termine el inicio de sesión en la ventana de Google; aquí se actualiza solo.",
   "auth.googleUnavailable": "El servicio todavía no acepta Google; use correo y contraseña.",
   "google.noIdentity": "Google no devolvió el correo; vuelva a intentarlo.",
-  "ui.auth.createOrEnter": "Crear cuenta o entrar"
+  "ui.auth.createOrEnter": "Crear cuenta o entrar",
+  "ui.term.ramTitle": "Memoria RAM en uso del equipo"
 }

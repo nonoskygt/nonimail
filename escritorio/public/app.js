@@ -421,6 +421,7 @@
         if (!ok) return;
         clear($('cl-log')); resetFeeds();
         r = await api('POST', '/api/execute', { daysBack: days, emails, dryRun: dry, unsub: bajas });
+        S.lastExec = emails;
       } else {
         const ok = await ask(t('ui.clean.auto'), [t('ui.clean.confirmAuto', { range, strict: dureza() }), dry ? t('ui.dry') : t('ui.clean.toTrash')], t('ui.clean.auto'));
         if (!ok) return;
@@ -467,6 +468,7 @@
   }
   function onMetrics(m) {
     if (typeof m.cpu === 'number') setMeter('cpu-bar', 'cpu-pct', m.cpu);
+    if (typeof m.ram === 'number') setMeter('ram-bar', 'ram-pct', m.ram);
     if (m.gpu) { setMeter('gpu-bar', 'gpu-pct', m.gpu.util); $('vram').textContent = `${(m.gpu.vramUsed / 1024).toFixed(1)}/${(m.gpu.vramTotal / 1024).toFixed(1)} GB`; }
     else { $('gpu-pct').textContent = t('ui.term.na'); $('gpu-bar').style.width = '0'; $('vram').textContent = ''; }
   }
@@ -1164,7 +1166,12 @@
     } else if (m.t === 'progress') {
       const wasRunning = S.job && S.job.running;
       S.job = m.job; renderHeader(); renderClean();
-      if (wasRunning && !m.job.running) refreshConfig();
+      if (wasRunning && !m.job.running) {
+        // Tras eliminar de verdad, los remitentes borrados salen de la lista (en simulación o con error se quedan)
+        const ex = S.lastExec; S.lastExec = null;
+        if (ex && m.job.kind === 'execute' && !m.job.dryRun && m.job.status === 'done') { for (const e of ex) S.senders.delete(e); renderSenders(); }
+        refreshConfig();
+      }
     } else if (m.t === 'config') {
       S.config = m.config; renderAll();
     } else if (m.t === 'setup') {

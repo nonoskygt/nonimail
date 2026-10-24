@@ -525,5 +525,6 @@
   "ui.auth.googleWait": "Finish signing in in the Google window; this updates by itself.",
   "auth.googleUnavailable": "The service does not accept Google yet; use email and password.",
   "google.noIdentity": "Google did not return the email; try again.",
-  "ui.auth.createOrEnter": "Create account or sign in"
+  "ui.auth.createOrEnter": "Create account or sign in",
+  "ui.term.ramTitle": "RAM in use on this computer"
 }
