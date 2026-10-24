@@ -18,6 +18,7 @@ data class Defaults(
     val localAi: com.nonosky.nonimailtools.core.ia.IaLocalDefaults,
     val providers: List<ProviderPreset>,
     val folders: FolderNames,
+    val filtro: FiltroDefaults,
 ) {
     fun provider(id: String): ProviderPreset? = providers.firstOrNull { it.id == id }
 
@@ -116,4 +117,22 @@ data class ProviderPreset(
 data class FolderNames(
     val trash: List<String>,
     val sent: List<String>,
+)
+
+/** Collective filter (same values as `filtro` in the desktop `defaults.json`). */
+@Serializable
+data class FiltroDefaults(
+    /** Share the decisions taken when cleaning (own switch in Ajustes). */
+    val compartir: Boolean,
+    /** Use the downloaded sender reputation as a layer of the engine. */
+    val reputacion: Boolean,
+    val decisionesPath: String,
+    val reputacionPath: String,
+    val intervalMs: Long,
+    val timeoutMs: Int,
+    val maxBatch: Int,
+    val maxQueue: Int,
+    val minN: Int,
+    val alto: Int,
+    val bajo: Int,
 )

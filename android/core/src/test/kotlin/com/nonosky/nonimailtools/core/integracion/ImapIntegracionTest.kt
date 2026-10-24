@@ -160,4 +160,59 @@ class ImapIntegracionTest {
         assertEquals(0, again.totals.copied); assertEquals(3, again.totals.existing)
         assertEquals(3, count("src", "INBOX"))           // the source is never touched
     }
+
+    @Test fun savedRulesDecideWhatIsDeletedAndWhatIsSpared() {
+        seed(
+            "dora",
+            msg("A <ofertas@tienda.com>", "oferta 1", "<1@t>"),
+            msg("A <ofertas@tienda.com>", "Su factura de octubre", "<2@t>"),
+            msg("B <amiga@tienda.com>", "oferta amiga", "<3@t>"),
+            msg("C <x@otra.com>", "oferta", "<4@t>"),
+            msg("D <banco@banco.com>", "Su estado de cuenta", "<5@t>"),
+        )
+        createFolder("dora", "Trash")
+        val reglas = mapOf("@tienda.com" to "delete", "amiga@tienda.com" to "protect", "x@otra.com" to "protect", "banco@banco.com" to "delete")
+        val opt = CleanOptions(dryRun = false, protectedList = emptyList(), rules = rules, trashNames = d.folders.trash, reglas = reglas)
+        val r = Limpieza(timeouts).execute(acct("dora"), listOf("ofertas@tienda.com", "amiga@tienda.com", "x@otra.com", "banco@banco.com"), opt, object : Reporter<CleanProgress> {})
+        // delete beats the invoice/bank patterns; protect spares even when it was asked for
+        assertEquals(3, r.total)
+        assertEquals(0, r.protectedMessages)
+        assertEquals(listOf("amiga@tienda.com", "x@otra.com"), r.skippedSenders)
+        assertEquals(2, count("dora", "INBOX")); assertEquals(3, count("dora", "Trash"))
+    }
+
+    @Test fun scanSkipsTheAiForRuledAndReputationSenders() {
+        val par = java.security.KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+        val pub = par.public.encoded.takeLast(32).toByteArray()
+        val base = kotlinx.serialization.json.Json.parseToJsonElement("""{"v":1,"generado":"g","dominios":{"tienda.com":{"eliminar_pct":95,"n":50},"amigos.com":{"eliminar_pct":2,"n":40}}}""")
+        val sig = java.security.Signature.getInstance("Ed25519").apply {
+            initSign(par.private); update((com.nonosky.nonimailtools.core.limpiar.Filtro.PREFIJO_FIRMA + com.nonosky.nonimailtools.core.limpiar.Filtro.canonico(base)).toByteArray())
+        }.sign()
+        val doc = base.toString().dropLast(1) + ",\"firma\":\"" + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(sig) + "\"}"
+        val rep = com.nonosky.nonimailtools.core.limpiar.Reputacion.leer(doc, pub)!!
+        seed(
+            "eva",
+            msg("A <hola@tienda.com>", "novedades", "<1@t>"),
+            msg("B <hola@amigos.com>", "oferta 50% OFF", "<2@t>", unsub = true),
+            msg("C <promo@regla.com>", "oferta", "<3@t>"),
+            msg("D <alertas@banco.com>", "Su estado de cuenta", "<4@t>"),
+            msg("E <otro@sinrep.com>", "oferta", "<5@t>"),
+        )
+        val llamadas = ArrayList<String>()
+        val ia = object : com.nonosky.nonimailtools.core.limpiar.IaScorer {
+            override fun generate(prompt: String): String { llamadas += prompt; return "PROMOCION" }
+        }
+        val opt = scanOpt().copy(ia = ia, categoryScores = d.llm.categoryScores, reglas = mapOf("promo@regla.com" to "delete"), reputacion = rep, filtro = d.filtro)
+        val r = Limpieza(timeouts).scan(acct("eva"), opt, object : Reporter<ScanProgress> {})
+        val by = r.senders.associateBy { it.email }
+        assertEquals(com.nonosky.nonimailtools.core.limpiar.Reason.REPUTACION, by.getValue("hola@tienda.com").reason)
+        assertEquals(95, by.getValue("hola@tienda.com").score)
+        assertEquals(com.nonosky.nonimailtools.core.limpiar.Reason.REPUTACION, by.getValue("hola@amigos.com").reason)
+        assertEquals(5, by.getValue("hola@amigos.com").score)
+        assertTrue("protected stays protected", by.getValue("alertas@banco.com").isProtected)
+        // only the sender with no rule, no reputation and no protection reached the model
+        assertEquals(1, llamadas.size)
+        assertEquals(com.nonosky.nonimailtools.core.limpiar.Reason.IA, by.getValue("otro@sinrep.com").reason)
+        assertTrue(by.getValue("promo@regla.com").reason != com.nonosky.nonimailtools.core.limpiar.Reason.IA)
+    }
 }

@@ -60,5 +60,18 @@
   "folders": {
     "trash": ["Trash", "INBOX.Trash", "Papelera", "INBOX.Papelera", "Deleted Items", "Deleted Messages", "Elementos eliminados", "[Gmail]/Trash", "[Gmail]/Papelera"],
     "sent": ["Sent", "Sent Items", "Sent Messages", "Sent Mail", "Enviados", "Elementos enviados", "INBOX.Sent", "INBOX.Enviados", "[Gmail]/Sent Mail", "[Gmail]/Enviados"]
+  },
+  "filtro": {
+    "compartir": true,
+    "reputacion": true,
+    "decisionesPath": "/api/filtro/v1/decisiones",
+    "reputacionPath": "/api/filtro/v1/reputacion",
+    "intervalMs": 86400000,
+    "timeoutMs": 15000,
+    "maxBatch": 500,
+    "maxQueue": 5000,
+    "minN": 10,
+    "alto": 90,
+    "bajo": 10
   }
 }

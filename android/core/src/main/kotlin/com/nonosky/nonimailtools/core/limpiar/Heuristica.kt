@@ -4,7 +4,7 @@ import com.nonosky.nonimailtools.core.HeuristicPatterns
 import com.nonosky.nonimailtools.core.ScoreLevels
 
 /** Why a sender got its score. */
-enum class Reason { PROTEGIDO_USUARIO, CONTACTO, PROTEGIDO, PROMOCION, MASIVO_AUTOMATICO, MASIVO, AUTOMATICO, PERSONA, IA }
+enum class Reason { PROTEGIDO_USUARIO, CONTACTO, PROTEGIDO, PROMOCION, MASIVO_AUTOMATICO, MASIVO, AUTOMATICO, PERSONA, IA, REPUTACION }
 
 /** Where a sender lands for a given hardness. */
 enum class Decision { LIMPIAR, DUDA, CONSERVAR }

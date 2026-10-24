@@ -38,6 +38,24 @@ object GoogleAuth {
         .apply { if (!email.isNullOrBlank()) setAccount(android.accounts.Account(email, "com.google")) }
         .build()
 
+    /** Identity only (`openid email`, no mail permission): for signing in to the NoniMail Tools account. */
+    private fun peticionIdentidad() = AuthorizationRequest.builder()
+        .setRequestedScopes(GoogleOauth.SCOPES_IDENTIDAD.map { Scope(it) })
+        .build()
+
+    /** Like [autorizar] but for the account sign-in; the result carries the `id_token` once the person agrees. */
+    suspend fun autorizarIdentidad(ctx: Context): AuthorizationResult = withContext(Dispatchers.IO) {
+        Tasks.await(Identity.getAuthorizationClient(ctx.applicationContext).authorize(peticionIdentidad()), 60, TimeUnit.SECONDS)
+    }
+
+    /**
+     * The `id_token` of an identity grant: on the Google account of the result, or in the token response
+     * parameters. Null if Google did not hand one over (the sign-in then reports the usual Google error).
+     */
+    fun idToken(r: AuthorizationResult): String? =
+        runCatching { r.toGoogleSignInAccount()?.idToken }.getOrNull()?.takeIf { it.isNotBlank() }
+            ?: runCatching { r.tokenResponseParams?.getString("id_token") }.getOrNull()?.takeIf { it.isNotBlank() }
+
     /** Asks for access. The result may carry a PendingIntent ([AuthorizationResult.hasResolution]) the UI must launch. */
     suspend fun autorizar(ctx: Context): AuthorizationResult = withContext(Dispatchers.IO) {
         Tasks.await(Identity.getAuthorizationClient(ctx.applicationContext).authorize(peticion()), 60, TimeUnit.SECONDS)

@@ -155,6 +155,11 @@ fun BloqueTelemetria() {
         { on -> app.ajustes.telemetria(on); if (!on) app.telemetry.vaciar() },
         detalle = stringResource(R.string.telemetria_linea),
     )
+    FilaInterruptor(
+        stringResource(R.string.filtro_interruptor), v.filtroCompartir,
+        { on -> app.ajustes.filtroCompartir(on); if (!on) app.telemetry.vaciarDecisiones() },
+        detalle = stringResource(R.string.filtro_linea),
+    )
 }
 
 fun android.content.Context.findActivity(): Activity? {

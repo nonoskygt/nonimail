@@ -123,53 +123,12 @@ fun BloqueLicencias() {
     if (entrando) DialogoSesion(onCerrar = { entrando = false }, onAbierta = { n -> entrando = false; mensaje = true to ctx.getString(R.string.sesion_abierta, n) })
 }
 
-/** Sign-in to the web account: e-mail and password; a new e-mail also asks for the 6-digit code. */
+/** Sign-in to the web account: e-mail and password (a new e-mail also asks for the 6-digit code), or Google. */
 @Composable
 fun DialogoSesion(onCerrar: () -> Unit, onAbierta: (Int) -> Unit) {
-    val app = NmtApp.instance
-    val scope = rememberCoroutineScope()
-    var email by rememberSaveable { mutableStateOf("") }
-    var clave by rememberSaveable { mutableStateOf("") }
-    var codigo by rememberSaveable { mutableStateOf("") }
-    var pideCodigo by rememberSaveable { mutableStateOf(false) }
-    var trabajando by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<Acceso.Motivo?>(null) }
     DialogoGrande(onCerrar) {
         Titulo(stringResource(R.string.iniciar_sesion))
-        Campo(email, { email = it; error = null }, stringResource(R.string.correo), teclado = androidx.compose.ui.text.input.KeyboardType.Email)
-        Campo(clave, { clave = it; error = null }, stringResource(R.string.contrasena), secreto = true)
-        if (pideCodigo) Campo(codigo, { codigo = it.filter(Char::isDigit).take(6); error = null }, stringResource(R.string.codigo_correo), teclado = androidx.compose.ui.text.input.KeyboardType.Number)
-        error?.let {
-            Pista(stringResource(when (it) {
-                Acceso.Motivo.CREDENCIALES -> R.string.sesion_err_credenciales
-                Acceso.Motivo.CODIGO -> R.string.sesion_err_codigo
-                Acceso.Motivo.DEMASIADOS -> R.string.sesion_err_demasiados
-                Acceso.Motivo.RED -> R.string.sesion_err_red
-                Acceso.Motivo.SERVICIO -> R.string.sesion_err_servicio
-            }), error = true)
-        }
-        Fila {
-            BotonSecundario(stringResource(R.string.cancelar), onCerrar, Modifier.weight(1f))
-            BotonPrimario(
-                stringResource(R.string.entrar),
-                {
-                    trabajando = true
-                    scope.launch {
-                        val r = withContext(Dispatchers.IO) {
-                            if (pideCodigo) app.servicio.confirmar(email, codigo, clave) else app.servicio.acceder(email, clave)
-                        }
-                        trabajando = false
-                        when (r) {
-                            is Acceso.Abierta -> onAbierta(r.importadas)
-                            Acceso.PideCodigo -> pideCodigo = true
-                            is Acceso.Fallo -> error = r.motivo
-                        }
-                    }
-                },
-                Modifier.weight(1f),
-                activo = !trabajando && email.contains('@') && clave.isNotEmpty() && (!pideCodigo || codigo.length == 6),
-            )
-        }
+        FormularioSesion(onAbierta, onCerrar, stringResource(R.string.entrar), conGoogle = true)
     }
 }
 
