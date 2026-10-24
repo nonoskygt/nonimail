@@ -23,12 +23,15 @@ El servicio web (mt.nonosky.com) **no** está en este repositorio. Las apps solo
 5. **Limpiar:**
    - Solo por días; no hay «últimos mensajes».
    - Fases: Conectando → Escaneando N / M correos → Agrupando por remitente → Clasificando N / M remitentes → Eliminando → Dándose de baja → Listo, con Cancelar.
+   - Los remitentes del mismo dominio salen agrupados (con 2 o más): la fila del dominio conserva o elimina a todos y elegir uno aparte crea una excepción.
    - Cada remitente tiene:
-     - casilla **Eliminar**, también en contactos («Usted les escribe»);
+     - **Conservar / Eliminar**, que guardan una regla (clave: correo o `@dominio`; la del remitente manda sobre la del dominio). Eliminar vence a las protecciones automáticas, también en contactos («Usted les escribe»);
      - casilla **Darse de baja**, si trae List-Unsubscribe;
-     - **Nunca eliminar**, que guarda una regla y bloquea la fila.
+     - **Quitar regla**, que devuelve la decisión al ruido y la dureza.
+   - La dureza se muestra explícita: valor 0–100, Suave/Estricta y el ruido mínimo que se elimina.
    - La baja se hace al ejecutar, después de eliminar: one-click, luego correo por SMTP, luego enlace; solo https y nunca hacia la red local. En simulación no se envía nada.
    - Lo que se elimina va a la Papelera y sale de la lista.
+   - Las reglas se sincronizan con la cuenta de la web (`SERVICIO.md`); sin sesión o sin servicio quedan en el equipo. Ajustes tiene la tarjeta «Preferencias y sincronización» para crear la cuenta (correo válido o Google).
 6. **Terminales en vivo:**
    - Limpiar: «CPU · lectura + heurística» e «IA · modelo».
    - Sincronizar: «Red · sincronización».
@@ -55,15 +58,8 @@ El servicio web (mt.nonosky.com) **no** está en este repositorio. Las apps solo
 - Android no se compila en máquinas con poca memoria; para eso está el CI.
 
 ## Pendiente
-1. **Android:**
-   - mostrar el medidor de RAM/CPU/GPU encima de las terminales (`Operaciones.uso` y `motorIa` ya existen);
-   - probar en un teléfono real el inicio de sesión con Google y la baja.
-2. **Escritorio**, para igualar a Android:
-   - casilla de eliminar también en contactos;
-   - quitar de la lista lo eliminado;
-   - medidor de RAM/CPU/GPU.
-3. **Android:** falta el filtro colectivo (el escritorio ya lo tiene).
-4. **Primera versión desde este repositorio** (`v1.6.0` para las dos apps):
-   - igualar `escritorio/package.json` a 1.6.0;
-   - etiquetar y revisar que el release traiga los archivos de Windows, Linux, Mac y Android.
+1. **Servicio (`nonosky/syncromail`, VM170, privado):** desplegar `GET/PUT /api/reglas-remitentes` y `POST /api/auth/google` (rama `agente/reglas-remitentes-google`) y poner `GOOGLE_CLIENT_IDS` en su `.env`. Sin eso las reglas quedan en cada equipo.
+2. **Probar en un teléfono real** el inicio de sesión con Google (en Android depende de que Google entregue el `id_token` con `openid email`), la baja y las pantallas nuevas de Limpiar y Ajustes.
+3. **Filtro colectivo en Android:** confirmar contra el servicio el cuerpo de las decisiones (`{install_id, app, version, decisiones}`) y la firma `NMTF1.`; se dedujeron del escritorio.
+4. **Primera versión desde este repositorio** (`v1.6.0` para las dos apps): ya están igualadas; falta etiquetar `v1.6.0` y revisar que el release traiga los archivos de Windows, Linux, Mac y Android.
 5. **Mac:** sale sin firma de Apple; la actualización automática en Mac necesita firma.
