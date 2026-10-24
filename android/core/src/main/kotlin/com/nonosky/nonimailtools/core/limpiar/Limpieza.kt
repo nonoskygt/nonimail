@@ -44,6 +44,11 @@ data class ScanOptions(
     val llmPrompt: String = "",
     val categoryScores: Map<String, Int> = emptyMap(),
     val now: Date = Date(),
+    /** Saved sender rules in force (key -> delete/protect). A sender with a rule is not sent to the AI. */
+    val reglas: Map<String, String> = emptyMap(),
+    /** Collective reputation layer: after protections and rules, before the AI. Null = off. */
+    val reputacion: Reputacion? = null,
+    val filtro: com.nonosky.nonimailtools.core.FiltroDefaults? = null,
 )
 
 /** One sender after the scan. */
@@ -92,6 +97,8 @@ data class CleanOptions(
     val rules: Rules,
     val trashNames: List<String>,
     val batch: Int = 200,
+    /** Saved sender rules in force: protect keeps, delete also beats the bank/invoice pattern. */
+    val reglas: Map<String, String> = emptyMap(),
 )
 
 @Serializable
@@ -232,10 +239,27 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                     log("[cpu] ${g.email} · ${g.count} correos → $score (${reason.name.lowercase()})")
                 }
 
-                // 4) Optional local AI for every sender that is not protected.
+                // 3b) Collective reputation: after protections and saved rules, before the AI.
+                val rep = opt.reputacion
+                val fcfg = opt.filtro
+                val porReputacion = HashSet<String>()
+                if (rep != null && fcfg != null) {
+                    for (i in scored.indices) {
+                        val s = scored[i]
+                        if (s.isProtected || Reglas.reglaDe(opt.reglas, s.email) != null) continue
+                        val v = rep.veredicto(s.email, fcfg) ?: continue
+                        scored[i] = s.copy(score = v.score, reason = Reason.REPUTACION)
+                        porReputacion += s.email
+                        log("[cpu] ${s.email} · reputación=${v.score} (${if (v.eliminar) "el ${v.pct}% lo elimina" else "casi todos lo conservan"})")
+                    }
+                }
+
+                // 4) Optional local AI for every sender that is not protected, has no rule and no reputation.
                 val ai = opt.ia
                 if (ai != null && !cancelled) {
-                    val todo = scored.indices.filter { !scored[it].isProtected }
+                    val todo = scored.indices.filter {
+                        !scored[it].isProtected && scored[it].email !in porReputacion && Reglas.reglaDe(opt.reglas, scored[it].email) == null
+                    }
                     emit(ScanProgress(ScanProgress.Phase.AI, 0, todo.size, groups.size))
                     for ((n, i) in todo.withIndex()) {
                         if (cancelled()) { cancelled = true; break }
@@ -305,7 +329,11 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                 for ((i, email) in wanted.withIndex()) {
                     if (cancelled()) { cancelled = true; break }
                     if ('@' !in email) { skipped += email; continue }
-                    if (Heuristica.inProtectedList(email, opt.protectedList) || opt.rules.keep?.containsMatchIn(email) == true) {
+                    val regla = Reglas.reglaDe(opt.reglas, email)
+                    // The manual list always keeps; a delete rule is the person's explicit word and beats the bank pattern.
+                    if (Heuristica.inProtectedList(email, opt.protectedList) || regla == Reglas.PROTEGER ||
+                        (regla != Reglas.ELIMINAR && opt.rules.keep?.containsMatchIn(email) == true)
+                    ) {
                         skipped += email
                         log("Skipped (protected): $email")
                         continue
@@ -322,7 +350,7 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                         for (m in inbox.fetchMeta(chunk, withFlags = false)) {
                             val from = m.from.firstOrNull { addressOf(it).isNotEmpty() }?.let(::addressOf) ?: continue
                             if (from != email) continue
-                            if (opt.rules.keep?.containsMatchIn(m.subject) == true) { protectedMessages++; continue }
+                            if (regla != Reglas.ELIMINAR && opt.rules.keep?.containsMatchIn(m.subject) == true) { protectedMessages++; continue }
                             exact += m.uid
                         }
                     }

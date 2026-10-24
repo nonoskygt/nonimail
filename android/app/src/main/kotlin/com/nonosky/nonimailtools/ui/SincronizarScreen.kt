@@ -103,7 +103,12 @@ fun SincronizarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
 
         item {
             val red by app.operaciones.terminal(Operaciones.Terminal.RED).collectAsState()
-            if (red.isNotEmpty()) VentanaTerminal(stringResource(R.string.term_red), red)
+            if (red.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MedidorUso(conIa = false)
+                    VentanaTerminal(stringResource(R.string.term_red), red)
+                }
+            }
         }
 
         val listo = estado as? EstadoSync.Listo

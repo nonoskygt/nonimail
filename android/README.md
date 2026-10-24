@@ -40,7 +40,9 @@ A short configurator runs once and can be repeated from Settings:
 
 - Scan the last N messages or the last N days. The scan only reads; nothing is marked as read.
 - Senders are scored 0-100 with the shared heuristics (promotions, bulk headers, automatic senders). With AI set up (on the phone or Ollama), it can score them too.
-- The **hardness** slider draws a cut line over all scores; the senders above it are ticked. You can tick or untick any of them.
+- The **hardness** slider (0-100, «Gentle» to «Strict») draws a cut line over all scores and says how many senders without a rule it marks.
+- **Keep** and **Delete** on a sender save a rule on the phone, and a rule beats the hardness. With 2 or more senders of one domain a domain row appears (summed mails, highest noise): its Keep/Delete applies to all of them, and choosing otherwise on one sender makes an exception (counted as «Exceptions»). «Remove rule» hands the decision back to the hardness.
+- **Collective reputation**: once a day a domain reputation is downloaded (Ed25519-signed, checked with the public key bundled in the app); it is an engine layer after protections and rules and before the AI. «Share which senders you delete» (Settings) sends only the domain of bulk senders, never subjects, content or your account.
 - **Protections always win**: banks, invoices, verification codes (a keep-override regex you can edit), your own protected list, and people you write to. Protected senders are never moved.
 - Mail goes to the Trash only (found by the `\Trash` special-use flag or by name). If the mailbox has no Trash folder, the run is refused.
 - **Simulate only** is on by default.
@@ -76,6 +78,10 @@ What is sent (contract v1, `app: "android"`):
 **Never sent**: passwords, tokens, full license keys, subjects, bodies or senders of your mail. In errors, e-mail addresses other than your own accounts and anything that looks like a password or token are masked.
 
 Events are queued on the device and sent in batches (every 5 minutes while the app is open, after each operation, when it closes, and by WorkManager). A local rotating log is always kept on the phone; use Settings → View logs / Share logs.
+
+## Preferences and sync
+
+Rules are saved on the phone. To have them in other apps, Settings → «Preferences and sync» creates the mt.nonosky.com account right there (e-mail + password, with a code for a new e-mail, or «Continue with Google», which asks only for `openid email`). Signed in, rules merge by date (the newest wins) through `GET/PUT /api/reglas-remitentes`; without a session or without that endpoint everything stays local. The contract is in `SERVICIO.md` at the repository root.
 
 ## Build
 

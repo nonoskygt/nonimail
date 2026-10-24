@@ -115,10 +115,13 @@ class LicenseVerifier(private val publicKey: ByteArray?) {
         }
 
         /** The production key bundled with the app (`clave-publica.pem`). */
-        fun bundled(): LicenseVerifier {
+        fun bundled(): LicenseVerifier = LicenseVerifier(bundledPublicKey())
+
+        /** Raw bytes of the bundled key; the signed sender reputation is checked with the same one. */
+        fun bundledPublicKey(): ByteArray? {
             val pem = LicenseVerifier::class.java.getResourceAsStream("/com/nonosky/nonimailtools/core/clave-publica.pem")
                 ?.use { it.readBytes().toString(Charsets.US_ASCII) }
-            return LicenseVerifier(pem?.let { publicKeyFromPem(it) })
+            return pem?.let { publicKeyFromPem(it) }
         }
 
         fun verifyEd25519(publicKey: ByteArray, message: ByteArray, signature: ByteArray): Boolean = runCatching {

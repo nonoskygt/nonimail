@@ -76,6 +76,7 @@ fun AjustesScreen(modifier: Modifier = Modifier) {
                 BotonSecundario(stringResource(R.string.agregar_cuenta), { agregando = true }, Modifier.fillMaxWidth(), icono = Icons.Filled.Add)
             }
         }
+        item { BloqueSincronizacion() }
         item { BloqueLicencias() }
         item { Tarjeta { BloqueIdioma() } }
         item { Tarjeta { BloqueApariencia() } }

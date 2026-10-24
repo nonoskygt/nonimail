@@ -15,6 +15,8 @@ import com.nonosky.nonimailtools.core.Reporter
 import com.nonosky.nonimailtools.core.licencias.LicenseGate
 import com.nonosky.nonimailtools.core.licencias.Tipo
 import com.nonosky.nonimailtools.core.limpiar.CleanOptions
+import com.nonosky.nonimailtools.core.limpiar.Filtro
+import com.nonosky.nonimailtools.core.limpiar.Reglas
 import com.nonosky.nonimailtools.core.limpiar.CleanProgress
 import com.nonosky.nonimailtools.core.limpiar.CleanResult
 import com.nonosky.nonimailtools.core.limpiar.IaScorer
@@ -74,6 +76,8 @@ sealed interface Trabajo {
     data class Escanear(
         val cuenta: Cuenta, val modo: ScanMode, val cantidad: Int, val usarIa: Boolean,
         val protegidos: List<String>, val keep: String,
+        /** Saved sender rules in force (key -> delete/protect). */
+        val reglas: Map<String, String> = emptyMap(),
     ) : Trabajo { override val titulo get() = com.nonosky.nonimailtools.R.string.op_escaneando }
 
     data class Limpiar(
@@ -81,6 +85,7 @@ sealed interface Trabajo {
         val protegidos: List<String>, val keep: String,
         /** Senders marked «Darse de baja»: unsubscribed after deleting, never before. */
         val bajas: List<SenderScore> = emptyList(),
+        val reglas: Map<String, String> = emptyMap(),
     ) : Trabajo { override val titulo get() = com.nonosky.nonimailtools.R.string.op_limpiando }
 
     data class Sincronizar(
@@ -214,6 +219,7 @@ class Operaciones(private val app: NmtApp) {
             }
         } finally {
             reloj.interrupt()
+            _uso.value = null
             _ocupada.value = false
         }
     }
@@ -236,8 +242,14 @@ class Operaciones(private val app: NmtApp) {
                 .getOrNull()
         }
         motorIa = when { ia == null -> ""; ia is com.nonosky.nonimailtools.ia.PuntuadorLocal -> ia.motor; else -> "Ollama" }
+        // Collective reputation: refreshed when the copy is over a day old, then a layer after protections and rules.
+        if (d.filtro.reputacion && app.reputacion.vencida()) {
+            escribir(Terminal.CPU, "Actualizando la reputación colectiva")
+            app.reputacion.actualizarSiVencida()
+        }
         val opts = ScanOptions(
             t.modo, t.cantidad, t.protegidos, rulesOf(t.keep, d), d.scores, d.cleaning, d.folders.sent, ia, d.llm.prompt, d.llm.categoryScores,
+            reglas = t.reglas, reputacion = app.reputacion.actual(), filtro = d.filtro,
         )
         val rep = object : Reporter<ScanProgress> {
             override fun log(line: String) { app.telemetry.log.i("limpiar", line); ruteo(line) }
@@ -277,7 +289,7 @@ class Operaciones(private val app: NmtApp) {
             _limpieza.value = EstadoLimpieza.Error(Fallo(Fallo.Tipo2.GOOGLE_REAUTH, e.message.orEmpty())); return
         }
         if (acc == null) { _limpieza.value = EstadoLimpieza.Error(Fallo(Fallo.Tipo2.CUENTA_ILEGIBLE, "")); return }
-        val opts = CleanOptions(t.dryRun, t.protegidos, rulesOf(t.keep, d), d.folders.trash)
+        val opts = CleanOptions(t.dryRun, t.protegidos, rulesOf(t.keep, d), d.folders.trash, reglas = t.reglas)
         val rep = object : Reporter<CleanProgress> {
             override fun log(line: String) { app.telemetry.log.i("limpiar", line); escribir(Terminal.CPU, line.removePrefix("[cpu] ")) }
             override fun cancelled() = cancelada
@@ -292,6 +304,8 @@ class Operaciones(private val app: NmtApp) {
             val r = Limpieza(cuenta.timeouts).execute(acc, t.remitentes, opts, rep)
             val bajas = if (r.cancelled) emptyMap() else darDeBaja(t, acc, avance)
             _limpieza.value = EstadoLimpieza.Listo(r, cuenta.email, bajas)
+            // Collective filter: the domain-level decisions of this run (never in a simulation; only if shared).
+            if (!t.dryRun) compartirDecisiones(t, d)
             // What was really deleted leaves the list; a simulation leaves it as it was.
             if (!t.dryRun) {
                 val fuera = r.perSender.keys
@@ -307,6 +321,26 @@ class Operaciones(private val app: NmtApp) {
             app.telemetry.registrar(Telemetria.limpiar(cuenta.email, "ejecucion", t.dryRun, null, t.remitentes.size, null, secs(), "error", gate.permitido))
         }
         app.telemetry.enviarYa()
+    }
+
+    /** Builds the decisions of the run from the last scan of the same account and queues them. */
+    private fun compartirDecisiones(t: Trabajo.Limpiar, d: Defaults) {
+        val e = (_escaneo.value as? EstadoEscaneo.Listo)?.takeIf { it.cuenta.id == t.cuenta.id } ?: return
+        if (!app.ajustes.valores.value.filtroCompartir) return
+        val rules = rulesOf(t.keep, d)
+        val elegidos = t.remitentes.toSet()
+        val bajas = t.bajas.map { it.email }.toSet()
+        val filas = e.r.senders.map { s ->
+            val dec = when {
+                Reglas.reglaDe(t.reglas, s.email) == Reglas.PROTEGER -> "nunca"
+                s.email in bajas && s.email in elegidos -> "baja"
+                s.email in elegidos -> "eliminar"
+                else -> "conservar"
+            }
+            Filtro.Remitente(s, dec, Filtro.reglasQueCoinciden(s, rules))
+        }.filter { it.decision == "nunca" || !it.s.isProtected }
+        val lista = Filtro.armarDecisiones(filas, Int.MAX_VALUE)
+        if (lista.isNotEmpty()) app.telemetry.registrarDecisiones(lista)
     }
 
     /** Unsubscribes the marked senders, one by one, after the deletion. In simulation nothing is sent. */

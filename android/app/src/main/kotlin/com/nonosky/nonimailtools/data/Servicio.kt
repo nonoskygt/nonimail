@@ -5,6 +5,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.nonosky.nonimailtools.BuildConfig
 import com.nonosky.nonimailtools.core.licencias.LicenseResult
+import com.nonosky.nonimailtools.core.limpiar.ReglaFecha
+import com.nonosky.nonimailtools.core.limpiar.ReglasJson
+import com.nonosky.nonimailtools.core.limpiar.ReglasRemoto
+import com.nonosky.nonimailtools.core.limpiar.RespuestaReglas
+import com.nonosky.nonimailtools.core.mail.GoogleOauth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +36,7 @@ sealed interface Acceso {
     /** New e-mail: the service sent a 6-digit code. */
     data object PideCodigo : Acceso
     data class Fallo(val motivo: Motivo) : Acceso
-    enum class Motivo { CREDENCIALES, CODIGO, DEMASIADOS, RED, SERVICIO }
+    enum class Motivo { CREDENCIALES, CODIGO, DEMASIADOS, RED, SERVICIO, GOOGLE_NO_DISPONIBLE }
 }
 
 /**
@@ -98,6 +103,33 @@ class Servicio(private val ctx: Context, private val ajustes: Ajustes, private v
         val r = llamar("POST", "/api/auth/register-confirm", buildJsonObject { put("email", e); put("code", codigo.filter(Char::isDigit)); put("password", clave) })
         abrir(e, r, if (r.status in 400..499 && r.status != 429) Acceso.Motivo.CODIGO else null)
     } catch (_: IOException) { Acceso.Fallo(Acceso.Motivo.RED) }
+
+    /**
+     * Sign in (or create the account) with the Google id_token. The service checks the token and answers
+     * `{access_token, email}`; 404 means it does not accept Google yet. [correoDelToken] is the fallback address.
+     */
+    fun accederConGoogle(idToken: String, correoDelToken: String?): Acceso = try {
+        val r = llamar("POST", GoogleOauth.RUTA_SERVICIO, buildJsonObject { put("id_token", idToken) })
+        if (r.status == 404) Acceso.Fallo(Acceso.Motivo.GOOGLE_NO_DISPONIBLE)
+        else {
+            val e = (r.body?.get("email")?.jsonPrimitive?.contentOrNull ?: correoDelToken).orEmpty().trim().lowercase()
+            if (e.isEmpty() && r.status in 200..299) Acceso.Fallo(Acceso.Motivo.SERVICIO) else abrir(e, r)
+        }
+    } catch (_: IOException) { Acceso.Fallo(Acceso.Motivo.RED) }
+
+    /** The service side of the rules sync (`GET/PUT /api/reglas-remitentes`) with the open session. */
+    fun remotoReglas(): ReglasRemoto = object : ReglasRemoto {
+        override val haySesion: Boolean get() = token() != null
+        override fun leer(): RespuestaReglas {
+            val tok = token() ?: return RespuestaReglas(401)
+            val r = llamar("GET", ReglasJson.RUTA, token = tok)
+            return RespuestaReglas(r.status, ReglasJson.deRespuesta(r.body))
+        }
+        override fun escribir(entradas: Map<String, ReglaFecha>): RespuestaReglas {
+            val tok = token() ?: return RespuestaReglas(401)
+            return RespuestaReglas(llamar("PUT", ReglasJson.RUTA, ReglasJson.cuerpoPut(entradas), tok).status)
+        }
+    }
 
     /** Brings down the licenses of the open session; each one goes through the offline check. Returns how many entered. */
     fun traerLicencias(): Int {

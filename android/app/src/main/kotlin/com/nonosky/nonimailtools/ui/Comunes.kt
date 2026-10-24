@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -180,4 +181,25 @@ fun VentanaTerminal(titulo: String, lineas: List<String>, modifier: Modifier = M
             }
         }
     }
+}
+
+/**
+ * Phone use above the terminals while a job runs: RAM of the phone, CPU of the app (100% = one core)
+ * and, for the AI, where the model runs. Android does not let an app read the GPU load, so the engine is shown.
+ */
+@Composable
+fun MedidorUso(conIa: Boolean, modifier: Modifier = Modifier) {
+    val app = com.nonosky.nonimailtools.NmtApp.instance
+    val uso by app.operaciones.uso.collectAsState()
+    val u = uso ?: return
+    val tercero = when {
+        !conIa -> stringResource(R.string.medidor_nucleos, u.nucleos)
+        app.operaciones.motorIa.isNotEmpty() -> stringResource(R.string.medidor_ia, app.operaciones.motorIa)
+        else -> stringResource(R.string.medidor_sin_ia)
+    }
+    Text(
+        stringResource(R.string.medidor, "${u.ramUsadaMb} / ${u.ramTotalMb} MB", u.cpuPct, tercero),
+        modifier.fillMaxWidth(), style = MaterialTheme.typography.labelMedium.merge(com.nonosky.nonimailtools.ui.theme.Cifras),
+        color = dulce.muted,
+    )
 }

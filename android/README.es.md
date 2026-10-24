@@ -40,7 +40,9 @@ Un configurador corto se ejecuta una vez y puede repetirse desde Ajustes:
 
 - Escanee los últimos N mensajes o los últimos N días. El escaneo solo lee; no marca nada como leído.
 - Cada remitente recibe una calificación de 0 a 100 con las reglas compartidas (promociones, encabezados de envío masivo, remitentes automáticos). Si configuró la IA (en el teléfono o con Ollama), también puede calificar.
-- El control de **dureza** traza una línea de corte sobre las calificaciones; los remitentes por encima quedan marcados. Usted puede marcar o desmarcar cualquiera.
+- El control de **dureza** (0–100, de «Suave» a «Estricta») traza una línea de corte sobre las calificaciones y dice cuántos remitentes sin regla marca.
+- **Conservar** y **Eliminar** de cada remitente guardan una regla en el teléfono, y la regla gana a la dureza. Con 2 o más remitentes del mismo dominio sale una fila de dominio (suma de correos, el ruido más alto): su Conservar/Eliminar vale para todos, y elegir distinto en un remitente crea una excepción (se cuenta en «Excepciones»). «Quitar regla» devuelve la decisión a la dureza.
+- **Reputación colectiva**: una vez al día se baja la reputación de dominios (firmada con Ed25519 y verificada con la clave pública de la app); es una capa del motor después de las protecciones y las reglas y antes de la IA. «Compartir qué remitentes elimina» (Ajustes) envía solo el dominio de remitentes masivos, nunca asuntos, contenido ni su cuenta.
 - **Las protecciones siempre ganan**: bancos, facturas, códigos de verificación (un patrón regex que usted puede editar), su lista de protegidos y las personas a quienes usted escribe. Un remitente protegido nunca se mueve.
 - El correo va solo a la papelera (se detecta con la marca `\Trash` o por nombre). Si el buzón no tiene papelera, la ejecución se rechaza.
 - **Solo simular** viene encendido de fábrica.
@@ -76,6 +78,10 @@ Qué se envía (contrato v1, `app: "android"`):
 **Nunca se envía**: contraseñas, tokens, claves de licencia completas, asuntos, cuerpos ni remitentes de sus correos. En los errores se tachan las direcciones de correo que no sean sus cuentas y todo lo que parezca una contraseña o un token.
 
 Los eventos se encolan en el dispositivo y se envían en lote (cada 5 minutos con la app abierta, al terminar cada operación, al cerrarla y con WorkManager). En el teléfono siempre se guarda un registro local rotativo; use Ajustes → Ver registros / Compartir registros.
+
+## Preferencias y sincronización
+
+Las reglas se guardan en el teléfono. Para tenerlas en otras apps, Ajustes → «Preferencias y sincronización» crea la cuenta de mt.nonosky.com allí mismo (correo + contraseña, con un código si el correo es nuevo, o «Continuar con Google», que pide solo `openid email`). Con sesión, las reglas se fusionan por fecha (gana la más reciente) con `GET/PUT /api/reglas-remitentes`; sin sesión o sin ese servicio, todo sigue en local. El contrato está en `SERVICIO.md` de la raíz del repositorio.
 
 ## Compilación
 

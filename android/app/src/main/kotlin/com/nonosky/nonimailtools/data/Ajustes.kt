@@ -10,6 +10,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.nonosky.nonimailtools.BuildConfig
 import com.nonosky.nonimailtools.core.Defaults
+import com.nonosky.nonimailtools.core.limpiar.Fusion
+import com.nonosky.nonimailtools.core.limpiar.LibroReglas
+import com.nonosky.nonimailtools.core.limpiar.ReglaFecha
+import com.nonosky.nonimailtools.core.limpiar.Reglas
+import com.nonosky.nonimailtools.core.limpiar.SincronizadorReglas
 import com.nonosky.nonimailtools.ui.theme.Acento
 import com.nonosky.nonimailtools.ui.theme.Modo
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +63,10 @@ data class Valores(
     val actualizarAuto: Boolean = true,
     /** Last time the update check ran (epoch ms); throttles the check at app start. */
     val actualizarUltimaMs: Long = 0,
+    /** Saved sender rules (Conservar / Eliminar per sender or domain), with the dates the sync merges by. */
+    val reglas: LibroReglas = LibroReglas(),
+    /** Share the cleaning decisions with the collective filter (own switch, apart from telemetry). */
+    val filtroCompartir: Boolean = Defaults.instance.filtro.compartir,
 ) {
     /** Installs from before 1.1 only had the Ollama address. */
     val iaModoEfectivo: String get() = iaModo.ifBlank { if (ollamaUrl.isNotBlank()) "red" else "" }
@@ -102,6 +111,9 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
         val syncExcluir = stringPreferencesKey("sync_excluir")
         val actualizarAuto = booleanPreferencesKey("actualizar_auto")
         val actualizarUltima = longPreferencesKey("actualizar_ultima_ms")
+        val reglas = stringPreferencesKey("reglas_remitentes")
+        val reglasMigradas = booleanPreferencesKey("reglas_migradas")
+        val filtroCompartir = booleanPreferencesKey("filtro_compartir")
     }
 
     private fun read(p: Preferences) = Valores(
@@ -123,6 +135,8 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
         syncOrigen = p[K.syncOrigen] ?: "", syncDestino = p[K.syncDestino] ?: "",
         syncIncluir = p[K.syncIncluir] ?: "", syncExcluir = p[K.syncExcluir] ?: "",
         actualizarAuto = p[K.actualizarAuto] ?: true, actualizarUltimaMs = p[K.actualizarUltima] ?: 0,
+        reglas = LibroReglas.leer(p[K.reglas]),
+        filtroCompartir = p[K.filtroCompartir] ?: Defaults.instance.filtro.compartir,
     )
 
     /** Read once, synchronously, before the first frame: language and theme are applied before painting. */
@@ -164,6 +178,51 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
         it[K.syncOrigen] = origen; it[K.syncDestino] = destino; it[K.syncIncluir] = incluir; it[K.syncExcluir] = excluir
     }
     fun actualizarAuto(v: Boolean) = edit { it[K.actualizarAuto] = v }
+    fun filtroCompartir(v: Boolean) = edit { it[K.filtroCompartir] = v }
+
+    /**
+     * Saves rules (key -> delete / protect / none) with the date of now. One atomic step on the store,
+     * so a sync that lands at the same moment cannot lose it. Returns when it is written.
+     */
+    fun reglasCambiar(cambios: Map<String, String>) {
+        runBlocking {
+            ctx.nmtStore.edit { p ->
+                p[K.reglas] = LibroReglas.leer(p[K.reglas]).con(cambios, System.currentTimeMillis()).escribir()
+            }
+        }
+    }
+
+    /** Merges what the service has into the stored rules as one step; used by the sync. */
+    @Synchronized
+    fun reglasFusionar(remoto: Map<String, ReglaFecha>): Fusion = runBlocking {
+        lateinit var f: Fusion
+        ctx.nmtStore.edit { p ->
+            f = SincronizadorReglas.fusionar(LibroReglas.leer(p[K.reglas]).entradas, remoto)
+            p[K.reglas] = LibroReglas(f.resultado).escribir()
+        }
+        f
+    }
+
+    fun reglasEntradas(): Map<String, ReglaFecha> = runBlocking { LibroReglas.leer(ctx.nmtStore.data.first()[K.reglas]).entradas }
+
+    /**
+     * Before 1.6 «Nunca eliminar» wrote the address into the protected list. Those addresses become
+     * «protect» rules (dated now, so they win over anything older) and leave the list; domains stay in it.
+     */
+    fun migrarReglas() {
+        runBlocking {
+            ctx.nmtStore.edit { p ->
+                if (p[K.reglasMigradas] == true) return@edit
+                val lista = (p[K.protegidos] ?: "").split('\n', ',', ';', ' ').map { it.trim() }.filter { it.isNotEmpty() }
+                val correos = lista.filter { '@' in it && !it.startsWith("@") }.map { it.lowercase() }
+                if (correos.isNotEmpty()) {
+                    p[K.reglas] = LibroReglas.leer(p[K.reglas]).con(correos.associateWith { Reglas.PROTEGER }, System.currentTimeMillis()).escribir()
+                    p[K.protegidos] = lista.filter { it.lowercase() !in correos }.joinToString("\n")
+                }
+                p[K.reglasMigradas] = true
+            }
+        }
+    }
     fun actualizarUltima(ms: Long) = edit { it[K.actualizarUltima] = ms }
     fun installEnviada(ms: Long, hash: String) = edit { it[K.installEnviada] = ms; it[K.installHash] = hash }
 

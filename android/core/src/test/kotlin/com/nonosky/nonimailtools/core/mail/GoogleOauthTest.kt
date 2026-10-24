@@ -23,4 +23,11 @@ class GoogleOauthTest {
         val plain = ImapConnection.sessionProperties(acc.copy(oauth = false), ImapTimeouts())
         assertNull(plain.getProperty("mail.imaps.auth.mechanisms"))
     }
+
+    @Test fun identityAsksOnlyOpenidEmailAndReadsTheAddressOfTheIdToken() {
+        assertEquals(listOf("openid", "email"), GoogleOauth.SCOPES_IDENTIDAD)
+        val payload = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString("""{"email":"Ana@Gmail.com","aud":"x"}""".toByteArray())
+        assertEquals("ana@gmail.com", GoogleOauth.correoDeIdToken("h.$payload.s"))
+        assertEquals(null, GoogleOauth.correoDeIdToken("basura"))
+    }
 }

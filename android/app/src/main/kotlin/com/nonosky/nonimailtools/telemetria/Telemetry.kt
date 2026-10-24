@@ -14,6 +14,10 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.nonosky.nonimailtools.BuildConfig
 import com.nonosky.nonimailtools.NmtApp
+import com.nonosky.nonimailtools.core.Defaults
+import com.nonosky.nonimailtools.core.limpiar.ColaDecisiones
+import com.nonosky.nonimailtools.core.limpiar.EnviadorDecisiones
+import com.nonosky.nonimailtools.core.limpiar.Filtro
 import com.nonosky.nonimailtools.core.telemetria.ColaEventos
 import com.nonosky.nonimailtools.core.telemetria.Enviador
 import com.nonosky.nonimailtools.core.telemetria.Evento
@@ -76,6 +80,7 @@ class Telemetry(
         secrets = { cuentas.secretos() },
     )
     private val cola = ColaEventos(File(ctx.filesDir, "telemetria/cola.jsonl"))
+    private val colaDecisiones = ColaDecisiones(File(ctx.filesDir, "telemetria/filtro.jsonl"), Defaults.instance.filtro.maxQueue)
     private val poster = HttpPoster()
 
     private val version get() = BuildConfig.VERSION_NAME
@@ -83,6 +88,17 @@ class Telemetry(
     val userAgent get() = Telemetria.userAgent(version, "android", arch)
 
     private fun activa(): Boolean = ajustes.valores.value.let { it.telemetria && it.configurado }
+
+    /** The collective filter has its own switch, apart from telemetry. */
+    private fun compartirActivo(): Boolean = ajustes.valores.value.let { it.filtroCompartir && it.configurado }
+
+    /** Queues the cleaning decisions for the collective filter (domain only), if the person shares them. */
+    fun registrarDecisiones(lista: List<Filtro.Decision>) {
+        if (!compartirActivo()) return
+        colaDecisiones.add(lista)
+    }
+
+    fun vaciarDecisiones() = colaDecisiones.clear()
 
     /** Queues an event, if the person allows it. */
     fun registrar(e: Evento) {
@@ -113,7 +129,19 @@ class Telemetry(
 
     /** Sends the installation record (when due) and the queue. Called by the worker. */
     fun enviar(): Outcome {
-        if (!activa()) return Outcome.SENT
+        var result = Outcome.SENT
+        if (activa()) result = enviarEventos()
+        if (compartirActivo()) {
+            val v = ajustes.valores.value
+            val f = Defaults.instance.filtro
+            val url = v.serviceUrl.trim().trimEnd('/') + f.decisionesPath
+            val env = EnviadorDecisiones(colaDecisiones, poster, url, ajustes.asegurarInstallId(), "android", version, userAgent, f.maxBatch)
+            if (env.enviar() == Outcome.RETRY) result = Outcome.RETRY
+        }
+        return result
+    }
+
+    private fun enviarEventos(): Outcome {
         val v = ajustes.valores.value
         val inst = installRecord()
         val envio = Enviador(cola, poster, v.serviceUrl, inst.installId, "android", version, userAgent)
@@ -133,7 +161,7 @@ class Telemetry(
 
     /** One-shot flush (after an operation, when the app closes, right after the configurator). */
     fun enviarYa() {
-        if (!activa()) return
+        if (!activa() && !compartirActivo()) return
         runCatching {
             WorkManager.getInstance(ctx).enqueueUniqueWork(
                 "nmt-telemetria-ya", ExistingWorkPolicy.REPLACE,
