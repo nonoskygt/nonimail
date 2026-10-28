@@ -54,6 +54,7 @@ fun BloqueSincronizacion() {
             when {
                 estado.motivo == EstadoReglas.Motivo.SESION_VENCIDA -> Pista(stringResource(R.string.sync_vencida), error = true)
                 estado.motivo == EstadoReglas.Motivo.ERROR -> Pista(stringResource(R.string.sync_err), error = true)
+                estado.motivo == EstadoReglas.Motivo.REQUIERE_COMPRA -> Pista(stringResource(R.string.sync_requiere_compra))
                 // Without the endpoint in the service the rules just stay on the phone: no error shown.
                 else -> if (estado.ok == true) Pista(stringResource(R.string.sync_ok))
             }

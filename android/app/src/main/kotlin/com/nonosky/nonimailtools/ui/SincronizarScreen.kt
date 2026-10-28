@@ -45,6 +45,7 @@ fun SincronizarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
     val v by app.ajustes.valores.collectAsState()
     val cuentas by app.cuentas.cuentas.collectAsState()
     val licencias by app.licencias.licencias.collectAsState()
+    val plan by app.plan.estado.collectAsState()
     val estado by app.operaciones.sync.collectAsState()
     val ocupada by app.operaciones.ocupada.collectAsState()
 
@@ -55,7 +56,7 @@ fun SincronizarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
     val origen = cuentas.firstOrNull { it.id == v.syncOrigen } ?: cuentas.firstOrNull()
     val destino = cuentas.firstOrNull { it.id == v.syncDestino && it.id != origen?.id } ?: cuentas.firstOrNull { it.id != origen?.id }
     val puerta = if (origen != null && destino != null)
-        LicenseGate.check(listOf(origen.email, destino.email), Tipo.SINCRONIZAR, licencias, System.currentTimeMillis() / 1000) else null
+        LicenseGate.check(listOf(origen.email, destino.email), Tipo.SINCRONIZAR, licencias, System.currentTimeMillis() / 1000, plan.comprobante) else null
 
     fun listaDe(s: String) = s.split(',', '\n', ';').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
@@ -80,7 +81,7 @@ fun SincronizarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
                 Campo(excluir, { excluir = it }, stringResource(R.string.carpetas_excluir), placeholder = stringResource(R.string.carpetas_excluir_ejemplo))
                 FilaInterruptor(stringResource(R.string.simulacion), simulacion, { simulacion = it }, detalle = stringResource(R.string.simulacion_sync_pista))
                 if (!simulacion && puerta?.permitido == false) {
-                    PuertaLicencia(Tipo.SINCRONIZAR, puerta.cuenta, v.serviceUrl)
+                    PuertaLicencia(Tipo.SINCRONIZAR, puerta.cuenta)
                 }
                 if (estado is EstadoSync.Corriendo) {
                     val p = (estado as EstadoSync.Corriendo).p
@@ -100,6 +101,9 @@ fun SincronizarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        // «Mantener funcionando en el servidor»: the same pair of accounts, non-stop.
+        item { BloqueTareaServidor(com.nonosky.nonimailtools.core.servicio.Tarea.SINCRONIZAR, origen, destino, 0) }
 
         item {
             val red by app.operaciones.terminal(Operaciones.Terminal.RED).collectAsState()

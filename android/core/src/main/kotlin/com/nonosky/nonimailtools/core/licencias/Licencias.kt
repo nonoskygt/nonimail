@@ -144,22 +144,28 @@ class LicenseVerifier(private val publicKey: ByteArray?) {
     }
 }
 
+/** What opened the gate for a private-domain account. */
+enum class Fuente { LICENCIA, SUSCRIPCION }
+
 /** Result of the gate: may this account run this function for real? */
 data class Gate(
     val permitido: Boolean,
     val personal: Boolean,
     val cuenta: String,
     val tipo: Tipo,
-    /** Expiry (Unix seconds) of the license that opened the gate, if one did. */
+    /** Expiry (Unix seconds) of the license or subscription proof that opened the gate, if one did. */
     val vence: Long? = null,
+    /** Null for personal accounts and when nothing opened the gate. */
+    val fuente: Fuente? = null,
 )
 
 object LicenseGate {
     /**
-     * Personal accounts pass. With commercial accounts, one valid license of [tipo] for any
-     * of them opens the gate (same rule as the desktop app). Otherwise: simulation only.
+     * Personal accounts pass. With commercial accounts, one valid license of [tipo] for any of them,
+     * or a valid subscription proof ([suscripcion], `NMTS1.`) that lists one of them, opens the gate
+     * (same rule as the desktop app). Otherwise: scan and simulate only.
      */
-    fun check(cuentas: List<String>, tipo: Tipo, licencias: List<Licencia>, nowSec: Long): Gate {
+    fun check(cuentas: List<String>, tipo: Tipo, licencias: List<Licencia>, nowSec: Long, suscripcion: Comprobante? = null): Gate {
         val lista = cuentas.map { it.trim().lowercase() }.filter { it.isNotEmpty() }
         val comerciales = lista.filterNot { Dominios.esPersonal(it) }
         if (comerciales.isEmpty()) return Gate(true, true, lista.firstOrNull() ?: "", tipo)
@@ -167,7 +173,8 @@ object LicenseGate {
             val best = licencias
                 .filter { it.cuenta == c && it.tipo == tipo.id && it.vigente(nowSec) }
                 .maxByOrNull { it.exp }
-            if (best != null) return Gate(true, false, c, tipo, best.exp)
+            if (best != null) return Gate(true, false, c, tipo, best.exp, Fuente.LICENCIA)
+            if (suscripcion != null && suscripcion.cubre(c, nowSec)) return Gate(true, false, c, tipo, suscripcion.exp, Fuente.SUSCRIPCION)
         }
         return Gate(false, false, comerciales.first(), tipo)
     }

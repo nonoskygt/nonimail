@@ -93,6 +93,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
     val v by app.ajustes.valores.collectAsState()
     val cuentas by app.cuentas.cuentas.collectAsState()
     val licencias by app.licencias.licencias.collectAsState()
+    val plan by app.plan.estado.collectAsState()
     val escaneo by app.operaciones.escaneo.collectAsState()
     val limpieza by app.operaciones.limpieza.collectAsState()
     val ocupada by app.operaciones.ocupada.collectAsState()
@@ -133,7 +134,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
     val usarIa = v.usarIa && v.iaActiva
     val cantidadInt = cantidad.toIntOrNull()?.coerceIn(1, 3650)
     val resumen = resultado?.let { Seleccion.resumen(it.senders, elegidos, reglas) }
-    val puerta = cuenta?.let { LicenseGate.check(listOf(it.email), Tipo.LIMPIAR, licencias, System.currentTimeMillis() / 1000) }
+    val puerta = cuenta?.let { LicenseGate.check(listOf(it.email), Tipo.LIMPIAR, licencias, System.currentTimeMillis() / 1000, plan.comprobante) }
 
     LazyColumn(
         modifier, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -177,6 +178,9 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
                 (escaneo as? EstadoEscaneo.Error)?.let { Pista(textoFallo(it.f), error = true) }
             }
         }
+
+        // «Mantener funcionando en el servidor»: this account, every N days, with the hardness in force.
+        item { BloqueTareaServidor(com.nonosky.nonimailtools.core.servicio.Tarea.LIMPIAR, cuenta, null, v.duerezaEfectiva) }
 
         item {
             val cpu by app.operaciones.terminal(Operaciones.Terminal.CPU).collectAsState()
@@ -288,7 +292,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
                     } else {
                         val n = resumen?.correos ?: 0
                         val bloqueada = !simulacion && puerta?.permitido == false
-                        if (bloqueada) PuertaLicencia(Tipo.LIMPIAR, cuenta.email, v.serviceUrl)
+                        if (bloqueada) PuertaLicencia(Tipo.LIMPIAR, cuenta.email)
                         BotonPrimario(
                             if (simulacion) stringResource(R.string.simular) else stringResource(R.string.mover_papelera, n),
                             {
@@ -508,4 +512,5 @@ private fun ResultadoLimpieza(e: EstadoLimpieza.Listo) {
 /** Name of the model the AI terminal talks to: the LAN Ollama model or the file of the phone model. */
 private fun nombreModeloIa(v: com.nonosky.nonimailtools.data.Valores): String =
     if (v.iaModoEfectivo == "red") v.ollamaModelo
+    else if (v.iaModoEfectivo == com.nonosky.nonimailtools.ops.MODO_NONOSKY) "Nonosky"
     else Defaults.instance.localAi.models.firstOrNull { it.id == v.iaModoEfectivo }?.archivo?.substringBefore(".litertlm") ?: ""

@@ -3,6 +3,19 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.7.0] - 2026-10-28
+
+### Added
+- **Suscripción.** La puerta de licencia pasa a puerta de plan: además de las licencias `NMT1.` (siguen valiendo), acepta el comprobante `NMTS1.` de `GET /api/plan`, firmado con la misma clave Ed25519 y verificado sin conexión. Se renueva al abrir y cada 12 h con sesión y se guarda para trabajar sin red. Si una cuenta de dominio propio no está en el comprobante y la suscripción está vigente, la app la cubre (`POST /api/suscripcion/cubrir`) y pide el plan de nuevo. Sin cobertura se escanea y simula como siempre. «Comprar licencia» pasa a «Suscribirse».
+- **IA de Nonosky (suscripción).** Tercer modo de IA junto a «IA de este equipo» y «Sin IA»: `POST /api/ia/v1/clasificar` en lotes de 50 remitentes (solo remitente y hasta 5 asuntos, nunca el cuerpo). Con 402, 429, 503, sesión vencida o sin red la limpieza sigue con reglas y la terminal de IA lo dice.
+- **Mantener funcionando en el servidor.** Interruptor en Limpiar (cada 1, 3, 7, 14 o 30 días, con la dureza de la pantalla) y en Sincronizar (continua) que crea, cambia o borra la tarea con `/api/tareas`, con consentimiento explícito para guardar las credenciales cifradas; muestra estado, última y próxima corrida. Una cuenta con «Iniciar sesión con Google» pide una contraseña de aplicación para la tarea. Sin suscripción se ve deshabilitado con «Incluido en la suscripción».
+- **Planes en Ajustes.** Qué es gratis y qué agrega la suscripción, con la tabla de precios por cuenta (de `/api/plan` o de `defaults.json`) y el botón «Suscribirse».
+
+### Changed
+- **Reglas en la nube.** Si el servicio responde `404 {codigo: "requiere_compra"}`, las reglas quedan en el teléfono y Ajustes dice «Para guardarlas en la nube, compre el servicio al menos una vez».
+- **Actualizaciones desde un punto fijo.** La app busca la versión nueva primero en `nmt.updateFeedUrl` (`https://mt.nonosky.com/actualizaciones/latest.json`, el mismo JSON de `releases/latest` de GitHub) y, si falla, en la API de GitHub.
+- `gradle.properties`: salen `nmt.priceCurrency`, `nmt.priceLimpiar`, `nmt.priceSincronizar` y `nmt.licenseDays`; entran `nmt.subscribeUrl`, `nmt.planRefreshHours` y `nmt.updateFeedUrl`.
+
 ## [1.6.0] - 2026-10-23
 
 ### Changed

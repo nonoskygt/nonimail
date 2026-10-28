@@ -106,6 +106,20 @@ class ReglasTest {
         assertEquals(rf("delete", 5), a.datos["a@x.com"])
     }
 
+    @Test fun syncSinCompraQuedaEnElEquipo() {
+        val r = object : ReglasRemoto {
+            var puts = 0
+            override val haySesion = true
+            override fun leer() = RespuestaReglas(404, codigo = "requiere_compra")
+            override fun escribir(entradas: Map<String, ReglaFecha>): RespuestaReglas { puts++; return RespuestaReglas(200) }
+        }
+        val a = Almacen(mapOf("a@x.com" to rf("delete", 5)))
+        assertEquals(ResultadoSyncReglas.RequiereCompra, SincronizadorReglas.sincronizar(a, r))
+        assertEquals(0, r.puts)
+        assertEquals(rf("delete", 5), a.datos["a@x.com"])
+        assertEquals("requiere_compra", ReglasJson.codigo(kotlinx.serialization.json.Json.parseToJsonElement("{\"detail\":{\"codigo\":\"requiere_compra\"}}") as kotlinx.serialization.json.JsonObject))
+    }
+
     @Test fun syncMarcaSesionVencidaYErrores() {
         assertEquals(ResultadoSyncReglas.SesionVencida, SincronizadorReglas.sincronizar(Almacen(), Remoto(emptyMap(), status = 401)))
         assertEquals(ResultadoSyncReglas.SesionVencida, SincronizadorReglas.sincronizar(Almacen(), Remoto(emptyMap(), status = 403)))

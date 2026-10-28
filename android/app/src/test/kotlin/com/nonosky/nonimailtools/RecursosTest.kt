@@ -57,8 +57,9 @@ class RecursosTest {
     @Test fun defaultsComeFromBuildConfigNotFromCode() {
         assertEquals("https://mt.nonosky.com", BuildConfig.SERVICE_URL)
         assertEquals(11434, BuildConfig.OLLAMA_PORT)
-        assertEquals(1, BuildConfig.PRICE_LIMPIAR); assertEquals(2, BuildConfig.PRICE_SINCRONIZAR)
-        assertEquals(30, BuildConfig.LICENSE_DAYS)
+        assertTrue(BuildConfig.SUBSCRIBE_URL.startsWith("https://") && BuildConfig.SUBSCRIBE_URL.endsWith("#suscripcion"))
+        assertEquals(12, BuildConfig.PLAN_REFRESH_HOURS)
+        assertTrue(BuildConfig.UPDATE_FEED_URL.startsWith("https://"))
         assertTrue(BuildConfig.ORIGEN_DESCARGA in setOf("github", "mt", "desconocido"))
         // No hard-coded service address in the Kotlin sources.
         val hits = listOf("src/main/kotlin", "../core/src/main/kotlin").flatMap { d -> File(d).walkTopDown().filter { it.extension == "kt" }.toList() }

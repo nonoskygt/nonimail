@@ -56,6 +56,9 @@ class Servicio(private val ctx: Context, private val ajustes: Ajustes, private v
 
     private fun token(): String? = runBlocking { ctx.nmtStore.data.first()[kToken] }?.let { Secretos.descifrar(it) }
 
+    /** Token of the open session for the other clients of the service (plan, AI, tasks); null when signed out. */
+    internal fun tokenActual(): String? = token()
+
     private data class Resp(val status: Int, val body: JsonObject?)
 
     private fun llamar(metodo: String, ruta: String, cuerpo: JsonObject? = null, token: String? = null): Resp {
@@ -123,11 +126,12 @@ class Servicio(private val ctx: Context, private val ajustes: Ajustes, private v
         override fun leer(): RespuestaReglas {
             val tok = token() ?: return RespuestaReglas(401)
             val r = llamar("GET", ReglasJson.RUTA, token = tok)
-            return RespuestaReglas(r.status, ReglasJson.deRespuesta(r.body))
+            return RespuestaReglas(r.status, ReglasJson.deRespuesta(r.body), ReglasJson.codigo(r.body))
         }
         override fun escribir(entradas: Map<String, ReglaFecha>): RespuestaReglas {
             val tok = token() ?: return RespuestaReglas(401)
-            return RespuestaReglas(llamar("PUT", ReglasJson.RUTA, ReglasJson.cuerpoPut(entradas), tok).status)
+            val r = llamar("PUT", ReglasJson.RUTA, ReglasJson.cuerpoPut(entradas), tok)
+            return RespuestaReglas(r.status, codigo = ReglasJson.codigo(r.body))
         }
     }
 

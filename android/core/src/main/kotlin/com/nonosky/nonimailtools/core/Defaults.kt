@@ -19,6 +19,12 @@ data class Defaults(
     val providers: List<ProviderPreset>,
     val folders: FolderNames,
     val filtro: FiltroDefaults,
+    /** Paths of the subscription and the permanent tasks in the web service. */
+    val servicio: ServicioDefaults = ServicioDefaults(),
+    /** The subscription's AI on the server (`POST /api/ia/v1/clasificar`). */
+    val iaNonosky: IaNonoskyDefaults = IaNonoskyDefaults(),
+    /** Subscription prices shown in Ajustes → Planes when the service does not send them. */
+    val planes: com.nonosky.nonimailtools.core.servicio.Precios = com.nonosky.nonimailtools.core.servicio.Precios("USD", emptyList(), emptyList()),
 ) {
     fun provider(id: String): ProviderPreset? = providers.firstOrNull { it.id == id }
 
@@ -135,4 +141,28 @@ data class FiltroDefaults(
     val minN: Int,
     val alto: Int,
     val bajo: Int,
+)
+
+/** Subscription and permanent tasks (same paths as the desktop `defaults.json`). */
+@Serializable
+data class ServicioDefaults(
+    val planPath: String = "/api/plan",
+    val cubrirPath: String = "/api/suscripcion/cubrir",
+    val tareasPath: String = "/api/tareas",
+    /** «Mantener funcionando en el servidor» for Limpiar: every how many days. */
+    val cadaDias: List<Int> = listOf(1, 3, 7, 14, 30),
+    val cadaDiasDefault: Int = 7,
+    /** The automatic cleaning on the server never goes below this hardness. */
+    val durezaMin: Int = 30,
+    val timeoutMs: Int = 20_000,
+)
+
+/** Limits of `POST /api/ia/v1/clasificar`: senders per request, subjects per sender, characters per subject. */
+@Serializable
+data class IaNonoskyDefaults(
+    val path: String = "/api/ia/v1/clasificar",
+    val maxItems: Int = 50,
+    val maxSubjects: Int = 5,
+    val maxChars: Int = 200,
+    val timeoutMs: Int = 60_000,
 )

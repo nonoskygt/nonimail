@@ -73,5 +73,26 @@
     "minN": 10,
     "alto": 90,
     "bajo": 10
+  },
+  "servicio": {
+    "planPath": "/api/plan",
+    "cubrirPath": "/api/suscripcion/cubrir",
+    "tareasPath": "/api/tareas",
+    "cadaDias": [1, 3, 7, 14, 30],
+    "cadaDiasDefault": 7,
+    "durezaMin": 30,
+    "timeoutMs": 20000
+  },
+  "iaNonosky": {
+    "path": "/api/ia/v1/clasificar",
+    "maxItems": 50,
+    "maxSubjects": 5,
+    "maxChars": 200,
+    "timeoutMs": 60000
+  },
+  "planes": {
+    "moneda": "USD",
+    "mensual": [{ "desde": 1, "hasta": 4, "precio": "3.00" }, { "desde": 5, "hasta": 19, "precio": "2.50" }, { "desde": 20, "hasta": null, "precio": "2.00" }],
+    "anual": [{ "desde": 1, "hasta": 4, "precio": "29.00" }, { "desde": 5, "hasta": 19, "precio": "24.00" }, { "desde": 20, "hasta": null, "precio": "19.00" }]
   }
 }

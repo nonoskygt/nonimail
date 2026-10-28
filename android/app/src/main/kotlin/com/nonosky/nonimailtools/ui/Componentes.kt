@@ -183,18 +183,18 @@ fun Campo(
 
 /** Label + switch on one row. */
 @Composable
-fun FilaInterruptor(texto: String, marcado: Boolean, onCambio: (Boolean) -> Unit, modifier: Modifier = Modifier, detalle: String? = null) {
+fun FilaInterruptor(texto: String, marcado: Boolean, onCambio: (Boolean) -> Unit, modifier: Modifier = Modifier, detalle: String? = null, activo: Boolean = true) {
     val d = dulce
     Row(
-        modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Switch) { onCambio(!marcado) },
+        modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(enabled = activo, role = Role.Switch) { onCambio(!marcado) },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(texto, style = MaterialTheme.typography.bodyLarge, color = d.text)
+            Text(texto, style = MaterialTheme.typography.bodyLarge, color = if (activo) d.text else d.muted)
             if (detalle != null) Pista(detalle)
         }
         Switch(
-            checked = marcado, onCheckedChange = null,
+            checked = marcado, onCheckedChange = null, enabled = activo,
             colors = SwitchDefaults.colors(
                 checkedTrackColor = d.accentFill, checkedThumbColor = Color.White, checkedBorderColor = d.accentFill,
                 uncheckedTrackColor = d.panel2, uncheckedThumbColor = d.ink3, uncheckedBorderColor = d.border2,
@@ -205,20 +205,20 @@ fun FilaInterruptor(texto: String, marcado: Boolean, onCambio: (Boolean) -> Unit
 
 /** Fully round chip, single choice. */
 @Composable
-fun Pastilla(texto: String, elegida: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icono: ImageVector? = null) {
+fun Pastilla(texto: String, elegida: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icono: ImageVector? = null, activa: Boolean = true) {
     val d = dulce
     val fondo by animateColorAsState(if (elegida) d.accentTint else d.panel, label = "pastilla")
     Row(
         modifier.heightIn(min = 40.dp)
             .background(fondo, FormaPastilla)
             .border(1.dp, if (elegida) d.accentFill else d.border, FormaPastilla)
-            .clickable(role = Role.RadioButton, onClick = onClick)
+            .clickable(enabled = activa, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (icono != null) Icon(icono, null, Modifier.size(16.dp), tint = if (elegida) d.accent else d.muted)
         Text(
-            texto, style = MaterialTheme.typography.labelLarge, color = if (elegida) d.accent else d.text,
+            texto, style = MaterialTheme.typography.labelLarge, color = if (elegida) d.accent else if (activa) d.text else d.muted,
             fontWeight = if (elegida) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1,
         )
     }
