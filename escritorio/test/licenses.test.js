@@ -50,15 +50,11 @@ test('cuenta personal: siempre permitido y sin licencia', () => {
   assert.equal(mk().gate(['a@gmail.com', 'b@hotmail.com'], 'sincronizar').permitido, true);
 });
 
-test('cuenta comercial sin clave: no permitido, con precio y enlace de compra', () => {
+test('cuenta comercial sin clave ni suscripción: no permitido, con el enlace para suscribirse', () => {
   const g = mk().gate('ana@empresa.com', 'sincronizar');
   assert.equal(g.permitido, false); assert.equal(g.personal, false);
-  assert.equal(g.precio, '2'); assert.equal(g.moneda, 'USD'); assert.equal(g.dias, 30);
-  const u = new URL(g.comprar);
-  assert.equal(u.origin, 'https://mt.example.test'); assert.equal(u.pathname, '/licencias.html');
-  assert.equal(u.searchParams.get('cuenta'), 'ana@empresa.com'); assert.equal(u.searchParams.get('tipo'), 'sincronizar'); assert.equal(u.searchParams.get('canal'), 'app');
-  assert.equal(mk().gate('ana@empresa.com', 'limpiar').precio, '1');
-  assert.match(g.motivo, /empresa\.com/);
+  assert.equal(g.comprar, 'https://mt.nonosky.com/herramienta.html#suscripcion');
+  assert.match(g.motivo, /empresa\.com/); assert.match(g.motivo, /suscripción/);
 });
 
 test('con clave válida de esa cuenta y función se abre; otra función u otra cuenta, no', async () => {

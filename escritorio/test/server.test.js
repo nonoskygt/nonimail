@@ -86,7 +86,8 @@ test('la interfaz se sirve con el tema aplicado, CSP estricta y la configuració
   assert.equal(c.body.language, 'es');
   assert.equal(c.body.appearance.mode, 'auto');
   assert.equal(c.body.serviceUrl, service.url);
-  assert.equal(c.body.prices.limpiar, '1'); assert.equal(c.body.prices.sincronizar, '2');
+  assert.equal(c.body.plan.precios.moneda, 'USD'); assert.equal(c.body.plan.incluida, false);
+  assert.equal(c.body.aiMode, 'equipo');
 });
 
 test('seguridad: rechaza POST sin JSON, de otro origen o con Host ajeno', async () => {
@@ -155,9 +156,7 @@ test('cuentas: probar, guardar sin exponer contraseñas, duplicados y quitar', a
 test('la puerta de licencias: cuenta comercial solo simula hasta tener clave; con clave ejecuta de verdad', async () => {
   const cfg0 = (await req('GET', '/api/config')).body;
   assert.equal(cfg0.gate.permitido, false);
-  const u = new URL(cfg0.gate.comprar);
-  assert.equal(u.origin, service.url); assert.equal(u.pathname, '/licencias.html');
-  assert.equal(u.searchParams.get('cuenta'), 'yo@test.local'); assert.equal(u.searchParams.get('tipo'), 'limpiar'); assert.equal(u.searchParams.get('canal'), 'app');
+  assert.equal(cfg0.gate.comprar, 'https://mt.nonosky.com/herramienta.html#suscripcion');
 
   const r1 = await req('POST', '/api/autorun', { daysBack: 30, dureza: 50, dryRun: false, autoUnsub: true });
   assert.equal(r1.status, 200, JSON.stringify(r1.body));
@@ -272,4 +271,19 @@ test('npm start (server.js) levanta sin ventana, imprime la dirección y guarda 
     assert.equal(res.status, 200);
     assert.ok(fs.existsSync(path.join(d2, 'logs', 'nonimail-tools.log')));
   } finally { proc.kill(); await new Promise(r => proc.on('close', r)); fs.rmSync(d2, { recursive: true, force: true }); }
+});
+
+test('Planes, modo de IA y tareas por la API: sin suscripción, Gratis; la IA de Nonosky se elige y se vuelve atrás', async () => {
+  const p = await req('GET', '/api/plan');
+  assert.equal(p.status, 200); assert.equal(p.body.incluida, false); assert.equal(p.body.precios.moneda, 'USD');
+  assert.equal(p.body.subscribeUrl, 'https://mt.nonosky.com/herramienta.html#suscripcion');
+  const tr = await req('GET', '/api/tareas');
+  assert.equal(tr.body.incluida, false); assert.deepEqual(tr.body.tareas, []);
+  assert.equal((await req('POST', '/api/tareas/activar', { tipo: 'limpiar', consentimiento: false })).status, 400, 'sin consentimiento no se manda nada');
+  assert.equal((await req('POST', '/api/tareas/activar', { tipo: 'limpiar', consentimiento: true })).status, 402, 'sin suscripción, no');
+  assert.equal((await req('POST', '/api/prefs/ai', { mode: 'otra' })).status, 400);
+  assert.equal((await req('POST', '/api/prefs/ai', { mode: 'nonosky' })).body.aiMode, 'nonosky');
+  assert.equal((await req('GET', '/api/config')).body.aiMode, 'nonosky');
+  assert.equal((await req('POST', '/api/prefs/ai', { mode: 'off' })).body.aiMode, 'off');
+  assert.equal((await req('POST', '/api/prefs/ai', { mode: 'equipo' })).body.aiMode, 'equipo');
 });

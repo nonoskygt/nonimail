@@ -99,7 +99,7 @@
   }
 
   // ---------------------------------------------------------------- estado
-  const S = { config: null, settings: null, lic: null, setup: null, senders: new Map(), over: new Map(), rules: {}, openDom: new Set(), job: { running: false }, sync: null, scanDone: false, unsubMark: new Map(), authOpen: false, phaseDismissed: false, tab: 'cuentas', sec: 'ia', presets: null, draftEmail: '', draftPrivate: false, googleWait: false };
+  const S = { config: null, settings: null, lic: null, setup: null, senders: new Map(), over: new Map(), rules: {}, openDom: new Set(), job: { running: false }, sync: null, scanDone: false, unsubMark: new Map(), authOpen: false, phaseDismissed: false, tab: 'cuentas', sec: 'ia', presets: null, draftEmail: '', draftPrivate: false, googleWait: false, tareas: null };
   const acctById = (id) => (S.config.accounts || []).find(a => a.id === id);
   const activeAcct = () => acctById(S.config.activeAccount) || (S.config.accounts || [])[0] || null;
   const busy = () => (S.job && S.job.running) || (S.sync && S.sync.running);
@@ -123,8 +123,8 @@
     for (const x of qsa('main > .tab')) x.classList.toggle('on', x.id === `tab-${name}`);
     if (name === 'cuentas') renderAccountsTab();
     if (name === 'ajustes') showSec(sec || S.sec);
-    if (name === 'sincronizar') renderSync();
-    if (name === 'limpiar') renderClean();
+    if (name === 'sincronizar') { renderSync(); loadTareas(); }
+    if (name === 'limpiar') { renderClean(); loadTareas(); }
   }
   function showSec(name) {
     S.sec = name;
@@ -198,12 +198,13 @@
     catch (er) { fail(er); renderHeader(); }
   });
 
-  // ---------------------------------------------------------------- licencias: avisos
+  // ---------------------------------------------------------------- plan: avisos
   function gatePill(gate) {
     if (!gate) return h('span');
     if (gate.personal) return h('span', { class: 'pill ok', text: t('ui.gate.free') });
+    if (gate.permitido && gate.via === 'suscripcion') return h('span', { class: 'pill ok', text: t('ui.gate.subscribed', { date: fmtDate(gate.vence) }) });
     if (gate.permitido) return h('span', { class: 'pill ok', text: t('ui.gate.licensed', { date: fmtDate(gate.vence) }) });
-    // cuenta comercial sin licencia: una línea con el enlace de compra; la sesión se inicia desde Cuentas
+    // cuenta comercial sin suscripción: una línea con el enlace para suscribirse; la sesión se inicia desde Cuentas
     return h('span', { class: 'pill warn' }, t('ui.gate.noLicense'), ' ',
       h('a', { href: gate.comprar, target: '_blank', rel: 'noopener', text: t('ui.gate.buyLink') }),
       S.config.auth && !S.config.auth.signedIn ? h('button', { type: 'button', class: 'pill-link', 'data-goto': 'cuentas', 'data-auth': '1', text: t('ui.auth.signIn') }) : null);
@@ -236,6 +237,7 @@
     $('cl-auto').disabled = running || !acct.ready;
     for (const id of ['cl-range', 'cl-dry', 'cl-unsub', 'cl-dureza']) $(id).disabled = running;
     clear($('cl-gate')).append(gatePill(S.config.gate));
+    renderTarea('limpiar');
     renderTermTitles();
     renderProgress();
     renderPending();
@@ -438,7 +440,7 @@
   $('cl-unsub').addEventListener('change', renderSenders);
   $('cl-stop').onclick = () => api('POST', '/api/stop', {}).catch(fail);
   $('cl-filter').addEventListener('input', renderSendersSoon);
-  $('cl-dureza').addEventListener('input', (e) => { cl.dureza = parseInt(e.target.value, 10); renderSenders(); });
+  $('cl-dureza').addEventListener('input', (e) => { cl.dureza = parseInt(e.target.value, 10); renderSenders(); renderTarea('limpiar'); tareaDurezaSoon(); });
 
   function addLog(el, text, kind, ts) {
     const line = h('div', { class: `l-${kind || 'info'}`, text: `${ts ? `${ts} ` : ''}${text}` });
@@ -458,7 +460,8 @@
   }
   function resetFeeds() { clear($('feed-cpu')); clear($('feed-gpu')); }
   function renderTermTitles() {
-    $('gpu-title').textContent = t('ui.term.gpu', { model: (S.config && S.config.aiEnabled && S.config.model) || t('ui.term.noModel') });
+    const mode = S.config && S.config.aiMode;
+    $('gpu-title').textContent = t('ui.term.gpu', { model: mode === 'nonosky' ? t('ui.ai.mode.nonosky') : (mode === 'equipo' && S.config.model) || t('ui.term.noModel') });
     $('feed-cpu').dataset.idle = t('ui.term.idle'); $('feed-gpu').dataset.idle = t('ui.term.idle'); $('sy-log').dataset.idle = t('ui.term.syncIdle');
   }
   function setMeter(barId, pctId, pct) {
@@ -506,6 +509,7 @@
     $('sy-run').disabled = running; $('sy-stop').hidden = !running;
     $('sy-run').textContent = $('sy-dry').checked ? t('ui.sync.simulate') : t('ui.sync.run');
     renderSyncGate();
+    renderTarea('sincronizar');
     const st = S.sync || {};
     const p = st.progress || {};
     const tot = (st.result && st.result.totals) || null;
@@ -540,8 +544,8 @@
     const lic = com.map(r => r.gates.sincronizar).find(g => g.permitido);
     el.append(gatePill(lic || com[0].gates.sincronizar));
   }
-  $('sy-src').addEventListener('change', renderSyncGate);
-  $('sy-dst').addEventListener('change', renderSyncGate);
+  $('sy-src').addEventListener('change', () => { renderSyncGate(); renderTarea('sincronizar'); });
+  $('sy-dst').addEventListener('change', () => { renderSyncGate(); renderTarea('sincronizar'); });
   $('sy-dry').addEventListener('change', renderSync);
   $('sy-run').onclick = async () => {
     const dry = $('sy-dry').checked;
@@ -557,6 +561,148 @@
     } catch (e) { fail(e); }
   };
   $('sy-stop').onclick = () => api('POST', '/api/sync/stop', {}).catch(fail);
+
+  // ================================================================ TAREAS DEL SERVIDOR (suscripción)
+  // «Mantener funcionando en el servidor»: limpiar cada N días o sincronizar sin parar, aunque el equipo esté apagado
+  const planInfo = () => (S.config && S.config.plan) || { incluida: false };
+  async function loadTareas() {
+    if (!planInfo().incluida) { S.tareas = null; renderTarea('limpiar'); renderTarea('sincronizar'); return; }
+    try { const r = await api('GET', '/api/tareas'); S.tareas = r.tareas || []; S.tareasError = r.error || ''; }
+    catch (e) { S.tareas = []; S.tareasError = e.message; }
+    renderTarea('limpiar'); renderTarea('sincronizar');
+  }
+  const low = (x) => String(x || '').toLowerCase();
+  function tareaPara(tipo, origen, destino) {
+    return (S.tareas || []).find(x => x.tipo === tipo && low(x.cuenta && x.cuenta.correo) === low(origen && origen.email)
+      && (tipo !== 'sincronizar' || low(x.destino && x.destino.correo) === low(destino && destino.email))) || null;
+  }
+  const tareaDureza = () => Math.max((S.config.tareas || {}).durezaMin || 0, dureza());
+  const tareaDurezaSoon = debounce(async () => {
+    const x = tareaPara('limpiar', activeAcct());
+    if (!x || x.dureza === tareaDureza()) return;
+    try { await api('POST', '/api/tareas/cambiar', { id: x.id, dureza: tareaDureza() }); await loadTareas(); } catch (e) { fail(e); }
+  }, 1200);
+  function tareaEstado(x) {
+    if (x.estado === 'pausada' && x.motivo === 'suscripcion') return h('span', { class: 'pill warn', text: t('ui.tarea.pausedSub') });
+    if (x.estado === 'pausada') return h('span', { class: 'pill warn', text: t('ui.tarea.paused') });
+    if (x.estado === 'error') return h('span', { class: 'pill bad', text: t('ui.tarea.error') });
+    return h('span', { class: 'pill ok', text: t('ui.tarea.active') });
+  }
+  function tareaUltima(x) {
+    const fmt = (iso) => { try { return new Date(iso).toLocaleString(LANG, { dateStyle: 'medium', timeStyle: 'short' }); } catch (_) { return iso; } };
+    const r = x.ultimo_resultado;
+    const partes = [x.ultima_corrida ? t('ui.tarea.last', { date: fmt(x.ultima_corrida), summary: (r && r.resumen) || '—' }) : t('ui.tarea.never')];
+    if (x.proxima_corrida && x.estado === 'activa') partes.push(t('ui.tarea.next', { date: fmt(x.proxima_corrida) }));
+    if (x.estado === 'error' && x.motivo) partes.push(x.motivo);
+    return partes.join(' · ');
+  }
+  function renderTarea(tipo) {
+    const root = $(tipo === 'limpiar' ? 'cl-tarea' : 'sy-tarea');
+    if (!root || !S.config) return;
+    const origen = tipo === 'limpiar' ? activeAcct() : acctById($('sy-src').value);
+    const destino = tipo === 'sincronizar' ? acctById($('sy-dst').value) : null;
+    clear(root);
+    if (!origen || (tipo === 'sincronizar' && (!destino || destino.id === origen.id))) { root.hidden = true; return; }
+    root.hidden = false;
+    const P = planInfo(), x = P.incluida ? tareaPara(tipo, origen, destino) : null;
+    const cfgT = S.config.tareas || { cadaDias: [7], cadaDiasDefault: 7 };
+    const sw = h('input', { type: 'checkbox' }); sw.checked = !!x; sw.disabled = !P.incluida || S.tareas == null;
+    const head = h('div', { class: 'row' }, h('label', { class: 'switch' }, sw, h('i'), h('span', { text: t('ui.tarea.keep') })));
+    let dias = null;
+    if (tipo === 'limpiar' && P.incluida) {
+      dias = h('select', { 'aria-label': t('ui.tarea.every') }, cfgT.cadaDias.map(n => h('option', { value: String(n), text: t('ui.tarea.days', { n }) })));
+      dias.value = String(x ? x.cada_dias : (S.tareaDias || cfgT.cadaDiasDefault));
+      dias.onchange = async () => {
+        S.tareaDias = parseInt(dias.value, 10);
+        if (x) { try { await api('POST', '/api/tareas/cambiar', { id: x.id, cadaDias: S.tareaDias }); await loadTareas(); } catch (e) { fail(e); } }
+        else renderTarea(tipo);
+      };
+      head.append(h('label', { class: 'fld' }, h('span', { text: t('ui.tarea.every') }), dias));
+    }
+    head.append(h('span', { class: 'spacer' }));
+    if (!P.incluida) head.append(h('button', { type: 'button', class: 'pill', 'data-goto': 'ajustes:planes', text: t('ui.tarea.included') }));
+    else if (x) head.append(tareaEstado(x));
+    root.append(head);
+    if (P.incluida) {
+      const n = tipo === 'limpiar' ? (x ? x.cada_dias : parseInt(dias.value, 10)) : ((x && x.cada_minutos) || 15);
+      root.append(h('div', { class: 'hint', text: tipo === 'limpiar' ? t('ui.tarea.cleanHint', { n, d: x ? x.dureza : tareaDureza() }) : t('ui.tarea.syncHint', { n }) }));
+      if (x) root.append(h('div', { class: 'hint', text: tareaUltima(x) }));
+      if (S.tareasError) root.append(h('div', { class: 'msgline bad', text: S.tareasError }));
+    }
+    sw.onchange = async () => {
+      sw.disabled = true;
+      try {
+        if (!sw.checked) { await api('POST', '/api/tareas/quitar', { id: x.id }); }
+        else {
+          const ok = await consentTarea(tipo, origen, destino, dias ? parseInt(dias.value, 10) : null);
+          if (!ok) { sw.checked = false; return; }
+        }
+        await loadTareas();
+      } catch (e) { fail(e); sw.checked = !!x; } finally { sw.disabled = false; }
+    };
+  }
+  // Consentimiento explícito para guardar las credenciales cifradas; con «Iniciar sesión con Google» pide contraseña de aplicación
+  function consentTarea(tipo, origen, destino, cadaDias) {
+    return new Promise((resolve) => {
+      const cuentas = [origen].concat(destino ? [destino] : []);
+      const pass = new Map();
+      const fields = cuentas.filter(a => a.type === 'gmail-oauth').map(a => {
+        const inp = h('input', { type: 'password', autocomplete: 'new-password', spellcheck: 'false' });
+        pass.set(a.id, inp);
+        return h('label', { class: 'fld' }, h('span', { text: t('ui.tarea.appPassword', { cuenta: a.email }) }), inp);
+      });
+      const msg = h('div', { class: 'authmsg', 'aria-live': 'polite' });
+      const close = (v) => { scrim.remove(); resolve(v); };
+      const go = h('button', { class: 'btn primary', text: t('ui.tarea.agree') });
+      go.onclick = async () => {
+        go.disabled = true; clear(msg);
+        try {
+          const val = (a) => (a && pass.has(a.id) ? pass.get(a.id).value.trim() : undefined);
+          await api('POST', '/api/tareas/activar', { tipo, accountId: origen.id, destinoId: destino ? destino.id : undefined, cadaDias, dureza: tareaDureza(), consentimiento: true, password: val(origen), passwordDestino: val(destino) });
+          toast(t('ui.tarea.on'), 'ok'); close(true);
+        } catch (e) { clear(msg).append(h('div', { class: 'msgline bad', text: e.message })); go.disabled = false; }
+      };
+      const scrim = h('div', { class: 'modal-scrim', role: 'dialog', 'aria-modal': 'true' },
+        h('div', { class: 'card modal' },
+          h('h2', { text: t('ui.tarea.consentTitle') }),
+          h('div', { style: 'display:grid;gap:6px' },
+            cuentas.map(a => h('div', { text: t('ui.tarea.consent1', { cuenta: a.email }) })),
+            h('div', { text: t('ui.tarea.consent2') }), h('div', { text: t('ui.tarea.consent3') })),
+          fields.length ? h('div', { class: 'msgline warn', text: t('ui.tarea.oauth') }) : null,
+          fields, msg,
+          h('div', { class: 'row', style: 'justify-content:flex-end' },
+            h('button', { class: 'btn', text: t('ui.cancel'), onclick: () => close(false) }), go)));
+      document.body.append(scrim);
+      (fields.length ? qs('input', scrim) : go).focus();
+    });
+  }
+
+  // ================================================================ PLANES (Ajustes)
+  const fmtPrecio = (moneda, p) => `${moneda} ${String(p).replace(/\.00$/, '')}`;
+  function renderPlanes() {
+    const root = clear($('pl-body')), P = planInfo();
+    const pr = P.precios || { moneda: 'USD', mensual: [], anual: [] };
+    const s = P.suscripcion;
+    const status = s && s.vigente
+      ? t('ui.plan.yourSub', { periodo: s.periodo === 'anual' ? t('ui.plan.yearly') : t('ui.plan.monthly'), n: (s.cuentas || []).length || s.cantidad || 0, date: fmtDate(s.pagadoHasta) })
+      : t('ui.plan.yourFree');
+    root.append(h('div', { class: 'row' }, h('b', { text: status }), h('span', { class: 'spacer' }),
+      h('a', { class: 'btn primary', href: P.subscribeUrl, target: '_blank', rel: 'noopener', text: s && s.vigente ? t('ui.plan.manage') : t('ui.gate.buyLink') })));
+    const rango = (x) => (x.hasta == null ? t('ui.plan.orMore', { a: x.desde }) : t('ui.plan.range', { a: x.desde, b: x.hasta }));
+    const anualDe = (x) => (pr.anual.find(y => Number(y.desde) === Number(x.desde)) || {}).precio;
+    root.append(h('table', { class: 'plan-tbl' },
+      h('thead', {}, h('tr', {}, h('th', { text: t('ui.plan.accounts') }), h('th', { class: 'num', text: t('ui.plan.monthly2') }), h('th', { class: 'num', text: t('ui.plan.yearly2') }))),
+      h('tbody', {}, pr.mensual.map(x => h('tr', {}, h('td', { text: rango(x) }), h('td', { class: 'num', text: fmtPrecio(pr.moneda, x.precio) }), h('td', { class: 'num', text: anualDe(x) != null ? fmtPrecio(pr.moneda, anualDe(x)) : '—' }))))));
+    const [m1, ...mas] = pr.mensual;
+    const precio = m1 ? [t('ui.plan.price', { m: fmtPrecio(pr.moneda, m1.precio), a: fmtPrecio(pr.moneda, anualDe(m1) || '—') })]
+      .concat(mas.map(x => t('ui.plan.priceFrom', { n: x.desde, m: fmtPrecio(pr.moneda, x.precio), a: fmtPrecio(pr.moneda, anualDe(x) || '—') }))).join(' ') : '';
+    root.append(
+      h('p', {}, h('b', { text: t('ui.plan.freeTitle') }), ' ', t('ui.plan.freeText')),
+      h('p', {}, h('b', { text: t('ui.plan.subTitle') }), ' ', t('ui.plan.subText')),
+      h('ul', {}, [t('ui.plan.b1'), t('ui.plan.b2'), t('ui.plan.b3'), t('ui.plan.b4'), t('ui.plan.b5')].map(text => h('li', { text }))),
+      precio ? h('p', { text: precio }) : null,
+      h('p', { class: 'hint', text: t('ui.plan.creds') }));
+  }
 
   // ================================================================ LICENCIAS (sin pestaña: verificación sin conexión y descarga tras iniciar sesión)
   async function loadLicenses() {
@@ -688,7 +834,7 @@
     $('g-secret').placeholder = st.secrets.hasGoogleClientSecret ? '••••••••' : '';
     $('g-redirect').value = st.redirectUri;
     // IA
-    $('ai-on').checked = !!s.llm.enabled || !!S.config.aiEnabled;
+    renderAiMode();
     $('sys-close').value = s.closeAction || 'ask';
     $('ai-url').value = s.ollamaUrl; $('ai-model').value = s.model;
     $('ai-think').checked = !!s.llm.think; $('ai-think-n').value = s.llm.thinkNumPredict;
@@ -712,6 +858,7 @@
     info.append(kv(t('ui.sys.version'), st.version), kv(t('ui.sys.data'), st.dataDir), kv(t('ui.sys.logs'), st.logsDir), kv(t('ui.sys.secrets'), st.secrets.encrypted ? t('ui.sys.encrypted') : t('ui.sys.plain')));
     $('sys-issues').href = S.config.links.issues;
     if (S.sec === 'reglas') loadRules();
+    if (S.sec === 'planes') renderPlanes();
   }
   function renderAccountsTab() {
     renderAccountsList();
@@ -880,7 +1027,18 @@
   $('g-secret').addEventListener('input', saveGoogleClient);
 
   // ---- IA
-  $('ai-on').addEventListener('change', async (e) => { try { await api('POST', '/api/setup/prefs', { ai: e.target.checked }); await refreshConfig(); } catch (er) { fail(er); } });
+  // «IA de este equipo», «IA de Nonosky (suscripción)» o «Sin IA»
+  function renderAiMode() {
+    const cur = S.config.aiMode || 'off', inc = planInfo().incluida;
+    const opts = [['equipo', t('ui.ai.mode.equipo')], ['nonosky', t('ui.ai.mode.nonosky')], ['off', t('ui.ai.mode.off')]];
+    clear($('ai-mode')).append(h('div', { class: 'seg', role: 'group' }, opts.map(([v, label]) =>
+      h('button', { type: 'button', 'aria-pressed': String(v === cur), disabled: v === 'nonosky' && !inc && cur !== 'nonosky', title: v === 'nonosky' && !inc ? t('ui.tarea.included') : null, text: label, onclick: () => setAiMode(v) }))));
+    $('ai-mode-h').textContent = cur === 'nonosky' ? (inc ? t('ui.ai.nonoskyHint') : t('ui.ai.nonoskyOff')) : !inc ? t('ui.ai.nonoskyNeeds') : '';
+    $('ai-local').hidden = cur !== 'equipo';
+  }
+  async function setAiMode(mode) {
+    try { await api('POST', '/api/prefs/ai', { mode }); await refreshConfig(); await loadSettings(); renderSettings(); } catch (e) { fail(e); }
+  }
   $('ai-check').onclick = async () => {
     const msg = clear($('ai-msg'));
     try {
@@ -900,7 +1058,7 @@
     $('ai-test').disabled = false;
   };
   $('ai-save').onclick = () => {
-    const llmCfg = { ...S.settings.settings.llm, think: $('ai-think').checked, thinkNumPredict: parseInt($('ai-think-n').value, 10) || 2048, enabled: $('ai-on').checked };
+    const llmCfg = { ...S.settings.settings.llm, think: $('ai-think').checked, thinkNumPredict: parseInt($('ai-think-n').value, 10) || 2048 };
     saveSettings({ ollamaUrl: $('ai-url').value.trim(), model: $('ai-model').value.trim(), llm: llmCfg }, $('ai-msg')).catch(() => {});
   };
   $('ai-url').addEventListener('change', async () => {
@@ -921,7 +1079,9 @@
       const { list } = await api('GET', '/api/sender-rules'), box = clear($('r-senders-list'));
       $('r-senders-n').textContent = fmtNum(list.length);
       const sy = (await api('GET', '/api/sender-rules')).sync || {};
-      $('r-senders-sync').textContent = !S.config.auth || !S.config.auth.signedIn ? t('ui.rules.syncOff') : sy.ok ? t('ui.rules.syncOk') : sy.ok === false && sy.error !== 'sin-servicio' ? t('ui.rules.syncErr') : t('ui.rules.syncOk');
+      $('r-senders-sync').textContent = !S.config.auth || !S.config.auth.signedIn ? t('ui.rules.syncOff')
+        : sy.error === 'requiere-compra' ? t('ui.rules.syncBuy')
+          : sy.ok ? t('ui.rules.syncOk') : sy.ok === false && sy.error !== 'sin-servicio' ? t('ui.rules.syncErr') : t('ui.rules.syncOk');
       if (!list.length) box.append(h('div', { class: 'hint', text: t('ui.rules.sendersNone') }));
       for (const r of list) box.append(h('div', { class: 'acct-item' },
         h('div', { class: 'who', text: r.email.startsWith('@') ? t('ui.rules.domainAll', { d: r.email.slice(1) }) : r.email }),
@@ -1173,7 +1333,9 @@
         refreshConfig();
       }
     } else if (m.t === 'config') {
+      const antes = planInfo().incluida;
       S.config = m.config; renderAll();
+      if (planInfo().incluida !== antes) loadTareas();
     } else if (m.t === 'setup') {
       onSetupEvent(m);
     } else if (m.t === 'sync') {
@@ -1264,6 +1426,8 @@
     if (S.tab === 'sincronizar') renderSync();
     if (S.tab === 'cuentas') renderAccountsList();
     renderAuthBoxes();
+    if (S.tab === 'ajustes' && S.sec === 'planes') renderPlanes();
+    if (S.tab === 'ajustes' && S.sec === 'ia' && S.settings) renderAiMode();
   }
   const rerenderStatic = () => {
     renderTabs(); renderHeader(); renderClean(); renderSync();
@@ -1280,6 +1444,7 @@
       try { S.lic = await api('GET', '/api/licenses'); } catch (_) { /* sin licencias */ }
       initCleanControls(); $('sy-dry').checked = true; loadRulesMap();
       if (S.config.auth.signedIn) api('POST', '/api/licenses/sync', {}).then(() => refreshConfig()).catch(() => { /* sin red: valen las claves guardadas */ });
+      loadTareas();
       // si había un escaneo hecho, el servidor lo conserva: se recupera
       try { const r = await api('GET', '/api/senders'); if (r.senders.length) { S.senders = new Map(r.senders.map(s => [s.email, s])); S.scanDone = true; } } catch (_) { /* nada */ }
       try { S.presets = (await api('GET', '/api/accounts')).presets; } catch (_) { /* sin plantillas */ }

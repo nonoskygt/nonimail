@@ -22,7 +22,7 @@ Spanish and English, picked from your system language. Theme "Dulce" with light,
 
 Each release also carries `SHA256SUMS.txt`.
 
-The installer and the AppImage update themselves (Settings → System → Updates); the portable and `.deb` builds only show a "Download" notice.
+The installer and the AppImage update themselves (Settings → System → Updates); the portable and `.deb` builds only show a "Download" notice. New versions are looked up at `https://mt.nonosky.com/actualizaciones/` and, if it does not answer, on GitHub.
 
 ## Install
 
@@ -72,7 +72,9 @@ Safety rules:
 - If you stop, Ollama goes down or you close the app, **Resume** continues from the last finished batch.
 - **Unsubscribe** tries one-click (RFC 8058), then a `mailto:` message, then the link. Only `https` links to public addresses are opened.
 
-Scoring uses your local Ollama model; no subject or body ever goes to an outside AI service. Without Ollama, heuristics decide.
+Scoring uses your local Ollama model («This computer's AI»): no subject or body leaves the computer. With «Nonosky AI (subscription)» only the sender and up to 5 subjects per sender go to our server, never the body. With «No AI», or when the AI does not answer, heuristics decide without stopping the clean.
+
+**Keep running on the server** (subscription): in Clean and in Sync, a switch creates the task on the server (clean every 1, 3, 7, 14 or 30 days with the current strictness, never below 30; sync every 15 min). It asks for your consent to store the password encrypted; accounts using «Sign in with Google» need an app password. What is deleted goes to the Trash.
 
 ## Sync
 
@@ -83,18 +85,20 @@ Pick **Source** and **Destination** among your accounts (optionally filter folde
 - Verifies at the end that everything in the source is in the destination.
 - A second run copies nothing new.
 
-## Licenses and prices
+## Plans and prices
 
-- **Personal accounts** (Gmail, Hotmail, Outlook, Yahoo, iCloud, Proton and other public providers) are **free**.
-- **Accounts on your own domain** are commercial use. You can always **simulate** (dry run). A real run needs a key **per account and per function**, valid 30 days.
+- **Free, forever:** **personal accounts** (Gmail, Hotmail, Outlook, Yahoo, iCloud, Proton and other public providers), with your computer's AI or no AI (rules).
+- **Subscription** (per email account, monthly or yearly; each account includes cleaning and syncing): accounts on **your own domain**, **Nonosky AI** on our server, **permanent tasks** on the server (clean every N days and sync non-stop, even when your computer is off), the web tool and preferences in the cloud.
 
-| Function | Price (30 days) |
-|---|---|
-| Clean | USD 1 |
-| Sync | USD 2 |
+| Accounts | Monthly | Yearly |
+|---|---|---|
+| 1 to 4 | USD 3 | USD 29 |
+| 5 to 19 | USD 2.50 | USD 24 |
+| 20 or more | USD 2 | USD 19 |
 
-The **Licenses** tab shows each account's state and a **Buy** link. Personal accounts never ask you to sign in. With an own-domain account, **Sign in** with your service email and password (a new email gets a 6-digit code to type) and the app fetches your licenses by itself; **Sign out** is on the same tab. Without signing in you can still add and simulate, and paste the key (`NMT1.…`) in **Add key**.
-Keys are signed (Ed25519) and checked offline with the public key bundled in the app. Licenses bought on the web service work too.
+Settings → **Plans** shows your plan, this table (the service's one when online) and the **Subscribe** button, which opens the web. Without a subscription, an own-domain account can always **scan and simulate**.
+The app signs in with the web account (Settings → Rules, or «Sign in» on an own-domain account) and fetches the subscription proof by itself (`NMTS1.…`, signed with Ed25519): it is checked offline and renewed at start and every 12 h. If the subscription has free seats, an own-domain account takes one by itself. `NMT1.` licenses already sold keep working until they expire.
+Sender rules are kept in the cloud only if you bought the service at least once; otherwise they stay on the computer.
 
 ## Connect with Google
 

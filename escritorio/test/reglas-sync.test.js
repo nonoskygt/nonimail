@@ -33,6 +33,17 @@ test('fusionar: gana la regla más reciente y quitar una regla también viaja', 
   assert.deepEqual(fusionar({ 'a@x.com': { regla: 'basura', ts: 1 } }, {}).out, {}, 'una regla inválida se ignora');
 });
 
+test('sync: 404 requiere_compra (nunca compró) deja las reglas en el equipo y lo dice el estado', async () => {
+  const a = authFalsa({});
+  a.reglasRemitentes = async () => ({ status: 404, ok: false, body: { detail: 'Compre el servicio', codigo: 'requiere_compra' } });
+  const { senders, rs } = nuevo(a);
+  senders.rules['x@y.com'] = 'protect';
+  assert.deepEqual(await rs.sync(), { skipped: 'requiere-compra' });
+  assert.equal(rs.state.error, 'requiere-compra');
+  assert.equal(senders.rules['x@y.com'], 'protect');
+  rs.stop();
+});
+
 test('set guarda la regla con fecha y la quita con none', () => {
   const { senders, rs, saves } = nuevo(authFalsa({}, { token: '' }));
   rs.set('a@x.com', 'protect');

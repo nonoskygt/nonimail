@@ -9,6 +9,11 @@
 //   payload = { v: 1, lid, cuenta, tipo: 'limpiar'|'sincronizar', canal: 'app'|'web', iat, exp }
 // Las licencias del servicio web (canal "web") también valen en la app.
 // Se guardan en <datos>/licenses.json.
+//
+// Desde la 1.7.0 también vale la suscripción: el comprobante de GET /api/plan, firmado con la misma llave:
+//   NMTS1.<payload base64url>.<firma base64url>
+//   payload = { v: 1, uid, cuentas: [correo en minúsculas], periodo, iat, exp }
+// Lo trae lib/plan.js; aquí solo se verifica (o.subscriptionToken() devuelve el último guardado).
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -21,7 +26,7 @@ const BUNDLED_KEY = path.join(__dirname, 'clave-publica.pem');
 const b64 = (s) => Buffer.from(s, 'base64url');
 
 class Licenses {
-  // o: { file, getConfig(), fetch?, log? }
+  // o: { file, getConfig(), fetch?, log?, subscriptionToken?() }
   constructor(o) {
     this.o = o; this.file = o.file;
     this.fetch = o.fetch || ((...a) => fetch(...a));
@@ -56,6 +61,29 @@ class Licenses {
     try { p = JSON.parse(b64(partes[1]).toString('utf8')); } catch (_) { return { ok: false, error: t('lic.damaged') }; }
     if (!p || p.v !== 1 || !p.cuenta || !TIPOS.includes(p.tipo) || !Number.isFinite(p.exp)) return { ok: false, error: t('lic.incomplete') };
     return { ok: true, payload: { ...p, cuenta: String(p.cuenta).trim().toLowerCase(), canal: p.canal === 'web' ? 'web' : 'app' } };
+  }
+
+  // Comprobante de suscripción NMTS1. Valida firma y forma; NO mira el vencimiento.
+  readSubscription(token) {
+    const partes = String(token || '').trim().split('.');
+    if (partes.length !== 3 || partes[0] !== 'NMTS1') return { ok: false, error: t('lic.badFormat') };
+    const pub = this.publicKey();
+    if (!pub) return { ok: false, error: t('lic.noPublicKey') };
+    let firmaOk = false;
+    try { firmaOk = crypto.verify(null, Buffer.from(`${partes[0]}.${partes[1]}`), pub, b64(partes[2])); } catch (_) { firmaOk = false; }
+    if (!firmaOk) return { ok: false, error: t('lic.badSignature') };
+    let p;
+    try { p = JSON.parse(b64(partes[1]).toString('utf8')); } catch (_) { return { ok: false, error: t('lic.damaged') }; }
+    if (!p || p.v !== 1 || !Array.isArray(p.cuentas) || !Number.isFinite(p.exp)) return { ok: false, error: t('lic.incomplete') };
+    return { ok: true, payload: { ...p, cuentas: p.cuentas.map(c => String(c || '').trim().toLowerCase()).filter(Boolean) } };
+  }
+
+  // La suscripción vigente (payload verificado y no vencido) o null
+  subscription() {
+    const token = this.o.subscriptionToken ? this.o.subscriptionToken() : null;
+    if (!token) return null;
+    const r = this.readSubscription(token);
+    return r.ok && r.payload.exp > Math.floor(Date.now() / 1000) ? r.payload : null;
   }
 
   // Con internet se pregunta al servicio si la licencia fue anulada; sin internet basta la firma
@@ -105,31 +133,25 @@ class Licenses {
   }
 
   // La puerta: ¿se puede ejecutar de verdad esta función con estas cuentas?
-  //   { permitido, personal, cuenta, tipo, vence?, motivo?, comprar?, precio?, moneda? }
+  // Vale una licencia NMT1 vigente de la cuenta para esa función o la suscripción (NMTS1) que la cubre.
+  //   { permitido, personal, cuenta, tipo, via?: 'licencia'|'suscripcion', vence?, motivo?, comprar? }
   gate(cuentas, tipo) {
     const lista = (Array.isArray(cuentas) ? cuentas : [cuentas]).map(c => String(c || '').trim().toLowerCase()).filter(Boolean);
     const comerciales = lista.filter(c => !esPersonal(c));
     if (!comerciales.length) return { permitido: true, personal: true, cuenta: lista[0] || '', tipo };
     for (const c of comerciales) {
       const k = this.vigente(c, tipo);
-      if (k) return { permitido: true, personal: false, cuenta: c, tipo, vence: new Date(k.exp * 1000).toISOString(), canal: k.canal };
+      if (k) return { permitido: true, personal: false, cuenta: c, tipo, via: 'licencia', vence: new Date(k.exp * 1000).toISOString(), canal: k.canal };
     }
+    const sub = this.subscription();
+    const cubierta = sub ? comerciales.find(c => sub.cuentas.includes(c)) : null;
+    if (cubierta) return { permitido: true, personal: false, cuenta: cubierta, tipo, via: 'suscripcion', vence: new Date(sub.exp * 1000).toISOString() };
     const cuenta = comerciales[0];
-    const pr = this.cfg.licenses.prices;
     return {
       permitido: false, personal: false, cuenta, tipo, dominio: dominioDe(cuenta),
       motivo: t('lic.gateReason', { cuenta, dominio: dominioDe(cuenta) }),
-      comprar: this.buyUrl(cuenta, tipo), precio: pr[tipo], moneda: pr.currency, dias: pr.days,
+      comprar: this.cfg.plan.subscribeUrl,
     };
-  }
-
-  buyUrl(cuenta, tipo) {
-    const c = this.cfg;
-    const u = new URL(c.licenses.buyPath, c.service.url);
-    u.searchParams.set('cuenta', cuenta);
-    u.searchParams.set('tipo', tipo);
-    u.searchParams.set('canal', 'app');
-    return u.toString();
   }
 }
 

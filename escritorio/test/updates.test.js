@@ -66,6 +66,31 @@ const release = (tag, extra = {}) => ({
   },
 });
 
+test('punto fijo de actualizaciones: URL del JSON y respaldo de GitHub tomados de la configuración', () => {
+  const { feedJsonUrl, githubFeed } = require('../lib/updates');
+  const pkg = require('../package.json');
+  assert.equal(feedJsonUrl('https://mt.nonosky.com/actualizaciones/', 'latest.json'), 'https://mt.nonosky.com/actualizaciones/latest.json');
+  assert.equal(feedJsonUrl('https://mt.nonosky.com/actualizaciones', 'latest.json'), 'https://mt.nonosky.com/actualizaciones/latest.json');
+  assert.equal(feedJsonUrl('', 'latest.json'), '');
+  assert.deepEqual(githubFeed(pkg), { provider: 'github', owner: 'nonoskygt', repo: 'nonimail', releaseType: 'release' });
+  const pub = pkg.build.publish[0];
+  assert.equal(pub.provider, 'generic', 'electron-updater lee primero el punto fijo (app-update.yml sale del primer publish)');
+  assert.equal(pub.url, require('../config/defaults.json').updates.feedUrl);
+});
+
+test('si el punto fijo falla, se pregunta a GitHub; gana la primera fuente que responde', async () => {
+  const pedidas = [];
+  const fetchFn = async (u) => {
+    pedidas.push(String(u));
+    if (String(u).includes('actualizaciones')) return { ok: false, status: 502, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => ({ tag_name: 'v9.0.0', html_url: 'https://github.com/x/y/releases/tag/v9.0.0', assets: [] }) };
+  };
+  const r = await checkLatestRelease({ apiUrls: ['https://mt.nonosky.com/actualizaciones/latest.json', 'https://api.github.com/repos/x/y/releases/latest'], current: '1.7.0', kind: 'deb', fetchFn });
+  assert.equal(r.newer, true); assert.equal(r.version, '9.0.0');
+  assert.equal(pedidas.length, 2);
+  await assert.rejects(checkLatestRelease({ apiUrls: ['https://mt.nonosky.com/actualizaciones/latest.json'], current: '1.7.0', kind: 'deb', fetchFn }), /502/);
+});
+
 test('releases/latest (servidor simulado): versión nueva -> archivo que corresponde', async () => {
   reply = release('v1.3.0');
   const p = await checkLatestRelease({ apiUrl: base, current: '1.2.0', kind: 'portable' });

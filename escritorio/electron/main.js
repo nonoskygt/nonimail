@@ -127,8 +127,8 @@ if (!lock) {
   process.on('unhandledRejection', (e) => { const err = e instanceof Error ? e : new Error(String(e)); if (server) server.reportError(err, 'app'); else console.error(err); });
 
   app.whenReady().then(async () => {
-    // Actualización automática: solo en la app empaquetada. electron-updater lee de qué repositorio actualizar
-    // de la sección build.publish de package.json (queda en app-update.yml al compilar).
+    // Actualización automática: solo en la app empaquetada. electron-updater pregunta al punto fijo
+    // (updates.feedUrl, el primer build.publish de package.json) y, si no responde, a GitHub (lib/updater.js).
     let kind = installKind({ platform: process.platform, env: process.env, packaged: app.isPackaged });
     let updates;
     if (kind !== 'dev') {

@@ -22,7 +22,7 @@ Español e inglés según el idioma de su sistema. Tema «Dulce» con modo claro
 
 Cada versión trae también `SHA256SUMS.txt`.
 
-El instalador y el AppImage se actualizan solos (Ajustes → Sistema → Actualizaciones); el portable y el `.deb` solo muestran un aviso con «Descargar».
+El instalador y el AppImage se actualizan solos (Ajustes → Sistema → Actualizaciones); el portable y el `.deb` solo muestran un aviso con «Descargar». Las versiones nuevas se buscan en `https://mt.nonosky.com/actualizaciones/` y, si no responde, en GitHub.
 
 ## Instalación
 
@@ -72,7 +72,9 @@ Reglas de seguridad:
 - Si usted para, se cae Ollama o cierra la app, **Continuar** sigue desde el último lote terminado.
 - **Dar de baja** prueba un clic (RFC 8058), luego un correo `mailto:` y luego el enlace. Solo se abren enlaces `https` a direcciones públicas.
 
-El puntaje lo da su modelo local de Ollama: ningún asunto ni cuerpo sale hacia un servicio externo de IA. Sin Ollama deciden las heurísticas.
+El puntaje lo da su modelo local de Ollama («IA de este equipo»): ningún asunto ni cuerpo sale del equipo. Con «IA de Nonosky (suscripción)» se mandan a nuestro servidor solo el remitente y hasta 5 asuntos por remitente, nunca el cuerpo. «Sin IA», o si la IA no responde, deciden las heurísticas sin cortar la limpieza.
+
+**Mantener funcionando en el servidor** (suscripción): en Limpiar y en Sincronizar, un interruptor crea la tarea en el servidor (limpiar cada 1, 3, 7, 14 o 30 días con la dureza actual, nunca menos de 30; sincronizar cada 15 min). Pide su consentimiento para guardar la contraseña cifrada; las cuentas con «Iniciar sesión con Google» necesitan una contraseña de aplicación. Lo eliminado va a la Papelera.
 
 ## Sincronizar
 
@@ -83,18 +85,20 @@ Elija **Origen** y **Destino** entre sus cuentas (opcionalmente filtre carpetas)
 - Al final verifica que todo lo del origen esté en el destino.
 - Una segunda corrida no copia nada nuevo.
 
-## Licencias y precios
+## Planes y precios
 
-- Las **cuentas personales** (Gmail, Hotmail, Outlook, Yahoo, iCloud, Proton y otros proveedores públicos) son **gratis**.
-- Las **cuentas con dominio propio** son uso comercial. Siempre puede **simular**. Para ejecutar de verdad se necesita una clave **por cuenta y por función**, válida 30 días.
+- **Gratis, para siempre:** las **cuentas personales** (Gmail, Hotmail, Outlook, Yahoo, iCloud, Proton y otros proveedores públicos), con la IA de su equipo o sin IA (reglas).
+- **Suscripción** (por cuenta de correo, mensual o anual; cada cuenta incluye limpiar y sincronizar): cuentas de **dominio propio**, la **IA de Nonosky** en nuestro servidor, **tareas permanentes** en el servidor (limpiar cada N días y sincronizar sin parar, aunque su equipo esté apagado), la herramienta web y las preferencias en la nube.
 
-| Función | Precio (30 días) |
-|---|---|
-| Limpiar | USD 1 |
-| Sincronizar | USD 2 |
+| Cuentas | Mensual | Anual |
+|---|---|---|
+| 1 a 4 | USD 3 | USD 29 |
+| 5 a 19 | USD 2.50 | USD 24 |
+| 20 o más | USD 2 | USD 19 |
 
-La pestaña **Licencias** muestra el estado de cada cuenta y un enlace **Comprar**. Las cuentas personales no piden iniciar sesión. Con una cuenta de dominio propio, **Entrar** con su correo y contraseña del servicio (si el correo es nuevo, escriba el código de 6 dígitos que le llega) y la app trae sus licencias sola; **Cerrar sesión** está en la misma pestaña. Sin sesión puede agregar y simular, y también pegar la clave (`NMT1.…`) en **Agregar clave**.
-Las claves van firmadas (Ed25519) y se validan sin conexión con la clave pública incluida en la app. Las licencias compradas en el servicio web también valen.
+Ajustes → **Planes** muestra su plan, esta tabla (la del servicio si hay red) y el botón **Suscribirse**, que abre la web. Sin suscripción, una cuenta de dominio propio siempre puede **escanear y simular**.
+La app inicia sesión con la cuenta de la web (Ajustes → Reglas, o «Iniciar sesión» en una cuenta de dominio propio) y trae sola el comprobante de la suscripción (`NMTS1.…`, firmado con Ed25519): se verifica sin conexión y se renueva al abrir y cada 12 h. Si la suscripción tiene lugares libres, la cuenta de dominio propio ocupa uno sola. Las licencias `NMT1.` que ya se vendieron siguen valiendo hasta que vencen.
+Las reglas por remitente se guardan en la nube solo si usted compró el servicio al menos una vez; si no, quedan en el equipo.
 
 ## Conectar con Google
 
