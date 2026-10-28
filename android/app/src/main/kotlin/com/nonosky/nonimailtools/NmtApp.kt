@@ -6,10 +6,15 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.nonosky.nonimailtools.actualizar.Actualizaciones
+import com.nonosky.nonimailtools.core.Defaults
+import com.nonosky.nonimailtools.core.limpiar.IaNonosky
+import com.nonosky.nonimailtools.core.servicio.TareasApi
 import com.nonosky.nonimailtools.core.telemetria.Telemetria
 import com.nonosky.nonimailtools.data.Ajustes
 import com.nonosky.nonimailtools.data.RepoCuentas
 import com.nonosky.nonimailtools.data.RepoLicencias
+import com.nonosky.nonimailtools.data.RepoPlan
+import com.nonosky.nonimailtools.data.RepoTareas
 import com.nonosky.nonimailtools.data.RepoReglas
 import com.nonosky.nonimailtools.data.RepoReputacion
 import com.nonosky.nonimailtools.data.Servicio
@@ -33,6 +38,8 @@ class NmtApp : Application() {
     lateinit var licencias: RepoLicencias; private set
     lateinit var servicio: Servicio; private set
     lateinit var reglas: RepoReglas; private set
+    lateinit var plan: RepoPlan; private set
+    lateinit var tareasServidor: RepoTareas; private set
     lateinit var reputacion: RepoReputacion; private set
     lateinit var telemetry: Telemetry; private set
     lateinit var operaciones: Operaciones; private set
@@ -54,6 +61,8 @@ class NmtApp : Application() {
         servicio = Servicio(this, ajustes, licencias, scope)
         telemetry = Telemetry(this, ajustes, cuentas)
         reglas = RepoReglas(ajustes, servicio, scope, telemetry.log)
+        plan = RepoPlan(this, servicio, cuentas, ajustes, telemetry.log, scope)
+        tareasServidor = RepoTareas { tareas() }
         reputacion = RepoReputacion(this, ajustes, telemetry.log)
         ajustes.migrarReglas()
         operaciones = Operaciones(this)
@@ -61,7 +70,11 @@ class NmtApp : Application() {
         actualizaciones = Actualizaciones(this)
         instalarManejadorDeErrores()
         // A session that just opened (or the one the app starts with) syncs the saved rules.
-        scope.launch { servicio.email.collect { if (it.isNotEmpty()) reglas.pronto(0) } }
+        scope.launch {
+            servicio.email.collect {
+                if (it.isNotEmpty()) { reglas.pronto(0); launch(Dispatchers.IO) { plan.refrescar() } }
+            }
+        }
         telemetry.log.i("app", "Start ${BuildConfig.VERSION_NAME} (${BuildConfig.ORIGEN_DESCARGA})")
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
@@ -73,12 +86,17 @@ class NmtApp : Application() {
                 // Signed in to the web service: refresh the licenses bought since last time.
                 if (servicio.email.value.isNotEmpty()) {
                     scope.launch(Dispatchers.IO) { runCatching { servicio.traerLicencias() } }
+                    scope.launch(Dispatchers.IO) { plan.refrescar() }
                     reglas.pronto(0)
                 }
                 scope.launch(Dispatchers.IO) { reputacion.actualizarSiVencida() }
                 // While the app is open, a batch goes out every 5 minutes.
                 periodico = scope.launch {
-                    while (true) { delay(5 * 60_000L); telemetry.enviarYa() }
+                    while (true) {
+                        delay(5 * 60_000L); telemetry.enviarYa()
+                        // The subscription proof is renewed every PLAN_REFRESH_HOURS while signed in.
+                        if (servicio.email.value.isNotEmpty() && plan.vencido()) launch(Dispatchers.IO) { plan.refrescar() }
+                    }
                 }
             }
 
@@ -89,6 +107,12 @@ class NmtApp : Application() {
             }
         })
     }
+
+    /** Client of the subscription's AI on the server, with the session of the web account. */
+    fun iaNonosky(): IaNonosky = IaNonosky(ajustes.valores.value.serviceUrl, Defaults.instance.iaNonosky, { servicio.tokenActual() })
+
+    /** Client of the permanent tasks on the server (`/api/tareas`). */
+    fun tareas(): TareasApi = Defaults.instance.servicio.let { TareasApi(ajustes.valores.value.serviceUrl, it.tareasPath, { servicio.tokenActual() }, it.timeoutMs, durezaMin = it.durezaMin) }
 
     /** Uncaught exceptions: local log + `error` event (contexto "app"), then the default handler. */
     private fun instalarManejadorDeErrores() {

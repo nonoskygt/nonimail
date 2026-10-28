@@ -72,7 +72,7 @@ sealed interface EstadoAct {
 private class FalloAct(mensaje: String) : Exception(mensaje)
 
 /**
- * Self-update from GitHub Releases: check, download (resumable), verify SHA-256 and signing certificate,
+ * Self-update from GitHub Releases (looked up through the service's fixed point first): check, download (resumable), verify SHA-256 and signing certificate,
  * then install through a PackageInstaller session. Failures go to the log and to telemetry
  * (`error`, context `actualizacion`); the person only sees the result of a manual check.
  */
@@ -226,11 +226,14 @@ class Actualizaciones(private val app: NmtApp) {
         if (solicitada) _estado.value = EstadoAct.Fallo else liberarSi { _estado.value = EstadoAct.Reposo }
     }
 
+    /**
+     * The fixed point of the service first (`UPDATE_FEED_URL`, the same JSON as GitHub's releases/latest,
+     * usually through a redirect, so a repository change does not break installed apps), then GitHub's API.
+     */
     private fun consultar(): Lanzamiento {
-        val url = "${BuildConfig.UPDATE_API_BASE}/repos/${BuildConfig.UPDATE_REPO}/releases/latest"
-        val texto = Red.texto(url, app.telemetry.userAgent, "application/vnd.github+json")
+        val urls = listOf(BuildConfig.UPDATE_FEED_URL, "${BuildConfig.UPDATE_API_BASE}/repos/${BuildConfig.UPDATE_REPO}/releases/latest")
         val lanzamiento = try {
-            Lanzamientos.parse(texto, BuildConfig.UPDATE_APK_ASSET, BuildConfig.UPDATE_SUMS_ASSET)
+            Lanzamientos.primero(urls, { Red.texto(it, app.telemetry.userAgent, "application/vnd.github+json") }, BuildConfig.UPDATE_APK_ASSET, BuildConfig.UPDATE_SUMS_ASSET)
         } catch (e: kotlinx.serialization.SerializationException) {
             throw FalloAct("The release answer cannot be read: ${e.message}")
         }

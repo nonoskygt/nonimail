@@ -121,6 +121,15 @@ data class LibroReglas(val entradas: Map<String, ReglaFecha> = emptyMap()) {
 /** The wire form shared by the storage and the sync (`GET/PUT /api/reglas-remitentes`). */
 object ReglasJson {
     const val RUTA = "/api/reglas-remitentes"
+    const val REQUIERE_COMPRA = "requiere_compra"
+
+    /** `codigo` of an error answer, at the top level or inside `detail` (FastAPI). */
+    fun codigo(cuerpo: JsonObject?): String? {
+        val top = (cuerpo?.get("codigo") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+        if (top != null) return top
+        val det = cuerpo?.get("detail") as? JsonObject
+        return (det?.get("codigo") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+    }
 
     /** From `{"<key>":{"regla":…,"ts":…}}`; keys lower-cased, invalid rules dropped, a missing ts is 0. */
     fun entradas(o: JsonObject): Map<String, ReglaFecha> {
@@ -159,8 +168,11 @@ interface ReglasRemoto {
     fun escribir(entradas: Map<String, ReglaFecha>): RespuestaReglas
 }
 
-data class RespuestaReglas(val status: Int, val entradas: Map<String, ReglaFecha> = emptyMap()) {
+data class RespuestaReglas(val status: Int, val entradas: Map<String, ReglaFecha> = emptyMap(), val codigo: String? = null) {
     val ok get() = status in 200..299
+
+    /** 404 `{codigo: "requiere_compra"}`: the account never bought the service; the rules stay on the phone. */
+    val requiereCompra get() = status == 404 && codigo == ReglasJson.REQUIERE_COMPRA
 }
 
 /** Where the phone keeps its rules. [fusionar] must read, merge and write as one step. */
@@ -174,6 +186,9 @@ sealed interface ResultadoSyncReglas {
 
     /** 404 / 501: the service does not have the endpoint yet. Everything keeps working locally. */
     data object SinServicio : ResultadoSyncReglas
+
+    /** 404 `requiere_compra`: preferences in the cloud need one purchase at least. Everything keeps working locally. */
+    data object RequiereCompra : ResultadoSyncReglas
 
     /** 401 / 403: the session expired. */
     data object SesionVencida : ResultadoSyncReglas
@@ -212,6 +227,7 @@ object SincronizadorReglas {
         return try {
             val got = remoto.leer()
             when {
+                got.requiereCompra -> return ResultadoSyncReglas.RequiereCompra
                 got.status == 404 || got.status == 501 -> return ResultadoSyncReglas.SinServicio
                 got.status == 401 || got.status == 403 -> return ResultadoSyncReglas.SesionVencida
                 !got.ok -> return ResultadoSyncReglas.Error("servicio ${got.status}")
@@ -220,6 +236,7 @@ object SincronizadorReglas {
             if (f.cambiaRemoto.isNotEmpty()) {
                 val put = remoto.escribir(f.resultado)
                 when {
+                    put.requiereCompra -> return ResultadoSyncReglas.RequiereCompra
                     put.status == 401 || put.status == 403 -> return ResultadoSyncReglas.SesionVencida
                     !put.ok -> return ResultadoSyncReglas.Error("servicio ${put.status}")
                 }

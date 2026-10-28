@@ -3,6 +3,7 @@
 //   installKind     qué tipo de instalación es: nsis | appimage | portable | deb | other | dev
 //   decide          tipo + estado -> qué comprobar, qué aviso mostrar y si se puede reiniciar
 //   compareVersions / checkLatestRelease / pickAsset   comprobación contra GitHub (releases/latest)
+//   feedJsonUrl / githubFeed   el punto fijo https://mt.nonosky.com/actualizaciones/ y el respaldo en GitHub
 // El controlador que une todo con electron-updater está en lib/updater.js.
 
 // Con electron-updater se actualizan el instalador NSIS y el AppImage; el portable y el .deb no pueden:
@@ -56,7 +57,17 @@ function pickAsset(assets, kind, version) {
 }
 
 // GET releases/latest -> { newer, version, url } (url: el archivo que toca, o la página de la versión)
-async function checkLatestRelease({ apiUrl, current, kind, fetchFn = (...a) => fetch(...a), timeoutMs = 15000 }) {
+// apiUrls: varias fuentes del mismo JSON en orden (el punto fijo y luego la API de GitHub); gana la primera que responde bien
+async function checkLatestRelease({ apiUrl, apiUrls, current, kind, fetchFn = (...a) => fetch(...a), timeoutMs = 15000 }) {
+  const urls = (apiUrls || [apiUrl]).filter(Boolean);
+  let last = new Error('sin fuente de actualizaciones');
+  for (const u of urls) {
+    try { return await checkOne({ apiUrl: u, current, kind, fetchFn, timeoutMs }); } catch (e) { last = e; }
+  }
+  throw last;
+}
+
+async function checkOne({ apiUrl, current, kind, fetchFn, timeoutMs }) {
   const res = await fetchFn(apiUrl, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': `NoniMailTools/${current}` }, signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error(`GitHub respondió ${res.status}`);
   const rel = await res.json();
@@ -74,4 +85,16 @@ function releasesApiUrl(pkg) {
   return pub ? `https://api.github.com/repos/${pub.owner}/${pub.repo}/releases/latest` : '';
 }
 
-module.exports = { installKind, decide, compareVersions, pickAsset, checkLatestRelease, releasesApiUrl, SELF_UPDATING };
+// El JSON de la última versión en el punto fijo: <feedUrl><name> (el servidor lo redirige a releases/latest de GitHub)
+function feedJsonUrl(feedUrl, name) {
+  if (!feedUrl || !name) return '';
+  try { return new URL(name, feedUrl.endsWith('/') ? feedUrl : `${feedUrl}/`).toString(); } catch (_) { return ''; }
+}
+
+// Respaldo de electron-updater si el punto fijo no responde: el repositorio de GitHub de build.publish
+function githubFeed(pkg) {
+  const pub = [].concat((pkg.build && pkg.build.publish) || []).find(p => p && p.provider === 'github');
+  return pub ? { provider: 'github', owner: pub.owner, repo: pub.repo, releaseType: pub.releaseType || 'release' } : null;
+}
+
+module.exports = { installKind, decide, compareVersions, pickAsset, checkLatestRelease, releasesApiUrl, feedJsonUrl, githubFeed, SELF_UPDATING };

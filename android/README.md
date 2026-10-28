@@ -59,11 +59,11 @@ A short configurator runs once and can be repeated from Settings:
 
 Long operations run in a foreground service with a notification and a Cancel button.
 
-## Licenses and prices
+## Plans and prices
 
-- **Personal accounts** (public providers such as Gmail, Outlook, Yahoo, iCloud) are **free**.
-- **Commercial accounts** (your own domain) can always simulate. A real run needs a key for that account and that function, valid for 30 days: **USD 1 for Clean, USD 2 for Sync**.
-- Buy from the Licenses tab (it opens `{service}/licencias.html?cuenta=…&tipo=…&canal=app`) and paste the key `NMT1.…`. Keys are checked offline with an Ed25519 signature. Keys bought on the website work too.
+- **Free, forever:** personal accounts (public providers such as Gmail, Outlook, Yahoo, iCloud), cleaned and synced from the app, with the AI on the phone or with rules.
+- **Subscription** (per e-mail account, monthly or yearly; Settings → Plans shows the table): business accounts (your own domain), Nonosky AI on the server, permanent tasks («Keep running on the server»: cleaning every N days and non-stop syncing, even with the phone off), the web tool and preferences in the cloud.
+- Without the subscription, a business account can always scan and simulate. «Subscribe» opens the web page; signing in brings the subscription by itself as a signed proof `NMTS1.…` (Ed25519, checked offline, renewed every 12 h). License keys `NMT1.…` already sold keep working until they expire.
 
 ## Privacy / Telemetry
 

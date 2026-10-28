@@ -1,19 +1,21 @@
 'use strict';
 // Controlador de la actualización automática: une lib/updates.js con electron-updater (o con la consulta
-// a GitHub para el portable y el .deb). Un fallo al comprobar se registra y se manda como telemetría
+// del JSON de la última versión para el portable y el .deb). Primero se pregunta al punto fijo
+// (https://mt.nonosky.com/actualizaciones/) y, si no responde, a GitHub. Un fallo al comprobar se registra y se manda como telemetría
 // (contexto «actualizacion»), pero nunca abre avisos: el usuario solo ve el resultado si pulsó «Buscar».
 const { installKind, decide, checkLatestRelease } = require('./updates');
 
 class Updater {
-  // o: { kind, current, apiUrl, getConfig(), autoUpdater (electron-updater o null), quitAndInstall(), busy(),
-  //      fetch, log, report(err, contexto), emit(estado) }
+  // o: { kind, current, apiUrls: [url], feed?: {provider:'generic', url}, fallbackFeed?: {provider:'github', …},
+  //      getConfig(), autoUpdater (electron-updater o null), quitAndInstall(), busy(), fetch, log, report(err, contexto), emit(estado) }
   constructor(o) {
     this.o = o;
     this.kind = o.kind || installKind({ packaged: false });
     this.phase = 'idle'; this.version = null; this.url = null; this.percent = 0; this.checkedAt = null;
-    this.checking = false; this.timers = []; this.lastReported = '';
+    this.checking = false; this.timers = []; this.lastReported = ''; this.usingFallback = false;
     const au = o.autoUpdater;
     if (au) {
+      if (o.feed) { try { au.setFeedURL(o.feed); } catch (e) { o.log.info(`[actualizacion] no se pudo fijar ${o.feed.url}: ${e.message}`); } }
       // al salir se instala con quitAndInstall (installOnQuit) para que la app vuelva a abrirse sola
       au.autoDownload = true; au.autoInstallOnAppQuit = false; au.allowPrerelease = false; au.allowDowngrade = false;
       const line = (m) => o.log.info(`[actualizacion] ${m}`);
@@ -22,7 +24,7 @@ class Updater {
       au.on('update-not-available', () => { this.phase = 'uptodate'; this._emit(); });
       au.on('download-progress', (p) => { this.percent = Math.round(p.percent || 0); this.phase = 'downloading'; this._emit(); });
       au.on('update-downloaded', (i) => { this.version = i.version; this.phase = 'downloaded'; this._log(`versión ${i.version} descargada; se instala al cerrar`); this._emit(); });
-      au.on('error', (e) => this._fail(e));
+      au.on('error', (e) => { if (!this.checking) this._fail(e); }); // al comprobar, el error llega por la promesa (y se prueba el respaldo)
     }
   }
 
@@ -56,13 +58,20 @@ class Updater {
     try {
       if (d.check === 'updater') {
         this.phase = 'checking';
-        await this.o.autoUpdater.checkForUpdates(); // los eventos de arriba fijan la fase
+        try { await this.o.autoUpdater.checkForUpdates(); } // los eventos de arriba fijan la fase
+        catch (e) {
+          if (!this.o.fallbackFeed || this.usingFallback) throw e;
+          this._log(`el punto fijo no respondió (${e.message}); se prueba GitHub`);
+          this.usingFallback = true; this.o.autoUpdater.setFeedURL(this.o.fallbackFeed);
+          this.phase = 'checking';
+          await this.o.autoUpdater.checkForUpdates();
+        }
         if (this.phase === 'checking') this.phase = 'uptodate';
       } else {
-        const r = await checkLatestRelease({ apiUrl: this.o.apiUrl, current: this.o.current, kind: this.kind, fetchFn: this.o.fetch });
+        const r = await checkLatestRelease({ apiUrls: this.o.apiUrls || [this.o.apiUrl], current: this.o.current, kind: this.kind, fetchFn: this.o.fetch });
         this.version = r.version; this.url = r.url;
         this.phase = r.newer ? 'available' : 'uptodate';
-        if (r.newer) this._log(`versión ${r.version} disponible en GitHub (${this.kind})`);
+        if (r.newer) this._log(`versión ${r.version} disponible (${this.kind})`);
       }
     } catch (e) { this._fail(e); }
     this.checking = false; this.checkedAt = Date.now(); this._emit();

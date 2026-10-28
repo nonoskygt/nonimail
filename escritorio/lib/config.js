@@ -228,6 +228,7 @@ function validate(cfg) {
   int(L.thinkNumPredict, 64, 32768, t('field.thinkNumPredict')); int(L.thinkNumCtx, 512, 262144, t('field.thinkNumCtx'));
   int(L.doubtLow, 0, 100, t('field.doubtLow')); int(L.doubtHigh, 0, 100, t('field.doubtHigh'));
   if (L.doubtLow >= L.doubtHigh) e.push(t('val.doubtRange'));
+  if (L.provider && !['equipo', 'nonosky'].includes(L.provider)) e.push(t('val.aiMode'));
   const C = cfg.cleaning;
   int(C.daysBack, 0, 36500, t('field.daysBack')); int(C.windowDays, 1, 3650, t('field.windowDays'));
   int(C.fetchChunk, 10, 1000, t('field.fetchChunk')); int(C.dureza, 0, 100, t('field.dureza'));

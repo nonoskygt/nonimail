@@ -41,7 +41,7 @@ class ServiceAuth {
   get token() { return this.o.secrets.get('serviceToken'); }
   status() { return { signedIn: !!this.token, email: this.o.secrets.get('serviceEmail') }; }
 
-  async _call(method, path, { body, token } = {}) {
+  async _call(method, path, { body, token, timeoutMs } = {}) {
     const c = this.cfg;
     let r;
     try {
@@ -49,7 +49,7 @@ class ServiceAuth {
         method,
         headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(c.service.timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs || c.service.timeoutMs),
       });
     } catch (_) { throw httpErr(502, t('auth.unreachable')); }
     let j = null;
@@ -131,6 +131,13 @@ class ServiceAuth {
     this.o.secrets.set({ serviceToken: null, serviceEmail: null });
     if (this.o.log) this.o.log.info('servicio: sesión cerrada');
     return { signedIn: false, email: '' };
+  }
+
+  // Llamada con la sesión a cualquier ruta del servicio (plan, IA, tareas). Devuelve la respuesta cruda.
+  async call(method, path, body, { timeoutMs } = {}) {
+    const token = this.token;
+    if (!token) throw httpErr(401, t('auth.signedOut'));
+    return this._call(method, path, { token, body, timeoutMs });
   }
 
   // Reglas por remitente del perfil en línea (lib/reglas-sync.js). Devuelve la respuesta cruda para que quien llama decida.

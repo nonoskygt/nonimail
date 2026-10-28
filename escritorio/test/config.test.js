@@ -20,8 +20,11 @@ test('defaults.json trae todo lo configurable y la configuración nueva sale vá
   assert.match(d.ollama.installer.linux, /^https:\/\//);
   assert.equal(d.appearance.mode, 'auto');
   assert.equal(d.appearance.accent, 'carmesi');
-  assert.equal(d.licenses.prices.limpiar, '1');
-  assert.equal(d.licenses.prices.sincronizar, '2');
+  assert.equal(d.plan.subscribeUrl, 'https://mt.nonosky.com/herramienta.html#suscripcion');
+  assert.deepEqual(d.plan.precios.mensual.map(x => x.precio), ['3.00', '2.50', '2.00']);
+  assert.deepEqual(d.plan.precios.anual.map(x => x.precio), ['29.00', '24.00', '19.00']);
+  assert.equal(d.llm.provider, 'equipo');
+  assert.equal(d.updates.feedUrl, 'https://mt.nonosky.com/actualizaciones/');
   const dir = tmpdir();
   const store = new C.ConfigStore({ file: path.join(dir, 'config.json'), env: {} });
   assert.equal(store.created, true);

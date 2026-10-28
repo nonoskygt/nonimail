@@ -52,13 +52,13 @@ function mailbox() {
   return { inbox, sent };
 }
 
-async function setup({ daysBack = 365, windowDays = 30, retry = [20, 20, 20], fetchChunk = 100 } = {}) {
+async function setup({ daysBack = 365, windowDays = 30, retry = [20, 20, 20], fetchChunk = 100, ia = null } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nm-eng-'));
   const ol = await fakeOllama();
   const imap = await S.startImap(mailbox());
   const smtpSrv = await S.startSmtp();
   const cfg = C.deepDefaults(defaults(), {
-    model: 'm', ollamaUrl: ol.url, llmPrompt: 'P', llm: { think: true }, // el motor sigue soportando pensar en los dudosos (de fábrica va apagado)
+    model: 'm', ollamaUrl: ol.url, llmPrompt: 'P', llm: { think: true, provider: ia ? 'nonosky' : 'equipo' }, // el motor sigue soportando pensar en los dudosos (de fábrica va apagado)
     account: { type: 'imap', email: 'yo@test.local' },
     cleaning: { daysBack, windowDays, fetchChunk, dryRun: false },
     heuristics: { keepOverride: 'factura', subject: '', from: '', body: '' },
@@ -73,6 +73,7 @@ async function setup({ daysBack = 365, windowDays = 30, retry = [20, 20, 20], fe
     openMail: () => new MailClient(S.imapOpts(imap.port)).connect(),
     smtpOptions: async () => ({ host: '127.0.0.1', port: smtpSrv.port, secure: false, requireTLS: false, auth: { user: 'smtpuser', pass: 'smtppass' } }),
     emit: (lane, text, kind) => lines.push(`[${lane}] ${text}`), sse: (o) => events.push(o),
+    iaNonosky: ia,
   });
   const done = () => new Promise(r => { const t = setInterval(() => { if (!eng.busy()) { clearInterval(t); r(); } }, 20); });
   const subjects = async (box) => {
@@ -141,7 +142,7 @@ test('scan: agrupa por remitente en todos los lotes, Parar pausa y Continuar ter
   } finally { await t.cleanup(); }
 });
 
-test('Ollama se cae a mitad: pausa con error, y al volver Continuar termina', async () => {
+test('Ollama se cae a mitad: la limpieza sigue con reglas y termina, sin pausarse', async () => {
   const t = await setup({ windowDays: 30, fetchChunk: 10 });
   try {
     let tripped = false;
@@ -149,13 +150,22 @@ test('Ollama se cae a mitad: pausa con error, y al volver Continuar termina', as
     t.eng.sse = (o) => { origSse(o); if (!tripped && o.t === 'progress' && o.job.running && o.job.windowIdx >= 4) { tripped = true; t.ol.st.down = true; } };
     t.eng.start('auto', { daysBack: 365, dureza: 50, dryRun: false });
     await t.done();
-    const [saved] = t.progress.list();
-    assert.equal(saved.status, 'paused'); assert.match(saved.error, /caído|Ollama/);
-    t.ol.st.down = false;
-    t.eng.start('auto', { resume: true, key: saved.key });
+    assert.equal(t.progress.list().length, 0, 'terminó: no queda nada para continuar');
+    assert.ok(t.lines.some(l => /no responde .*se sigue con reglas/.test(l)), t.lines.join('\n'));
+    assert.ok((await t.subjects('Papelera')).length > 0, 'antes de caerse ya había limpiado');
+  } finally { await t.cleanup(); }
+});
+
+test('Ollama apagado desde el principio: no corta el escaneo, puntúa con reglas', async () => {
+  const t = await setup();
+  try {
+    t.ol.st.down = true;
+    t.eng.start('scan', { daysBack: 365 });
     await t.done();
-    assert.equal((await t.subjects('Papelera')).length, 6);
-    assert.equal(t.progress.list().length, 0);
+    const senders = t.eng.scanSenders();
+    assert.ok(senders.length > 0);
+    assert.ok(senders.filter(s => s.score != null).every(s => ['heuristica', 'regla-usuario', 'protegido', 'mío', 'conversación'].includes(s.reason)), JSON.stringify(senders.map(s => s.reason)));
+    assert.ok(t.lines.some(l => /se sigue con reglas/.test(l)));
   } finally { await t.cleanup(); }
 });
 
@@ -237,3 +247,40 @@ test('reputación: ≥90 y ≤10 omiten la IA; con n<10 se ignora y decide la IA
     assert.ok(!t.lines.some(l => /ofertas@tienda|tienda/i.test(l) && l.startsWith('[llm]')), 'la IA no vio a los de reputación');
   } finally { await t.cleanup(); }
 });
+
+// ---------- IA de Nonosky (suscripción) ----------
+test('IA de Nonosky: clasifica en lotes sin cuerpo, convierte la categoría en puntaje y no usa Ollama', async () => {
+  const pedidos = [];
+  const ia = async (items) => {
+    pedidos.push(items);
+    const cat = (id) => (/ofertas@/.test(id) ? 'PROMOCION' : /dudoso@/.test(id) ? null : 'PERSONAL');
+    return { ok: true, categorias: new Map(items.map(x => [x.id, cat(x.id)])) };
+  };
+  const t = await setup({ ia });
+  try {
+    t.eng.start('scan', { daysBack: 365 });
+    await t.done();
+    const by = Object.fromEntries(t.eng.scanSenders().map(s => [s.email, s]));
+    assert.equal(by['revista@r.com'].reason, 'ia-nonosky'); assert.equal(by['revista@r.com'].score, t.cfg.llm.categoryScores.PERSONAL);
+    assert.equal(by['dudoso@club.com'].reason, 'heuristica', 'sin respuesta del modelo: reglas');
+    assert.equal(t.ol.st.calls, 0, 'la IA de Nonosky no usa Ollama');
+    assert.ok(pedidos.length > 0);
+    for (const lote of pedidos) for (const it of lote) { assert.deepEqual(Object.keys(it).sort(), ['bulk', 'from', 'id', 'subjects']); }
+  } finally { await t.cleanup(); }
+});
+
+test('IA de Nonosky caída (402/429/503/red): la limpieza sigue con reglas y termina', async () => {
+  let n = 0;
+  const ia = async () => { n++; return { ok: false, status: 429, motivo: 'tope diario alcanzado', categorias: new Map() }; };
+  const t = await setup({ ia });
+  try {
+    t.eng.start('auto', { daysBack: 365, dureza: 50, dryRun: true });
+    await t.done();
+    const ev = t.events.filter(e => e.t === 'progress').pop().job;
+    assert.equal(ev.status, 'done');
+    assert.equal(n, 1, 'después del primer fallo no se le vuelve a pedir en este trabajo');
+    assert.ok(t.lines.some(l => /IA de Nonosky no disponible \(tope diario alcanzado\): se sigue con reglas/.test(l)), t.lines.join('\n'));
+    assert.equal(t.ol.st.calls, 0);
+  } finally { await t.cleanup(); }
+});
+

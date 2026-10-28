@@ -115,7 +115,7 @@ test('no hay pestaña Licencias y «Iniciar sesión» solo existe con una cuenta
   const priv = await req('POST', '/api/accounts/save', imapAccount('ana@empresa.com'));
   cfg = (await req('GET', '/api/config')).body;
   assert.equal(cfg.accounts.some(a => !a.personal), true); assert.equal(cfg.auth.signedIn, false);
-  assert.equal(new URL(cfg.gate.comprar || (await req('POST', '/api/licenses/gate', { cuenta: 'ana@empresa.com', tipo: 'limpiar' })).body.comprar).searchParams.get('canal'), 'app');
+  assert.equal(cfg.gate.comprar || (await req('POST', '/api/licenses/gate', { cuenta: 'ana@empresa.com', tipo: 'limpiar' })).body.comprar, 'https://mt.nonosky.com/herramienta.html#suscripcion');
   await req('POST', '/api/accounts/delete', { id: priv.body.account.id }); await req('POST', '/api/accounts/delete', { id: pers.body.account.id });
 });
 

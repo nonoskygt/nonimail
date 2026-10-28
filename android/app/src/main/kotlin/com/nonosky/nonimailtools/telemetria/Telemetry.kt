@@ -120,7 +120,7 @@ class Telemetry(
             installId = ajustes.asegurarInstallId(), app = "android", version = version, os = "android",
             osVersion = "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})", arch = arch,
             locale = Locale.getDefault().toLanguageTag(), zonaHoraria = TimeZone.getDefault().id,
-            origenDescarga = BuildConfig.ORIGEN_DESCARGA, iaLocal = ia, modelo = if (ia) (if (v.iaModoEfectivo == "red") v.ollamaModelo else v.iaModoEfectivo) else null,
+            origenDescarga = BuildConfig.ORIGEN_DESCARGA, iaLocal = ia && v.iaModoEfectivo != com.nonosky.nonimailtools.ops.MODO_NONOSKY, modelo = if (ia) (if (v.iaModoEfectivo == "red") v.ollamaModelo else v.iaModoEfectivo) else null,
         )
     }
 

@@ -27,6 +27,7 @@ import com.nonosky.nonimailtools.BuildConfig
 import com.nonosky.nonimailtools.NmtApp
 import com.nonosky.nonimailtools.R
 import com.nonosky.nonimailtools.core.licencias.Dominios
+import com.nonosky.nonimailtools.core.licencias.Fuente
 import com.nonosky.nonimailtools.core.licencias.LicenseError
 import com.nonosky.nonimailtools.core.licencias.LicenseGate
 import com.nonosky.nonimailtools.core.licencias.LicenseResult
@@ -60,6 +61,7 @@ fun BloqueLicencias() {
     val cuentas by app.cuentas.cuentas.collectAsState()
     val licencias by app.licencias.licencias.collectAsState()
     val sesion by app.servicio.email.collectAsState()
+    val plan by app.plan.estado.collectAsState()
     var clave by rememberSaveable { mutableStateOf("") }
     var verClave by rememberSaveable { mutableStateOf(false) }
     var entrando by remember { mutableStateOf(false) }
@@ -89,11 +91,12 @@ fun BloqueLicencias() {
         for (c in comerciales) {
             Text(c.email, style = MaterialTheme.typography.titleSmall, color = d.text)
             for (tipo in Tipo.entries) {
-                val g = LicenseGate.check(listOf(c.email), tipo, licencias, ahora)
+                val g = LicenseGate.check(listOf(c.email), tipo, licencias, ahora, plan.comprobante)
                 Fila {
                     Text(nombreTipo(tipo), style = MaterialTheme.typography.bodyMedium, color = d.text, modifier = Modifier.weight(1f))
-                    if (g.permitido) Sello(stringResource(R.string.lic_activa_hasta, fecha.format(Date((g.vence ?: 0) * 1000))), Tono.OK)
-                    else BotonTexto(stringResource(R.string.comprar_licencia), { abrirUrl(ctx, LicenseGate.buyUrl(v.serviceUrl, c.email, tipo)) })
+                    val hasta = fecha.format(Date((g.vence ?: 0) * 1000))
+                    if (g.permitido) Sello(stringResource(if (g.fuente == Fuente.SUSCRIPCION) R.string.plan_suscripcion_hasta else R.string.lic_activa_hasta, hasta), Tono.OK)
+                    else BotonTexto(stringResource(R.string.suscribirse), { abrirUrl(ctx, BuildConfig.SUBSCRIBE_URL) })
                 }
             }
         }

@@ -122,6 +122,27 @@ object Lanzamientos {
         val sumas = r.assets.firstOrNull { it.name == nombreSumas && it.url.startsWith("https://") } ?: return null
         return Lanzamiento(r.tag, version, apk.url, apk.size, sumas.url)
     }
+
+    /**
+     * Tries [urls] in order (the fixed point of the service first, then GitHub's API) and returns the first
+     * usable release. A URL that fails (network, HTTP error, unreadable JSON, no APK) moves on to the next one.
+     * Null when every answer was readable but none had the APK; the last error when none answered.
+     */
+    fun primero(urls: List<String>, leer: (String) -> String, nombreApk: String, nombreSumas: String): Lanzamiento? {
+        var ultimo: Exception? = null
+        var leido = false
+        for (u in urls.map { it.trim() }.filter { it.isNotEmpty() }.distinct()) {
+            try {
+                val l = parse(leer(u), nombreApk, nombreSumas)
+                leido = true
+                if (l != null) return l
+            } catch (e: Exception) {
+                ultimo = e
+            }
+        }
+        if (!leido && ultimo != null) throw ultimo
+        return null
+    }
 }
 
 object Sumas {

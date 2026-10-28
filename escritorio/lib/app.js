@@ -2,7 +2,8 @@
 // NoniMail Tools: servidor HTTP local (127.0.0.1) con la interfaz y la API.
 //   Limpiar      escanear, ejecutar y limpiar por lotes de fecha (lib/engine.js)
 //   Sincronizar  copiar un buzón en otro (lib/sync)
-//   Licencias    claves por cuenta comercial (lib/licenses)
+//   Plan         suscripción y licencias de las cuentas de dominio propio (lib/plan.js, lib/licenses)
+//   Tareas       limpieza y sincronización permanentes en el servidor (lib/tareas.js)
 //   Ajustes      cuentas, IA, limpieza, reglas, apariencia, privacidad
 // Lo usan la app de escritorio (electron/main.js) y el modo sin ventana (server.js).
 const http = require('http');
@@ -33,11 +34,14 @@ const { Reputacion } = require('./filtro');
 const { Licenses, TIPOS } = require('./licenses');
 const { esPersonal, esCorreo, dominioDe } = require('./licenses/domains');
 const { ReglasSync } = require('./reglas-sync');
+const { PlanSync } = require('./plan');
+const { Tareas, cuentaServidor, durezaServidor } = require('./tareas');
+const iaNonosky = require('./ia-nonosky');
 const { ServiceAuth, algunaRequiereSesion, pestanasActivas } = require('./service-auth');
 const { SyncRunner } = require('./sync/runner');
 const { OllamaSetup } = require('./ollama');
 const { Updater } = require('./updater');
-const { releasesApiUrl } = require('./updates');
+const { releasesApiUrl, feedJsonUrl, githubFeed } = require('./updates');
 
 const PKG = require('../package.json');
 const PUBLIC = path.join(ROOT, 'public');
@@ -102,8 +106,11 @@ async function createApp(o = {}) {
   const activeAccount = () => findAccount(CFG().activeAccount) || accounts()[0] || null;
   const userEmails = () => accounts().map(a => a.email).concat(CFG().cleaning.myAddresses);
 
-  const LIC = new Licenses({ file: file('licenses.json'), getConfig: CFG, log: LOG, fetch: o.fetch });
+  let PLAN = null;
+  const LIC = new Licenses({ file: file('licenses.json'), getConfig: CFG, log: LOG, fetch: o.fetch, subscriptionToken: () => (PLAN ? PLAN.token() : null) });
   const AUTH = new ServiceAuth({ getConfig: CFG, secrets: SECRETS, licenses: LIC, log: LOG, fetch: o.fetch });
+  PLAN = new PlanSync({ file: file('plan.json'), getConfig: CFG, auth: AUTH, licenses: LIC, accounts: () => accounts().map(a => a.email), log: LOG, onChange: () => sse({ t: 'config', config: publicConfig() }) });
+  const TAREAS = new Tareas({ getConfig: CFG, auth: AUTH });
   const REGLAS = new ReglasSync({ auth: AUTH, senders: SENDERS, save: saveSenders, log: LOG, onChange: () => sse({ t: 'reglas' }) });
   const TEL = new Telemetry({ dir: dataDir, getConfig: CFG, version: PKG.version, userEmails, log: LOG, fetch: o.fetch, locale: o.locale });
   const REP = new Reputacion({ dir: dataDir, getConfig: CFG, publicKey: () => LIC.publicKey(), log: LOG, fetch: o.fetch });
@@ -163,6 +170,9 @@ async function createApp(o = {}) {
     openMail: () => { const a = activeAccount(); if (!a) throw Object.assign(new Error(t('acct.none')), { config: true }); return openMailFor(a); },
     smtpOptions: async () => (await connectionFor(activeAccount())).smtp,
     emit, sse, reputacion: REP,
+    iaNonosky: (items) => (AUTH.token
+      ? iaNonosky.clasificar(items, { call: (...a) => AUTH.call(...a), cfg: CFG() })
+      : { ok: false, motivo: t('ia.nonosky.session'), categorias: new Map() }),
     onDecisiones: (lista) => { TEL.trackDecisiones(lista); },
     onRunStart(job) {
       try {
@@ -237,13 +247,14 @@ async function createApp(o = {}) {
     const cfg = CFG(), a = activeAccount();
     return {
       version: PKG.version, desktop: !!o.desktop, language: i18n.language(), languageSetting: cfg.language || '', appearance: cfg.appearance,
-      setup: { done: !!cfg.setup.done }, model: cfg.model, aiEnabled: !!cfg.llm.enabled, cleaning: cfg.cleaning,
+      setup: { done: !!cfg.setup.done }, model: cfg.model, aiEnabled: !!cfg.llm.enabled, aiMode: !cfg.llm.enabled ? 'off' : cfg.llm.provider === 'nonosky' ? 'nonosky' : 'equipo', cleaning: cfg.cleaning,
       accounts: accounts().map(accountView), activeAccount: a ? a.id : '',
       gate: a ? LIC.gate(a.email, 'limpiar') : null,
       job: engine.view(), pending: engine.pendingJobs(), sync: SYNC.view(),
       tabs: pestanasActivas(accounts().map(accountView)),
       auth: { ...AUTH.status(), required: algunaRequiereSesion(accounts()) },
-      links: cfg.links, prices: cfg.licenses.prices, serviceUrl: cfg.service.url, telemetry: !!cfg.telemetry.enabled,
+      plan: PLAN.view(), tareas: { cadaDias: cfg.tareas.cadaDias, cadaDiasDefault: cfg.tareas.cadaDiasDefault, durezaMin: cfg.tareas.durezaMin },
+      links: cfg.links, serviceUrl: cfg.service.url, telemetry: !!cfg.telemetry.enabled,
       migratedFrom: STORE.migratedFrom, migratedRepo,
     };
   }
@@ -326,10 +337,11 @@ async function createApp(o = {}) {
 <body><div><h1>${esc(ok ? t('oauth.ok') : t('oauth.fail'))}</h1><p>${esc(msg)}</p>${retryUrl ? `<p><a class="retry" href="${esc(retryUrl)}">${esc(t('oauth.retry'))}</a></p>` : ''}<p>${esc(t('oauth.close'))}</p></div></body></html>`;
   }
 
-  // ---------- trabajos de Limpiar con la puerta de licencias ----------
-  function startClean(kind, body) {
+  // ---------- trabajos de Limpiar con la puerta del plan ----------
+  async function startClean(kind, body) {
     const a = activeAccount();
     if (!a) throw httpErr(400, t('acct.none'));
+    if (kind !== 'scan' && !body.dryRun) await PLAN.ensure([a.email]); // con suscripción vigente, la cuenta ocupa su lugar
     const gate = LIC.gate(a.email, 'limpiar');
     let p = { ...body }, forced = false;
     if (kind !== 'scan' && !p.dryRun && !gate.permitido) { p = { ...p, dryRun: true, autoUnsub: false }; forced = true; emit('sys', t('lic.forcedDry', { reason: gate.motivo }), 'warn'); }
@@ -373,7 +385,39 @@ async function createApp(o = {}) {
     return null;
   }
 
-  const authDone = (r) => { sse({ t: 'config', config: publicConfig() }); if (r && r.signedIn) REGLAS.soon(0); return r; };
+  const authDone = (r) => {
+    sse({ t: 'config', config: publicConfig() });
+    if (r && r.signedIn) { REGLAS.soon(0); PLAN.refresh().catch(() => {}); }
+    return r;
+  };
+
+  // ---------- tareas del servidor ----------
+  // contraseña para el servidor: la que escribió la persona (obligatoria con Google) o la guardada
+  const passFor = (a, typed) => {
+    const p = String(typed || '').trim();
+    return a.type === 'gmail-oauth' ? p : (p || SECRETS.scope(a.id).get('imapPassword'));
+  };
+  const cadaDias = (v) => { const n = parseInt(v, 10); return CFG().tareas.cadaDias.includes(n) ? n : CFG().tareas.cadaDiasDefault; };
+  async function activarTarea(b) {
+    if (b.consentimiento !== true) throw httpErr(400, t('tareas.err.consent'));
+    if (!PLAN.view().incluida) throw httpErr(402, t('tareas.err.402'));
+    const a = findAccount(b.accountId);
+    if (!a) throw httpErr(404, t('acct.notFound'));
+    const presets = CFG().presets;
+    const body = { tipo: b.tipo, cuenta: cuentaServidor(a, passFor(a, b.password), presets) };
+    if (b.tipo === 'limpiar') {
+      body.cada_dias = cadaDias(b.cadaDias);
+      body.dureza = durezaServidor(b.dureza ?? CFG().cleaning.dureza, CFG());
+    } else if (b.tipo === 'sincronizar') {
+      const d = findAccount(b.destinoId);
+      if (!d) throw httpErr(404, t('acct.notFound'));
+      if (d.id === a.id) throw httpErr(400, t('sync.err.same'));
+      body.destino = cuentaServidor(d, passFor(d, b.passwordDestino), presets);
+    } else throw httpErr(400, t('api.badType'));
+    const tarea = await TAREAS.create(body);
+    LOG.info(`tareas: ${b.tipo} activada en el servidor para ${a.email}`);
+    return tarea;
+  }
   const routes = {
     // ----- general -----
     'GET /api/config': () => publicConfig(),
@@ -381,24 +425,25 @@ async function createApp(o = {}) {
 
     // ----- Limpiar -----
     'GET /api/senders': () => ({ senders: engine.scanSenders() }),
-    'POST /api/scan': (b) => startClean('scan', b),
+    'POST /api/scan': (b) => startClean('scan', { ...b, dryRun: true }),
     'POST /api/autorun': (b) => startClean('auto', b),
     'POST /api/execute': (b) => startClean('execute', b),
     'POST /api/stop': () => { engine.stop(); return { ok: true }; },
     'GET /api/jobs': () => ({ current: engine.view(), pending: engine.pendingJobs() }),
-    'POST /api/jobs/resume': (b) => {
+    'POST /api/jobs/resume': async (b) => {
       const saved = PROGRESS.get(b.key);
       if (!saved) throw httpErr(404, t('eng.noResume'));
       const owner = accounts().find(a => a.email === saved.account);
       if (!owner) throw httpErr(404, t('acct.notFound'));
       if (owner.id !== (activeAccount() || {}).id) { if (busy()) throw httpErr(409, t('eng.busy')); saveConfig({ activeAccount: owner.id }); }
+      if (saved.kind !== 'scan' && !saved.dryRun) await PLAN.ensure([owner.email]);
       const gate = LIC.gate(owner.email, 'limpiar');
       if (saved.kind !== 'scan' && !saved.dryRun && !gate.permitido) throw httpErr(402, gate.motivo, { gate });
       return engine.start(saved.kind, { resume: true, key: saved.key });
     },
     'POST /api/jobs/discard': (b) => { engine.discard(b.key); return { ok: true, pending: engine.pendingJobs() }; },
     // remitentes con regla guardada (Nunca eliminar / Siempre eliminar): se listan en Ajustes → Reglas
-    'GET /api/sender-rules': () => ({ sync: REGLAS.state, rules: { ...SENDERS.rules }, list: Object.entries(SENDERS.rules).map(([email, rule]) => ({ email, rule })).sort((a, b) => a.email.localeCompare(b.email)) }),
+    'GET /api/sender-rules': () => ({ sync: REGLAS.state, signedIn: !!AUTH.token, rules: { ...SENDERS.rules }, list: Object.entries(SENDERS.rules).map(([email, rule]) => ({ email, rule })).sort((a, b) => a.email.localeCompare(b.email)) }),
     'POST /api/sender-rule': (b) => {
       const email = String(b.email || '').trim().toLowerCase(), rule = b.rule;
       if (!email || email === '@') throw httpErr(400, t('api.missingEmail'));
@@ -621,12 +666,15 @@ async function createApp(o = {}) {
 
     // ----- Sincronizar -----
     'GET /api/sync': () => SYNC.view(),
-    'POST /api/sync/start': (b) => SYNC.start({ origen: b.origen, destino: b.destino, dryRun: b.dryRun, folders: b.folders, excludeFolders: b.excludeFolders }),
+    'POST /api/sync/start': async (b) => {
+      if (b.dryRun === false) await PLAN.ensure([b.origen, b.destino].map(id => (findAccount(id) || {}).email).filter(Boolean));
+      return SYNC.start({ origen: b.origen, destino: b.destino, dryRun: b.dryRun, folders: b.folders, excludeFolders: b.excludeFolders });
+    },
     'POST /api/sync/stop': () => { SYNC.stop(); return { ok: true }; },
 
     // ----- Licencias -----
     'GET /api/licenses': () => ({
-      prices: CFG().licenses.prices, serviceUrl: CFG().service.url, list: LIC.list(),
+      serviceUrl: CFG().service.url, list: LIC.list(),
       accounts: accounts().map(a => ({ id: a.id, email: a.email, personal: esPersonal(a.email), gates: Object.fromEntries(TIPOS.map(tp => [tp, LIC.gate(a.email, tp)])) })),
     }),
     'POST /api/licenses': async (b) => {
@@ -637,6 +685,35 @@ async function createApp(o = {}) {
       sse({ t: 'config', config: publicConfig() });
       return r;
     },
+    // ----- plan (suscripción) -----
+    'GET /api/plan': () => PLAN.view(),
+    'POST /api/plan/refresh': async () => { await PLAN.refresh(); sse({ t: 'config', config: publicConfig() }); return PLAN.view(); },
+    // IA: 'equipo' (Ollama), 'nonosky' (IA de Nonosky, suscripción) u 'off' (sin IA, reglas)
+    'POST /api/prefs/ai': (b) => {
+      if (!['equipo', 'nonosky', 'off'].includes(b.mode)) throw httpErr(400, t('val.aiMode'));
+      saveConfig({ llm: { ...CFG().llm, enabled: b.mode !== 'off', provider: b.mode === 'off' ? CFG().llm.provider : b.mode } });
+      return { ok: true, aiMode: publicConfig().aiMode };
+    },
+
+    // ----- tareas permanentes en el servidor -----
+    'GET /api/tareas': async () => {
+      const v = PLAN.view();
+      if (!v.incluida) return { incluida: false, signedIn: v.signedIn, tareas: [] };
+      try { return { incluida: true, signedIn: true, tareas: await TAREAS.list() }; }
+      catch (e) { return { incluida: true, signedIn: true, tareas: [], error: e.message }; }
+    },
+    'POST /api/tareas/activar': (b) => activarTarea(b),
+    'POST /api/tareas/cambiar': (b) => {
+      const c = {};
+      if (typeof b.activa === 'boolean') c.activa = b.activa;
+      if (b.cadaDias != null) c.cada_dias = cadaDias(b.cadaDias);
+      if (b.dureza != null) c.dureza = durezaServidor(b.dureza, CFG());
+      if (typeof b.password === 'string' && b.password.trim()) c.password = b.password.trim();
+      if (typeof b.passwordDestino === 'string' && b.passwordDestino.trim()) c.password_destino = b.passwordDestino.trim();
+      return TAREAS.patch(String(b.id || ''), c);
+    },
+    'POST /api/tareas/quitar': (b) => TAREAS.remove(String(b.id || '')),
+
     // ----- sesión con el servicio (solo cuentas de dominio propio) -----
     'GET /api/auth': () => ({ ...AUTH.status(), required: algunaRequiereSesion(accounts()) }),
     'POST /api/auth/login': async (b) => authDone(await AUTH.login(b.email, b.password)),
@@ -754,8 +831,11 @@ async function createApp(o = {}) {
   });
 
   // ---------- actualización automática (solo la app de escritorio empaquetada) ----------
+  const UCFG = CFG().updates;
   const UPD = new Updater({
-    kind: o.updates ? o.updates.kind : 'dev', current: PKG.version, apiUrl: CFG().updates.apiUrl || releasesApiUrl(PKG),
+    kind: o.updates ? o.updates.kind : 'dev', current: PKG.version,
+    apiUrls: [feedJsonUrl(UCFG.feedUrl, UCFG.releaseJson), UCFG.apiUrl || releasesApiUrl(PKG)].filter(Boolean),
+    feed: UCFG.feedUrl ? { provider: 'generic', url: UCFG.feedUrl } : null, fallbackFeed: githubFeed(PKG),
     getConfig: CFG, autoUpdater: o.updates ? o.updates.autoUpdater : null, quitAndInstall: o.updates ? o.updates.quitAndInstall : null,
     busy: () => !!(busy() || OLL.task), fetch: o.fetch, log: LOG, report: reportError, emit: (update) => sse({ t: 'update', update }),
   });
@@ -769,13 +849,14 @@ async function createApp(o = {}) {
   TEL.track('inicio', {});
   TEL.start();
   REP.start();
+  PLAN.start();
   TEL.flush().catch(() => {});
   if (o.updates) UPD.start(CFG().updates.startDelayMs, CFG().updates.intervalMs);
 
   let closed = false;
   async function close() {
     if (closed) return; closed = true;
-    clearInterval(metricsTimer); UPD.stop(); REP.stop(); REGLAS.stop();
+    clearInterval(metricsTimer); UPD.stop(); REP.stop(); REGLAS.stop(); PLAN.stop();
     engine.stop(); SYNC.stop(); OLL.cancel();
     for (const r of clients) { try { r.end(); } catch (_) {} }
     clients.clear();
@@ -787,7 +868,7 @@ async function createApp(o = {}) {
 
   return {
     url, port: PORT, server, dataDir, logsDir, close, reportError,
-    cfg: CFG, updater: UPD, auth: AUTH, store: STORE, engine, sync: SYNC, telemetry: TEL, licenses: LIC, log: LOG, busy, working: () => !!(busy() || OLL.task),
+    cfg: CFG, updater: UPD, auth: AUTH, plan: PLAN, tareas: TAREAS, store: STORE, engine, sync: SYNC, telemetry: TEL, licenses: LIC, log: LOG, busy, working: () => !!(busy() || OLL.task),
     created: STORE.created, migratedFrom: STORE.migratedFrom,
   };
 }

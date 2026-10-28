@@ -78,6 +78,7 @@ fun AjustesScreen(modifier: Modifier = Modifier) {
         }
         item { BloqueSincronizacion() }
         item { BloqueLicencias() }
+        item { BloquePlanes() }
         item { Tarjeta { BloqueIdioma() } }
         item { Tarjeta { BloqueApariencia() } }
         item { Tarjeta { BloqueIA() } }

@@ -59,11 +59,11 @@ Un configurador corto se ejecuta una vez y puede repetirse desde Ajustes:
 
 Las operaciones largas corren en un servicio en primer plano con notificación y botón Cancelar.
 
-## Licencias y precios
+## Planes y precios
 
-- Las **cuentas personales** (proveedores públicos como Gmail, Outlook, Yahoo, iCloud) son **gratis**.
-- Las **cuentas comerciales** (dominio propio) siempre pueden simular. Para ejecutar de verdad se necesita una clave de esa cuenta y de esa función, válida por 30 días: **USD 1 Limpiar, USD 2 Sincronizar**.
-- Compre desde la pestaña Licencias (abre `{servicio}/licencias.html?cuenta=…&tipo=…&canal=app`) y pegue la clave `NMT1.…`. Las claves se verifican sin conexión con una firma Ed25519. Las claves compradas en el sitio web también sirven.
+- **Gratis, para siempre:** las cuentas personales (proveedores públicos como Gmail, Outlook, Yahoo, iCloud), limpiadas y sincronizadas desde la app, con la IA del teléfono o con reglas.
+- **Suscripción** (por cuenta de correo, mensual o anual; Ajustes → Planes muestra la tabla): cuentas de empresa (dominio propio), la IA de Nonosky en el servidor, tareas permanentes («Mantener funcionando en el servidor»: limpieza cada N días y sincronización sin parar, aunque el teléfono esté apagado), la herramienta web y las preferencias en la nube.
+- Sin suscripción, una cuenta de empresa siempre puede escanear y simular. «Suscribirse» abre la página web; al iniciar sesión la suscripción llega sola como un comprobante firmado `NMTS1.…` (Ed25519, verificado sin conexión, renovado cada 12 h). Las claves de licencia `NMT1.…` ya vendidas siguen valiendo hasta que vencen.
 
 ## Privacidad / Telemetría
 

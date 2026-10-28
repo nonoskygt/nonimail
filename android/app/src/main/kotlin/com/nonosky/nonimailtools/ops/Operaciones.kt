@@ -12,6 +12,7 @@ import com.nonosky.nonimailtools.BuildConfig
 import com.nonosky.nonimailtools.NmtApp
 import com.nonosky.nonimailtools.core.Defaults
 import com.nonosky.nonimailtools.core.Reporter
+import com.nonosky.nonimailtools.core.licencias.Gate
 import com.nonosky.nonimailtools.core.licencias.LicenseGate
 import com.nonosky.nonimailtools.core.licencias.Tipo
 import com.nonosky.nonimailtools.core.limpiar.CleanOptions
@@ -19,6 +20,7 @@ import com.nonosky.nonimailtools.core.limpiar.Filtro
 import com.nonosky.nonimailtools.core.limpiar.Reglas
 import com.nonosky.nonimailtools.core.limpiar.CleanProgress
 import com.nonosky.nonimailtools.core.limpiar.CleanResult
+import com.nonosky.nonimailtools.core.limpiar.IaNonosky
 import com.nonosky.nonimailtools.core.limpiar.IaScorer
 import com.nonosky.nonimailtools.core.limpiar.Limpieza
 import com.nonosky.nonimailtools.core.limpiar.Ollama
@@ -92,6 +94,9 @@ sealed interface Trabajo {
         val origen: Cuenta, val destino: Cuenta, val dryRun: Boolean, val incluir: Set<String>, val excluir: Set<String>,
     ) : Trabajo { override val titulo get() = com.nonosky.nonimailtools.R.string.op_sincronizando }
 }
+
+/** `iaModo` of «IA de Nonosky (suscripción)»: the subscription's AI on the server. */
+const val MODO_NONOSKY = "nonosky"
 
 /** Progress line for the notification. */
 data class Avance(val titulo: Int, val detalle: String, val fraccion: Float?)
@@ -200,8 +205,34 @@ class Operaciones(private val app: NmtApp) {
         return Fallo(tipo, e.message.orEmpty())
     }
 
-    private fun gate(tipo: Tipo, cuentas: List<Cuenta>) =
-        LicenseGate.check(cuentas.map { it.email }, tipo, app.licencias.licencias.value, System.currentTimeMillis() / 1000)
+    /**
+     * Licenses or subscription proof. When nothing opens the gate but the subscription is in force, the plan is
+     * renewed once (it also takes a free seat for an account that is missing) and the gate is asked again.
+     */
+    private fun gate(tipo: Tipo, cuentas: List<Cuenta>): Gate {
+        fun mirar() = LicenseGate.check(cuentas.map { it.email }, tipo, app.licencias.licencias.value, System.currentTimeMillis() / 1000, app.plan.comprobante())
+        val g = mirar()
+        if (g.permitido || app.servicio.tokenActual() == null || !app.plan.estado.value.suscrito) return g
+        app.plan.refrescar()
+        return mirar()
+    }
+
+    /** Terminal line in the language of the app (the application context may carry the device's). */
+    private fun texto(id: Int, vararg args: Any): String {
+        val loc = com.nonosky.nonimailtools.lang.Idioma.localeDe(app.ajustes.valores.value.idioma)
+        val c = if (loc == null) app else app.createConfigurationContext(android.content.res.Configuration(app.resources.configuration).apply { setLocale(loc) })
+        return c.getString(id, *args)
+    }
+
+    private fun motivoIa(m: IaNonosky.Motivo): String = texto(
+        when (m) {
+            IaNonosky.Motivo.SIN_SUSCRIPCION -> com.nonosky.nonimailtools.R.string.ia_nube_motivo_suscripcion
+            IaNonosky.Motivo.TOPE_DIARIO -> com.nonosky.nonimailtools.R.string.ia_nube_motivo_tope
+            IaNonosky.Motivo.NO_DISPONIBLE, IaNonosky.Motivo.OTRO -> com.nonosky.nonimailtools.R.string.ia_nube_motivo_no_disponible
+            IaNonosky.Motivo.SESION -> com.nonosky.nonimailtools.R.string.ia_nube_motivo_sesion
+            IaNonosky.Motivo.SIN_RED -> com.nonosky.nonimailtools.R.string.ia_nube_motivo_red
+        },
+    )
 
     /** Runs [t] to the end. Blocking: the service calls it from a worker thread. */
     fun ejecutar(t: Trabajo, avance: (Avance) -> Unit) {
@@ -235,13 +266,14 @@ class Operaciones(private val app: NmtApp) {
         if (acc == null) { _escaneo.value = EstadoEscaneo.Error(Fallo(Fallo.Tipo2.CUENTA_ILEGIBLE, "")); return }
         val v = app.ajustes.valores.value
         // Same interface for both engines; if the model cannot be loaded the heuristics score alone.
-        val ia: IaScorer? = if (!t.usarIa || !v.iaActiva) null else when (val modo = v.iaModoEfectivo) {
+        val nube = t.usarIa && v.iaActiva && v.iaModoEfectivo == MODO_NONOSKY
+        val ia: IaScorer? = if (!t.usarIa || !v.iaActiva || nube) null else when (val modo = v.iaModoEfectivo) {
             "red" -> Ollama(Ollama.normalizeUrl(v.ollamaUrl, BuildConfig.OLLAMA_PORT), v.ollamaModelo, BuildConfig.OLLAMA_TIMEOUT_MS, d.llm.numCtx, d.llm.numPredict)
             else -> runCatching { app.ia.puntuador(modo) }
                 .onFailure { app.telemetry.error("ia", "On-device model failed to load: ${it.message}", it, cuenta.email) }
                 .getOrNull()
         }
-        motorIa = when { ia == null -> ""; ia is com.nonosky.nonimailtools.ia.PuntuadorLocal -> ia.motor; else -> "Ollama" }
+        motorIa = when { nube -> "Nonosky"; ia == null -> ""; ia is com.nonosky.nonimailtools.ia.PuntuadorLocal -> ia.motor; else -> "Ollama" }
         // Collective reputation: refreshed when the copy is over a day old, then a layer after protections and rules.
         if (d.filtro.reputacion && app.reputacion.vencida()) {
             escribir(Terminal.CPU, "Actualizando la reputación colectiva")
@@ -250,6 +282,8 @@ class Operaciones(private val app: NmtApp) {
         val opts = ScanOptions(
             t.modo, t.cantidad, t.protegidos, rulesOf(t.keep, d), d.scores, d.cleaning, d.folders.sent, ia, d.llm.prompt, d.llm.categoryScores,
             reglas = t.reglas, reputacion = app.reputacion.actual(), filtro = d.filtro,
+            iaNonosky = if (nube) app.iaNonosky() else null,
+            alFallarIaNonosky = { m -> escribir(Terminal.IA, texto(com.nonosky.nonimailtools.R.string.ia_nube_fallo, motivoIa(m))) },
         )
         val rep = object : Reporter<ScanProgress> {
             override fun log(line: String) { app.telemetry.log.i("limpiar", line); ruteo(line) }
@@ -260,12 +294,13 @@ class Operaciones(private val app: NmtApp) {
             }
         }
         try {
-            app.telemetry.log.i("limpiar", "Scan start (${t.modo.id}=${t.cantidad}, ai=${ia != null})")
+            app.telemetry.log.i("limpiar", "Scan start (${t.modo.id}=${t.cantidad}, ai=${if (nube) "nonosky" else (ia != null).toString()})")
             limpiarTerminal(Terminal.CPU, Terminal.IA)
             escribir(Terminal.CPU, "Conectando con ${cuenta.email} · últimos ${t.cantidad} días")
-            escribir(Terminal.IA, if (ia != null) "Modelo listo en $motorIa" else "IA apagada: decide solo la heurística")
+            escribir(Terminal.IA, if (ia != null || nube) "Modelo listo en $motorIa" else "IA apagada: decide solo la heurística")
             val r = Limpieza(cuenta.timeouts).scan(acc, opts, rep)
-            r.aiError?.let { app.telemetry.error("ia", it, null, cuenta.email) }
+            // The server's AI stopping (no subscription, daily cap, unavailable) is expected, not an error to report.
+            r.aiError?.takeIf { !it.startsWith("nonosky:") }?.let { app.telemetry.error("ia", it, null, cuenta.email) }
             _escaneo.value = EstadoEscaneo.Listo(cuenta, r)
             app.telemetry.registrar(
                 Telemetria.limpiar(cuenta.email, "escaneo", true, r.reviewed, r.senders.size, null, secs(), if (r.cancelled) "cancelado" else "ok", true),

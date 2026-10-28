@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.0
+
+- **Suscripción.** Además de las licencias `NMT1.` (siguen valiendo), la puerta de las cuentas de dominio propio acepta el comprobante de suscripción `NMTS1.` de `GET /api/plan`, firmado con la misma llave y verificado sin conexión. Se renueva al abrir y cada 12 h con sesión iniciada y se guarda para trabajar sin red. Con suscripción vigente y lugares libres, una cuenta de dominio propio que falta se cubre sola (`POST /api/suscripcion/cubrir`). Sin cobertura se escanea y se simula como siempre. «Comprar licencia» pasa a **Suscribirse**.
+- **Ajustes → Planes**: su plan, la tabla de precios por cuenta (la del servicio si hay red, si no la de `config/defaults.json`) y qué incluye cada plan. Las cuentas personales siguen gratis, sin avisos ni bloqueos.
+- **IA de Nonosky (suscripción)**, junto a «IA de este equipo» y «Sin IA»: clasifica en el servidor por lotes (`POST /api/ia/v1/clasificar`) con remitente y asuntos, nunca el cuerpo. Ante 402, 429, 503 o sin red sigue con reglas sin cortar la limpieza.
+- **Si Ollama falla, la limpieza sigue con reglas** en vez de pausarse con error.
+- **Mantener funcionando en el servidor**: en Limpiar (cada 1, 3, 7, 14 o 30 días, con la dureza actual y nunca menos de 30) y en Sincronizar (continua). Pide consentimiento para guardar las credenciales cifradas y muestra estado y última corrida; con «Iniciar sesión con Google» pide una contraseña de aplicación. Sin suscripción se ve deshabilitado con «Incluido en la suscripción».
+- **Reglas en la nube** solo para quien compró al menos una vez; si no, quedan en el equipo y Ajustes lo explica.
+- **Actualizaciones desde un punto fijo**: electron-updater pregunta primero a `https://mt.nonosky.com/actualizaciones/` y, si no responde, a GitHub; el portable y el `.deb` leen `latest.json` de ese punto fijo con el mismo respaldo.
+
 ## 1.6.0
 
 - **Las decisiones se guardan.** Conservar y Eliminar en Limpiar ya no se pierden al escanear de nuevo: cada clic guarda una regla por remitente, visible en Ajustes → Reglas → Remitentes con regla. «Quitar regla» devuelve la decisión al ruido y la dureza.

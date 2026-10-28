@@ -43,7 +43,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nonosky.nonimailtools.BuildConfig
 import com.nonosky.nonimailtools.R
-import com.nonosky.nonimailtools.core.licencias.LicenseGate
 import com.nonosky.nonimailtools.core.licencias.Tipo
 import com.nonosky.nonimailtools.data.Cuenta
 import com.nonosky.nonimailtools.ops.Fallo
@@ -56,9 +55,6 @@ fun abrirUrl(ctx: Context, url: String) {
         ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
-
-fun precio(tipo: Tipo): String =
-    "${BuildConfig.PRICE_CURRENCY} ${if (tipo == Tipo.LIMPIAR) BuildConfig.PRICE_LIMPIAR else BuildConfig.PRICE_SINCRONIZAR}"
 
 @Composable
 fun nombreTipo(tipo: Tipo): String = stringResource(if (tipo == Tipo.LIMPIAR) R.string.tipo_limpiar else R.string.tipo_sincronizar)
@@ -112,22 +108,24 @@ fun SelectorCuenta(
 }
 
 /**
- * Locked card shown when a commercial account tries a real run without a license.
- * Simulating is always free.
+ * Locked card shown when a private-domain account tries a real run without the subscription (or an old
+ * license). Scanning and simulating stay free. Signing in brings the subscription by itself.
  */
 @Composable
-fun PuertaLicencia(tipo: Tipo, cuenta: String, serviceUrl: String) {
+fun PuertaLicencia(tipo: Tipo, cuenta: String) {
     val ctx = LocalContext.current
     val d = dulce
+    val sesion by com.nonosky.nonimailtools.NmtApp.instance.servicio.email.collectAsState()
     Tarjeta(hundida = true) {
         Fila(espacio = 8.dp) {
             Icon(Icons.Filled.Lock, null, tint = d.amber, modifier = Modifier.size(20.dp))
             Titulo(stringResource(R.string.puerta_titulo, nombreTipo(tipo)))
         }
+        Etiqueta(cuenta)
         var entrando by remember { mutableStateOf(false) }
         Fila {
-            BotonPrimario(stringResource(R.string.comprar_licencia), { abrirUrl(ctx, LicenseGate.buyUrl(serviceUrl, cuenta, tipo)) }, Modifier.weight(1f))
-            BotonSecundario(stringResource(R.string.iniciar_sesion), { entrando = true }, Modifier.weight(1f))
+            BotonPrimario(stringResource(R.string.suscribirse), { abrirUrl(ctx, BuildConfig.SUBSCRIBE_URL) }, Modifier.weight(1f))
+            if (sesion.isEmpty()) BotonSecundario(stringResource(R.string.iniciar_sesion), { entrando = true }, Modifier.weight(1f))
         }
         if (entrando) DialogoSesion(onCerrar = { entrando = false }, onAbierta = { entrando = false })
     }

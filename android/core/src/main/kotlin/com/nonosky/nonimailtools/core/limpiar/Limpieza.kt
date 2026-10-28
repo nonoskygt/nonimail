@@ -49,6 +49,10 @@ data class ScanOptions(
     /** Collective reputation layer: after protections and rules, before the AI. Null = off. */
     val reputacion: Reputacion? = null,
     val filtro: com.nonosky.nonimailtools.core.FiltroDefaults? = null,
+    /** «IA de Nonosky»: the subscription's AI on the server, in batches. When set, [ia] is not used. */
+    val iaNonosky: IaNonosky? = null,
+    /** Called once when the server's AI stops answering; the scan goes on with the heuristics. */
+    val alFallarIaNonosky: ((IaNonosky.Motivo) -> Unit)? = null,
 )
 
 /** One sender after the scan. */
@@ -254,8 +258,34 @@ class Limpieza(private val timeouts: ImapTimeouts) {
                     }
                 }
 
-                // 4) Optional local AI for every sender that is not protected, has no rule and no reputation.
-                val ai = opt.ia
+                // 4a) «IA de Nonosky»: the same senders, in batches to the server; a failure leaves the heuristics.
+                val nube = opt.iaNonosky
+                if (nube != null && !cancelled) {
+                    val todo = scored.indices.filter {
+                        !scored[it].isProtected && scored[it].email !in porReputacion && Reglas.reglaDe(opt.reglas, scored[it].email) == null
+                    }
+                    emit(ScanProgress(ScanProgress.Phase.AI, 0, todo.size, groups.size))
+                    if (todo.isNotEmpty()) {
+                        val items = todo.map { i -> val s = scored[i]; IaNonosky.Item(s.email, "${s.name} <${s.email}>", s.samples, s.bulk) }
+                        val r = nube.clasificar(items)
+                        for ((n, i) in todo.withIndex()) {
+                            val s = scored[i]
+                            val cat = r.categorias[s.email]
+                            val llm = IaNonosky.puntaje(cat, opt.categoryScores)
+                            if (s.email in r.categorias) log("[ia] ${s.email} → ${cat ?: "—"} = ${llm ?: "?"}")
+                            if (llm != null) { scored[i] = s.copy(score = llm, reason = Reason.IA); aiScored++ }
+                            emit(ScanProgress(ScanProgress.Phase.AI, n + 1, todo.size, groups.size))
+                        }
+                        r.fallo?.let { m ->
+                            aiError = "nonosky:${m.name.lowercase()}"
+                            log("AI of the service stopped (${m.name.lowercase()}), heuristics kept for the rest")
+                            opt.alFallarIaNonosky?.invoke(m)
+                        }
+                    }
+                }
+
+                // 4b) Optional local AI for every sender that is not protected, has no rule and no reputation.
+                val ai = if (nube != null) null else opt.ia
                 if (ai != null && !cancelled) {
                     val todo = scored.indices.filter {
                         !scored[it].isProtected && scored[it].email !in porReputacion && Reglas.reglaDe(opt.reglas, scored[it].email) == null

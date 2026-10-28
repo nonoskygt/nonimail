@@ -52,4 +52,27 @@ class ActualizacionTest {
         assertEquals(h, Sumas.buscar(sumas, "NoniMail-Tools.apk"))
         assertNull(Sumas.buscar(sumas, "falta.apk"))
     }
+
+    @Test fun primeroElPuntoFijoYSiFallaGitHub() {
+        val json = """{"tag_name":"v1.7.0","assets":[
+          {"name":"NoniMail-Tools.apk","browser_download_url":"https://github.com/x/y/releases/download/v1.7.0/NoniMail-Tools.apk","size":5},
+          {"name":"SHA256SUMS.txt","browser_download_url":"https://github.com/x/y/releases/download/v1.7.0/SHA256SUMS.txt","size":1}]}"""
+        val fijo = "https://servicio.example/actualizaciones/latest.json"
+        val gh = "https://api.github.example/repos/x/y/releases/latest"
+        val pedidas = ArrayList<String>()
+        fun leer(respuestas: Map<String, () -> String>): (String) -> String = { u -> pedidas += u; respuestas.getValue(u)() }
+
+        // the fixed point answers: GitHub is not asked
+        assertEquals("1.7.0", Lanzamientos.primero(listOf(fijo, gh), leer(mapOf(fijo to { json }, gh to { json })), "NoniMail-Tools.apk", "SHA256SUMS.txt")!!.version.toString())
+        assertEquals(listOf(fijo), pedidas)
+        // down, broken JSON or no APK: falls back to GitHub
+        for (malo in listOf<() -> String>({ throw java.io.IOException("HTTP 404") }, { "<html>" }, { json.replace("NoniMail-Tools.apk", "otro.apk") })) {
+            pedidas.clear()
+            assertEquals("1.7.0", Lanzamientos.primero(listOf(fijo, gh), leer(mapOf(fijo to malo, gh to { json })), "NoniMail-Tools.apk", "SHA256SUMS.txt")!!.version.toString())
+            assertEquals(listOf(fijo, gh), pedidas)
+        }
+        // nobody answers: the last error goes up (the updater retries later)
+        val e = runCatching { Lanzamientos.primero(listOf(fijo, gh), { throw java.io.IOException("sin red") }, "NoniMail-Tools.apk", "SHA256SUMS.txt") }.exceptionOrNull()
+        assertTrue(e is java.io.IOException)
+    }
 }

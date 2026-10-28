@@ -27,7 +27,8 @@ async function pMap(items, fn, n) {
 class Engine {
   // o: { cfg(), rules(), senderRules(), isUnsubDone(email), markUnsub(email), progress, openMail(), smtpOptions(),
   //      emit(lane, text, kind), sse(obj), onRunStart(job), onRunEnd(job), retryDelays?,
-  //      reputacion? { buscar(email) → {eliminar, n} | null }, onDecisiones?(lista) }
+  //      reputacion? { buscar(email) → {eliminar, n} | null }, onDecisiones?(lista),
+  //      iaNonosky?(items) → { ok, categorias: Map, motivo? } (lib/ia-nonosky.js; sin esto ese modo cae a reglas) }
   constructor(o) {
     Object.assign(this, o);
     this.retryDelays = o.retryDelays || [3000, 10000, 30000];
@@ -115,12 +116,13 @@ class Engine {
     this.onRunStart && this.onRunStart(job);
     job.runStart = Date.now(); job.runStartIdx = job.doneIdx;
     job.noThink = false; // al continuar se vuelve a intentar (pudo cambiar el modelo o el límite)
+    job.iaOff = false;   // ídem con la IA que falló y se cambió por reglas
     const mine = new Set([...cfg.cleaning.myAddresses, cfg.account.email].map(a => String(a).toLowerCase()).filter(Boolean));
     const ctx = { cfg, mine, rules: this.rules(), senderRules: this.senderRules() };
     try {
       this.emit('sys', t('eng.start', { kind: kindLabel(job.kind), range: job.daysBack ? t('eng.lastDays', { n: job.daysBack }) : t('eng.all'), w: job.windowDays }) + (job.dryRun ? ` [${t('eng.dry')}]` : ''), 'info');
       job.ai = !!cfg.llm.enabled;
-      if (job.kind !== 'execute') await this._checkLlm(cfg);
+      if (job.kind !== 'execute') await this._checkLlm(cfg, job);
       this._phase(job, 'connect');
       mail = await this._retry(() => this._open(), t('eng.what.connect'));
       this._phase(job, job.kind === 'execute' ? 'delete' : 'scan', 0, job.kind === 'execute' ? job.params.emails.length : 0);
@@ -191,11 +193,26 @@ class Engine {
     }
   }
 
-  async _checkLlm(cfg) {
-    if (!cfg.llm.enabled) return; // sin IA: solo heurísticas
-    if (!cfg.model) throw Object.assign(new Error(t('eng.noModel')), { fatal: true });
-    const r = await this._llm(cfg, 'Responde solo: 0', false);
-    if (r == null) throw Object.assign(new Error(t('eng.ollamaNoReply')), { fatal: true });
+  // Qué clasifica a los remitentes de este trabajo: 'equipo' (Ollama), 'nonosky' (servidor) u 'off' (reglas)
+  _iaMode(job, cfg) {
+    if (!cfg.llm.enabled || job.iaOff) return 'off';
+    return cfg.llm.provider === 'nonosky' ? 'nonosky' : 'equipo';
+  }
+
+  // La IA falló: el resto del trabajo sigue con reglas (heurística) en vez de cortarse
+  _iaFallback(job, text) {
+    if (job.iaOff) return;
+    job.iaOff = true; job.noThink = true;
+    this.emit('llm', text, 'warn');
+    this.emit('sys', text, 'warn');
+  }
+
+  // Ollama no responde (o no hay modelo): se sigue con reglas, sin cortar el trabajo
+  async _checkLlm(cfg, job) {
+    if (this._iaMode(job, cfg) !== 'equipo') return; // sin IA o IA de Nonosky: no hace falta Ollama
+    if (!cfg.model) return this._iaFallback(job, t('ia.local.off', { error: t('eng.noModel') }));
+    const r = await llm.generate(cfg, 'Responde solo: 0', { think: false });
+    if (!r.ok) this._iaFallback(job, t('ia.local.off', { error: r.error || t('eng.ollamaNoReply') }));
   }
 
   // LLM con reintentos: Ollama caído o reiniciándose no debe perder el trabajo. Devuelve { text, truncated }
@@ -213,8 +230,10 @@ class Engine {
   // Re-evalúa un dudoso pensando. Si el modelo se corta sin responder (qwen3.5:9b piensa más de
   // 2000 tokens), deja de pensar en este trabajo: cada intento costaría más de un minuto para nada.
   async _think(job, cfg, g) {
-    if (job.noThink) return;
-    const r = await this._llmRaw(cfg, llm.buildPrompt(cfg.llmPrompt, { from: `${g.name} <${g.email}>`, subjects: g.samples, bulk: !!g.lu, body: g.body || '' }), true);
+    if (job.noThink || g.reason !== 'llm') return;
+    let r;
+    try { r = await this._llmRaw(cfg, llm.buildPrompt(cfg.llmPrompt, { from: `${g.name} <${g.email}>`, subjects: g.samples, bulk: !!g.lu, body: g.body || '' }), true); }
+    catch (e) { job.noThink = true; this.emit('llm', t('ia.local.off', { error: e.message }), 'warn'); return; } // queda el puntaje rápido
     if (r.truncated) {
       if (!job.noThink) {
         job.noThink = true;
@@ -295,39 +314,73 @@ class Engine {
     return pending;
   }
 
+  // puntaje por señales (reglas), sin IA: también es lo que queda cuando la IA falla
+  async _heuristic(job, ctx, mail, g) {
+    const cfg = ctx.cfg;
+    const body = ctx.rules.body ? await mail.bodyText({ uid: g.sample.uid, part: g.sample.part }, cfg.cleaning.bodyMaxChars).catch(() => '') : '';
+    g.score = C.heuristicScore(ctx.rules, cfg.heuristicScore, { subjects: g.samples, from: `${g.name} <${g.email}>`, bulk: !!g.lu, body });
+    g.reason = 'heuristica';
+    g.reglas = C.matchedRules(ctx.rules, { subjects: g.samples, from: `${g.name} <${g.email}>`, body });
+    this.emit('llm', t('eng.scored', { score: g.score, name: g.name.slice(0, 32) }), g.score >= 60 ? 'delete' : g.score <= 40 ? 'keep' : 'dry');
+  }
+
   // puntúa (rápido) remitentes sin puntaje, con el cuerpo de su primer correo
   async _scoreSenders(job, ctx, mail, list) {
     list = this._applyReputation(ctx, list);
     if (!list.length) return;
     const cfg = ctx.cfg;
     const classified = () => { const all = Object.values(job.senders); this._phase(job, 'classify', all.filter(g => g.score != null).length, all.length); };
-    classified();
-    if (!cfg.llm.enabled) { // sin IA: puntaje por señales, sin Ollama
-      for (const g of list) {
+    const shown = (g) => { classified(); if (job.kind === 'scan') this.sse({ t: 'senders', list: [this._senderView(g)] }); };
+    const heuristics = async (rest) => {
+      for (const g of rest) {
         if (this.abort && job.kind === 'scan') return;
-        const body = ctx.rules.body ? await mail.bodyText({ uid: g.sample.uid, part: g.sample.part }, cfg.cleaning.bodyMaxChars).catch(() => '') : '';
-        g.score = C.heuristicScore(ctx.rules, cfg.heuristicScore, { subjects: g.samples, from: `${g.name} <${g.email}>`, bulk: !!g.lu, body });
-        g.reason = 'heuristica';
-        g.reglas = C.matchedRules(ctx.rules, { subjects: g.samples, from: `${g.name} <${g.email}>`, body });
-        this.emit('llm', t('eng.scored', { score: g.score, name: g.name.slice(0, 32) }), g.score >= 60 ? 'delete' : g.score <= 40 ? 'keep' : 'dry');
-        classified();
-        if (job.kind === 'scan') this.sse({ t: 'senders', list: [this._senderView(g)] });
+        await this._heuristic(job, ctx, mail, g);
+        shown(g);
       }
-      return;
-    }
+    };
+    classified();
+    const mode = this._iaMode(job, cfg);
+    if (mode === 'off') return heuristics(list); // sin IA (o la IA falló): puntaje por señales, sin Ollama
+    if (mode === 'nonosky') return heuristics(await this._scoreNonosky(job, ctx, list, shown));
     await pMap(list, async (g) => {
       if (this.abort && job.kind === 'scan') return;
+      if (job.iaOff) { await this._heuristic(job, ctx, mail, g); shown(g); return; }
       const body = await mail.bodyText({ uid: g.sample.uid, part: g.sample.part }, cfg.cleaning.bodyMaxChars).catch(() => '');
       this.emit('llm', `🔍 ${g.name.slice(0, 30)} — "${(g.samples[0] || '').slice(0, 38)}"`, 'info');
-      const txt = await this._llm(cfg, llm.buildPrompt(cfg.llmPrompt, { from: `${g.name} <${g.email}>`, subjects: g.samples, bulk: !!g.lu, body }), false);
+      let txt;
+      try { txt = await this._llm(cfg, llm.buildPrompt(cfg.llmPrompt, { from: `${g.name} <${g.email}>`, subjects: g.samples, bulk: !!g.lu, body }), false); }
+      catch (e) { this._iaFallback(job, t('ia.local.off', { error: e.message })); await this._heuristic(job, ctx, mail, g); shown(g); return; }
       g.score = llm.parseScore(txt, 50, cfg.llm.categoryScores); g.reason = 'llm';
       g.reglas = C.matchedRules(ctx.rules, { subjects: g.samples, from: `${g.name} <${g.email}>`, body });
       this.emit('llm', t('eng.answer', { text: String(txt).replace(/\s+/g, ' ').trim().slice(0, 48) || '—' }), 'info');
       if (cfg.llm.think && g.score >= cfg.llm.doubtLow && g.score <= cfg.llm.doubtHigh) g.body = body; // solo los dudosos lo vuelven a necesitar
       this.emit('llm', t('eng.scored', { score: g.score, name: g.name.slice(0, 32) }), g.score >= 60 ? 'delete' : g.score <= 40 ? 'keep' : 'dry');
-      classified();
-      if (job.kind === 'scan') this.sse({ t: 'senders', list: [this._senderView(g)] });
+      shown(g);
     }, cfg.llm.parallel);
+  }
+
+  // IA de Nonosky: pedidos por lotes de remitentes (sin el cuerpo). Devuelve los que siguen sin puntaje
+  // (el modelo no respondió, o todos si el servicio falló): esos van por reglas.
+  async _scoreNonosky(job, ctx, list, shown) {
+    const cfg = ctx.cfg;
+    if (!this.iaNonosky) { this._iaFallback(job, t('ia.nonosky.off', { motivo: t('ia.nonosky.503') })); return list; }
+    this.emit('llm', t('ia.nonosky.asking', { n: list.length }), 'info');
+    let r;
+    try { r = await this.iaNonosky(list.map(g => ({ id: g.email, from: `${g.name} <${g.email}>`, subjects: g.samples, bulk: !!g.lu }))); }
+    catch (e) { r = { ok: false, motivo: e.message, categorias: new Map() }; }
+    if (!r.ok) this._iaFallback(job, t('ia.nonosky.off', { motivo: r.motivo }));
+    const rest = [];
+    for (const g of list) {
+      const cat = r.categorias && r.categorias.get(g.email);
+      const score = cat ? cfg.llm.categoryScores[cat] : null;
+      if (score == null) { rest.push(g); continue; }
+      g.score = score; g.reason = 'ia-nonosky';
+      g.reglas = C.matchedRules(ctx.rules, { subjects: g.samples, from: `${g.name} <${g.email}>`, body: '' });
+      this.emit('llm', `${cat} · ${t('eng.scored', { score: g.score, name: g.name.slice(0, 32) })}`, g.score >= 60 ? 'delete' : g.score <= 40 ? 'keep' : 'dry');
+      shown(g);
+    }
+    if (r.ok && rest.length) this.emit('llm', t('ia.nonosky.noAnswer', { n: rest.length }), 'info');
+    return rest;
   }
 
   // Capa de reputación colectiva (siempre activa): va después de protecciones y reglas, antes de la IA.
@@ -393,7 +446,7 @@ class Engine {
       }
       await this._scoreSenders(job, ctx, mail, nuevos);
       for (const g of nuevos) {
-        if (!g.rep && cfg.llm.enabled && cfg.llm.think && g.score >= cfg.llm.doubtLow && g.score <= cfg.llm.doubtHigh) await this._think(job, cfg, g);
+        if (!g.rep && g.reason === 'llm' && cfg.llm.enabled && cfg.llm.think && g.score >= cfg.llm.doubtLow && g.score <= cfg.llm.doubtHigh) await this._think(job, cfg, g);
         delete g.body;
       }
     }

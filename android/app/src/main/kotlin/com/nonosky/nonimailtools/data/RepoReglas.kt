@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 /** How the last rules sync went. [ok] null = not tried / no session. */
 data class EstadoReglas(val ok: Boolean? = null, val motivo: Motivo = Motivo.NINGUNO) {
-    enum class Motivo { NINGUNO, SIN_SERVICIO, SESION_VENCIDA, ERROR }
+    enum class Motivo { NINGUNO, SIN_SERVICIO, REQUIERE_COMPRA, SESION_VENCIDA, ERROR }
 }
 
 /**
@@ -69,6 +69,7 @@ class RepoReglas(
         when (r) {
             ResultadoSyncReglas.SinSesion -> _estado.value = EstadoReglas()
             ResultadoSyncReglas.SinServicio -> _estado.value = EstadoReglas(false, EstadoReglas.Motivo.SIN_SERVICIO)
+            ResultadoSyncReglas.RequiereCompra -> _estado.value = EstadoReglas(false, EstadoReglas.Motivo.REQUIERE_COMPRA)
             ResultadoSyncReglas.SesionVencida -> _estado.value = EstadoReglas(false, EstadoReglas.Motivo.SESION_VENCIDA)
             is ResultadoSyncReglas.Error -> _estado.value = EstadoReglas(false, EstadoReglas.Motivo.ERROR).also { log.w("reglas", "Rules not synced (${r.detalle})") }
             is ResultadoSyncReglas.Hecho -> {

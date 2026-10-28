@@ -64,6 +64,9 @@ class ReglasSync {
     this.running = true;
     try {
       const got = await a.reglasRemitentes('GET');
+      // 404 {codigo: 'requiere_compra'}: la cuenta nunca compró; las reglas se quedan en este equipo
+      const b = got.body || {};
+      if (got.status === 404 && (b.codigo === 'requiere_compra' || (b.detail && b.detail.codigo === 'requiere_compra'))) { this.state = { ok: false, at: Date.now(), error: 'requiere-compra' }; return { skipped: 'requiere-compra' }; }
       if (got.status === 404 || got.status === 501) { this.state = { ok: false, at: Date.now(), error: 'sin-servicio' }; return { skipped: 'sin-servicio' }; }
       if (got.status === 401 || got.status === 403) { this.state = { ok: false, at: Date.now(), error: 'sesion' }; return { skipped: 'sesion' }; }
       if (!got.ok) throw new Error(`servicio ${got.status}`);

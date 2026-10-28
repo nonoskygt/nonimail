@@ -31,6 +31,7 @@ import com.nonosky.nonimailtools.core.Defaults
 import com.nonosky.nonimailtools.core.ia.ModeloIa
 import com.nonosky.nonimailtools.core.ia.ProgresoDescarga
 import com.nonosky.nonimailtools.ia.EstadoIa
+import com.nonosky.nonimailtools.ops.MODO_NONOSKY
 import com.nonosky.nonimailtools.ui.theme.FormaControl
 import com.nonosky.nonimailtools.ui.theme.dulce
 import com.nonosky.nonimailtools.util.bytesLegibles
@@ -59,8 +60,32 @@ fun BloqueIA() {
     val recomendado = remember { app.ia.recomendado(ctx).id }
     val trabajando = estado.enCurso
     val elegido = v.iaModoEfectivo
+    val sesion by app.servicio.email.collectAsState()
+    val plan by app.plan.estado.collectAsState()
+    val nube = elegido == MODO_NONOSKY
+    val equipoElegido = elegido != "" && !nube
+    // The server's AI needs the web account with the subscription; the server checks it again on every request.
+    val nubeDisponible = sesion.isNotEmpty() && plan.suscrito
 
-    Titulo(stringResource(R.string.ia_local))
+    Titulo(stringResource(R.string.ia_titulo))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Pastilla(
+            stringResource(R.string.ia_modo_equipo), equipoElegido,
+            { if (!trabajando && !equipoElegido) app.ajustes.iaModo(recomendado) }, Modifier.fillMaxWidth(),
+        )
+        Pastilla(
+            stringResource(R.string.ia_modo_nonosky), nube,
+            { if (!trabajando) app.ajustes.iaModo(MODO_NONOSKY) }, Modifier.fillMaxWidth(), activa = nubeDisponible || nube,
+        )
+        Pastilla(
+            stringResource(R.string.ia_modo_sin), elegido == "",
+            { if (!trabajando) { app.ajustes.iaModo(""); app.ia.reiniciar() } }, Modifier.fillMaxWidth(),
+        )
+    }
+    if (!nubeDisponible) Pista(stringResource(R.string.incluido_suscripcion))
+    if (nube) Pista(stringResource(R.string.ia_nube_detalle))
+    if (!equipoElegido) return
+
     Pista(stringResource(R.string.ia_ram, bytesLegibles(equipo.ramBytes), bytesLegibles(equipo.libreBytes)))
 
     BoxWithConstraints(Modifier.fillMaxWidth()) {
