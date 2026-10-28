@@ -60,10 +60,20 @@ Limpieza que se repite sola y sincronización continua, en el servidor, aunque e
   consentimiento: true }                                    // obligatorio: guardar las credenciales cifradas
 ```
 `PATCH /api/tareas/{id}` `{activa?, cada_dias?, dureza?, password?, password_destino?}` → `Tarea`
+- `tls`: `true` = TLS implícito (p. ej. IMAP 993); `false` = sin TLS implícito (STARTTLS si el servidor lo ofrece). Es el `secure` de la cuenta en las apps.
+- Si un cliente no puede mandar `PATCH`, manda `POST /api/tareas/{id}` con `X-HTTP-Method-Override: PATCH` (Android lo hace solo si su cliente HTTP rechaza `PATCH`); el servicio debería aceptarlo.
 `DELETE /api/tareas/{id}` → `204` (borra también las credenciales)
 
 `Tarea`: `{id, tipo, cuenta, destino, cada_dias, cada_minutos, dureza, estado: "activa" | "pausada" | "error", motivo, ultima_corrida, proxima_corrida, ultimo_resultado: {ok, resumen} | null}` (fechas ISO 8601).
 - Sincronizar corre cada `cada_minutos` (15). Limpiar manda a la Papelera solo lo que supera la dureza, respeta las reglas por remitente de la cuenta web y nunca toca contactos ni conversaciones.
-- `402`: sin suscripción o sin lugar para la cuenta. `400`: datos inválidos o falta el consentimiento. `422 {codigo: "credenciales"}`: no se pudo entrar a la cuenta al crearla.
+- `402`: sin suscripción o sin lugar para la cuenta. `400`: datos inválidos, falta el consentimiento o se pasó el tope de tareas por usuario (20); el `detail` dice cuál. `409`: ya existe la misma tarea (mismo tipo y cuenta). `422 {codigo: "credenciales"}`: no se pudo entrar a la cuenta al crearla.
+- La limpieza automática nunca baja de dureza 30 aunque se pida menos (las apps ya recortan con `tareas.durezaMin`).
 - Gmail en el servidor va por IMAP con contraseña de aplicación (no por «Iniciar sesión con Google»).
 - Si la suscripción vence, las tareas se pausan solas (`motivo: "suscripcion"`); si las credenciales fallan, se pausan y se avisa por correo.
+
+## Actualizaciones (1.7.0)
+Punto fijo `https://mt.nonosky.com/actualizaciones/`, para que un cambio de repositorio no vuelva a dejar apps sin actualizar. Solo lee y redirige; los binarios siguen en los releases de `nonoskygt/nonimail`.
+- `latest.yml`, `latest-linux.yml`, `latest-mac.yml`: el mismo archivo del último release (copia en caché o `302` a `https://github.com/nonoskygt/nonimail/releases/latest/download/<archivo>`). Los lee electron-updater (provider `generic`) en Windows (NSIS), Linux (AppImage) y Mac.
+- Cualquier otro `<archivo>` (instaladores, `.AppImage`, `-mac.zip`, `.blockmap`): `302` a `https://github.com/nonoskygt/nonimail/releases/download/v<versión>/<archivo>`, con la versión tomada del nombre (`NoniMail-Tools-Setup-1.7.0.exe` → `v1.7.0`); sin versión en el nombre, a `releases/latest/download/<archivo>`. Los `.blockmap` de la versión instalada se piden con su propia versión (descarga diferencial); si no existen, electron-updater baja el archivo completo.
+- `latest.json`: el JSON de `GET https://api.github.com/repos/nonoskygt/nonimail/releases/latest` (`302` hacia ahí o copia en caché), con `tag_name`, `draft`, `prerelease`, `html_url` y `assets[{name, browser_download_url, size}]`. Lo usan Android (busca `NoniMail-Tools.apk` y `SHA256SUMS-android.txt`) y el portable y el `.deb` de escritorio.
+- Solo `https`; las redirecciones se siguen. Si el punto fijo falla, las apps preguntan directo a GitHub.

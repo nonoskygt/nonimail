@@ -10,6 +10,9 @@ Clean your inbox by sender and sync IMAP mailboxes, with AI running on your own 
 | Mac | [`escritorio/`](escritorio/) | [.dmg](https://github.com/nonoskygt/nonimail/releases/latest/download/NoniMail-Tools.dmg) |
 | Android | [`android/`](android/) | [APK](https://github.com/nonoskygt/nonimail/releases/latest/download/NoniMail-Tools.apk) |
 
+Gratis para cuentas personales; con suscripción, cuentas de dominio propio, IA de Nonosky y tareas permanentes en el servidor (Ajustes → Planes).
+Free for personal accounts; with a subscription, own-domain accounts, Nonosky AI and permanent tasks on the server (Settings → Plans).
+
 Instrucciones de uso: [escritorio (es)](escritorio/README.es.md) · [desktop (en)](escritorio/README.md) · [Android (es)](android/README.es.md) · [Android (en)](android/README.md).
 También en la web: https://mt.nonosky.com
 
