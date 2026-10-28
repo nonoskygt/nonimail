@@ -129,7 +129,7 @@ class TareasApi(
 
         private fun credencial(c: CredencialTarea): JsonObject = buildJsonObject {
             put("correo", c.correo.trim().lowercase()); put("host", c.host.trim()); put("puerto", c.puerto)
-            put("usuario", c.usuario.ifBlank { c.correo }); put("password", c.password); put("tls", c.tls)
+            put("usuario", c.usuario.ifBlank { c.correo.trim().lowercase() }); put("password", c.password); put("tls", c.tls)
         }
 
         /** The `POST /api/tareas` body; the consent is always sent, the dialog asked for it. */

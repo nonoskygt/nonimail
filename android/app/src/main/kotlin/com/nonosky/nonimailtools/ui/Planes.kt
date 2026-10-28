@@ -39,7 +39,7 @@ fun BloquePlanes() {
     val s = estado.plan?.suscripcion?.takeIf { it.vigente }
 
     @Composable
-    fun rango(t: Tramo) = if (t.hasta == null) stringResource(R.string.planes_o_mas, t.desde) else stringResource(R.string.planes_rango, t.desde, t.hasta)
+    fun rango(t: Tramo): String { val hasta = t.hasta; return if (hasta == null) stringResource(R.string.planes_o_mas, t.desde) else stringResource(R.string.planes_rango, t.desde, hasta) }
 
     Tarjeta {
         Titulo(stringResource(R.string.planes_titulo))
