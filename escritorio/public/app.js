@@ -1165,6 +1165,7 @@
       clear(root);
       const st = P.st;
       if (!st) { if (P.checking) root.append(P.progressBox({ pct: null, label: t('ui.ai.verifying') })); return; }
+      if (o.compact) { P.renderCompact(st); P.appendManual(); return; }
       const ev = P.ev, busy = P.busy(), failed = ev && ev.done && ev.error;
       const notFound = !st.installed && !st.running;
       const head = h('div', { class: 'row', style: 'margin-top:0' },
@@ -1197,9 +1198,33 @@
         if (sel.installed) root.append(h('div', { class: 'prog-row' }, h('div', { class: 'msgline ok', style: 'flex:1', text: ev && ev.phase === 'done' ? t('ui.ai.done') : t('ui.ai.modelReady', { m: sel.tag }) })));
         else root.append(h('div', { class: 'prog-row' }, h('small', { style: 'flex:1', text: t('ui.ai.modelMissing', { m: sel.tag }) }), h('button', { class: 'btn primary sm', text: t('ui.ai.use1'), onclick: () => P.doPull(sel.tag) })));
       }
+      P.appendManual();
+    };
+    P.appendManual = () => {
       if (P.manual) root.append(h('div', { style: 'display:grid;gap:6px' }, h('small', { text: t('ui.ai.manual') }),
         h('div', { class: 'cmd' }, h('code', { text: P.manual }), h('button', { class: 'btn sm', text: t('ui.copy'), onclick: () => copyText(P.manual) })),
         h('button', { class: 'btn sm', style: 'justify-self:start', text: t('ui.ai.recheck'), onclick: () => P.refresh() })));
+    };
+    // Pantalla principal: una línea («IA lista» o «IA no instalada» + Instalar), la barra mientras trabaja.
+    P.renderCompact = (st) => {
+      const ev = P.ev, sel = st.tiers.find(x => x.tag === P.sel);
+      if (P.busy()) return root.append(P.progressBox(progressOf(ev), h('button', { class: 'btn sm', text: t('ui.ai.cancel'), onclick: () => api('POST', '/api/setup/ollama/cancel', {}).catch(fail) })));
+      if (ev && ev.done && ev.error) {
+        return root.append(h('div', { class: 'prog-row' }, h('div', { class: `msgline ${ev.cancelled ? 'warn' : 'bad'}`, style: 'flex:1', text: ev.cancelled ? t('ui.ai.cancelled') : ev.error }),
+          h('button', { class: 'btn sm', text: t('ui.ai.retry'), onclick: () => { P.ev = null; P.doAll(); } })));
+      }
+      if (st.running && sel && sel.installed) return root.append(h('div', { class: 'prog-row' }, h('span', { class: 'dot on' }), h('span', { text: t('ui.ai.readyMain', { m: sel.tag }) })));
+      root.append(h('div', { class: 'prog-row' }, h('span', { class: 'dot off' }), h('b', { text: t('ui.ai.notInstalled') }),
+        sel ? h('button', { class: 'btn primary sm', text: t('ui.ai.installAi', { gb: gbText(sel.sizeBytes) }), onclick: () => P.doAll() }) : ''));
+    };
+    // Un botón: instala Ollama si falta (o lo arranca), luego baja el modelo elegido.
+    P.doAll = async () => {
+      if (!P.sel || !P.st) return;
+      try { await api('POST', '/api/setup/prefs', { ai: true, model: P.sel }); } catch (e) { return fail(e); }
+      if (P.st.running) return P.doPull(P.sel);
+      P.chain = true;
+      if (!P.st.installed) return P.doInstall();
+      P.autoStarted = false; return P.refresh();
     };
     P.progressBox = (pr, extra) => h('div', { class: 'prog-row' },
       h('div', { style: 'flex:1;display:grid;gap:4px;min-width:0' }, h('div', { class: 'bar' }, h('i', { style: `width:${pr.pct ?? 8}%` })), h('small', { text: pr.label })), extra || '');
@@ -1221,7 +1246,17 @@
     };
     P.event = (ev) => {
       P.ev = ev;
-      if (ev.done) { P.refresh(); return; }
+      if (ev.done) {
+        const seguir = P.chain && !ev.error && (ev.task === 'install' || ev.task === 'start');
+        if (ev.error || ev.task === 'pull') P.chain = false;
+        P.refresh().then(() => {
+          if (!seguir || !P.st || !P.st.running) return;
+          P.chain = false;
+          const s = P.st.tiers.find(x => x.tag === P.sel);
+          if (s && !s.installed) P.doPull(P.sel);
+        });
+        return;
+      }
       P.render(); if (o.onChange) o.onChange(P.st);
     };
     P.render();
@@ -1419,10 +1454,18 @@
       if (opt) sel.value = opt.value;
     }
   }
+  // Limpiar: estado de la IA del equipo e instalación de un botón; se monta de nuevo solo si cambia el modo.
+  let clAiMode = null;
+  function renderCleanAi() {
+    const mode = S.config.aiMode, box = $('cl-ai');
+    if (mode === clAiMode) return;
+    clAiMode = mode; box.hidden = mode !== 'equipo'; clear(box);
+    if (mode === 'equipo') mountOllamaPanel(box, { compact: true, getModel: () => S.config.model });
+  }
   function renderAll() {
     if (!S.config) return;
     applyAppearance(S.config.appearance);
-    renderTabs(); renderHeader(); renderClean();
+    renderTabs(); renderHeader(); renderClean(); renderCleanAi();
     if (S.tab === 'sincronizar') renderSync();
     if (S.tab === 'cuentas') renderAccountsList();
     renderAuthBoxes();

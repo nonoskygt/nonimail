@@ -122,6 +122,36 @@ fun BloqueIA() {
     if (elegido == "red") PanelServidorRed()
 }
 
+/**
+ * Main screen (Limpiar): whether the AI is there, and installing it with one button.
+ * Ready → «Usar la IA» switch with the model's name. Not installed → the recommended (or chosen) model's install step.
+ * Nothing when the person chose «Sin IA» in Ajustes.
+ */
+@Composable
+fun IaEnInicio() {
+    val app = NmtApp.instance
+    val ctx = LocalContext.current
+    val v by app.ajustes.valores.collectAsState()
+    val estado by app.ia.estado.collectAsState()
+    val enCursoId by app.ia.modeloEnCurso.collectAsState()
+    val recomendado = remember { app.ia.recomendado(ctx) }
+    val modo = v.iaModoEfectivo
+    if (v.iaActiva) {
+        val nombre = when (modo) {
+            "red" -> stringResource(R.string.ia_servidor_red)
+            MODO_NONOSKY -> stringResource(R.string.ia_modo_nonosky)
+            else -> nombreNivel(modo)
+        }
+        FilaInterruptor(stringResource(R.string.usar_ia), v.usarIa, { app.ajustes.usarIa(it) }, detalle = stringResource(R.string.ia_lista_detalle, nombre))
+        return
+    }
+    if (modo == "" && v.iaElegida) return
+    val m = Defaults.instance.localAi.models.firstOrNull { it.id == modo } ?: recomendado
+    val e = if (enCursoId == m.id) estado else EstadoIa.Inactivo
+    if (!e.enCurso) Text(stringResource(R.string.ia_no_instalada), style = MaterialTheme.typography.bodyMedium, color = dulce.text, fontWeight = FontWeight.SemiBold)
+    PasoModelo(m, e, listo = false)
+}
+
 @Composable
 private fun PasoModelo(m: ModeloIa, e: EstadoIa, listo: Boolean) {
     val app = NmtApp.instance

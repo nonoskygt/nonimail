@@ -62,10 +62,12 @@
     <string name="ia_mediano">Mediano</string>
     <string name="ia_grande">Grande</string>
     <string name="ia_servidor_red">Servidor en mi red</string>
-    <string name="ia_descargar">Descargar y configurar (%1$s)</string>
+    <string name="ia_descargar">Instalar la IA (%1$s)</string>
     <string name="ia_fase_verificando">Verificando…</string>
     <string name="ia_fase_descargando">Descargando modelo… %1$s</string>
     <string name="ia_fase_configurando">Configurando modelo…</string>
+    <string name="ia_no_instalada">IA no instalada</string>
+    <string name="ia_lista_detalle">Lista · %1$s</string>
     <string name="ia_listo">Listo</string>
     <string name="ia_cancelado">Cancelado</string>
     <string name="reintentar">Reintentar</string>

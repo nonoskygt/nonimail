@@ -62,10 +62,12 @@
     <string name="ia_mediano">Medium</string>
     <string name="ia_grande">Large</string>
     <string name="ia_servidor_red">Server on my network</string>
-    <string name="ia_descargar">Download and set up (%1$s)</string>
+    <string name="ia_descargar">Install AI (%1$s)</string>
     <string name="ia_fase_verificando">Verifying…</string>
     <string name="ia_fase_descargando">Downloading model… %1$s</string>
     <string name="ia_fase_configurando">Setting up model…</string>
+    <string name="ia_no_instalada">AI not installed</string>
+    <string name="ia_lista_detalle">Ready · %1$s</string>
     <string name="ia_listo">Ready</string>
     <string name="ia_cancelado">Canceled</string>
     <string name="reintentar">Retry</string>

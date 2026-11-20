@@ -43,6 +43,8 @@ data class Valores(
     val iaModo: String = "",
     /** File name of the model that was downloaded, verified and loaded once (a retired model no longer matches). */
     val iaListoId: String = "",
+    /** The AI was chosen at least once (in Ajustes or from Limpiar): «Sin IA» then means the person turned it off. */
+    val iaElegida: Boolean = false,
     val telemetria: Boolean = true,
     val serviceUrl: String = BuildConfig.SERVICE_URL,
     val installId: String = "",
@@ -124,7 +126,7 @@ class Ajustes(private val ctx: Context, scope: CoroutineScope) {
         configurado = p[K.configurado] ?: false,
         ollamaUrl = p[K.ollamaUrl] ?: "",
         ollamaModelo = p[K.ollamaModelo]?.takeIf { it.isNotBlank() } ?: BuildConfig.OLLAMA_MODEL,
-        iaModo = p[K.iaModo] ?: "", iaListoId = p[K.iaListoId] ?: "",
+        iaModo = p[K.iaModo] ?: "", iaListoId = p[K.iaListoId] ?: "", iaElegida = p[K.iaModo] != null,
         telemetria = p[K.telemetria] ?: true,
         serviceUrl = p[K.serviceUrl]?.takeIf { it.isNotBlank() } ?: BuildConfig.SERVICE_URL,
         installId = p[K.installId] ?: "",
