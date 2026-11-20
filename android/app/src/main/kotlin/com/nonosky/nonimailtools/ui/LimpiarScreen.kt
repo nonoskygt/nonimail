@@ -154,9 +154,7 @@ fun LimpiarScreen(irAAjustes: () -> Unit, modifier: Modifier = Modifier) {
                     stringResource(R.string.cantidad_dias),
                     teclado = KeyboardType.Number,
                 )
-                if (v.iaActiva) {
-                    FilaInterruptor(stringResource(R.string.usar_ia), v.usarIa, { app.ajustes.usarIa(it) })
-                }
+                IaEnInicio()
                 if (escaneo is EstadoEscaneo.Corriendo) {
                     val p = (escaneo as EstadoEscaneo.Corriendo).p
                     Progreso(p)
